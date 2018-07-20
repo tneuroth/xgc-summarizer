@@ -26,27 +26,26 @@ using namespace std;
 using namespace TN;
 using namespace chrono;
 
-map< string, int > constants_map;
+const map< string, int > attrKeyToPhaseIndex =
+{
+    { "r",            0 },   // Major radius [m]
+    { "z",            1 },   // Azimuthal direction [m]
+    { "zeta",         2 },   // Toroidal angle
+    { "rho_parallel", 3 },   // Parallel Larmor radius [m]
+    { "w1",           4 },   // Grid weight 1
+    { "w2",           5 },   // Grid weight 2
+    { "mu",           6 },   // Magnetic moment
+    { "w0",           7 },   // Grid weight
+    { "f0",           8 }
+}; // Grid distribution function
 
+map< string, int > constants_map;
 XGCBFieldInterpolator bFieldInterpolator;
 XGCPsinInterpolator psinInterpolator;
 Vec2< float > poloidal_center;
 
 void readParticleDataStep( vector< float > & result, const string & ptype, const string & attr, const string & path, int rank, int nRanks )
 {
-    const map< string, int > attrKeyToPhaseIndex =
-    {
-        { "r",            0 },   // Major radius [m]
-        { "z",            1 },   // Azimuthal direction [m]
-        { "zeta",         2 },   // Toroidal angle
-        { "rho_parallel", 3 },   // Parallel Larmor radius [m]
-        { "w1",           4 },   // Grid weight 1
-        { "w2",           5 },   // Grid weight 2
-        { "mu",           6 },   // Magnetic moment
-        { "w0",           7 },   // Grid weight
-        { "f0",           8 }
-    }; // Grid distribution function
-
     hid_t file_id = H5Fopen( path.c_str() , H5F_ACC_RDONLY, H5P_DEFAULT );
     hid_t group = H5Gopen2( file_id, "/", H5P_DEFAULT );
     hid_t dataset_id = H5Dopen2( group, ptype == "ions" ? "iphase" : "ephase", H5P_DEFAULT );
@@ -83,42 +82,49 @@ void readParticleDataStep( vector< float > & result, const string & ptype, const
 void readBPParticleDataStep(
     vector< float > & result,
     const string & ptype,
-    const string & attr,
     const string & path,
     int rank,
     int nRanks,
-    adios2::IO & bpIO )
+    adios2::ADIOS & adios )
 {
-    cout << "opening file " << path << endl;
+    adios2::IO bpIO = adios.DeclareIO( path + "." + std::to_string( rank ) );
     adios2::Engine bpReader = bpIO.Open( path, adios2::Mode::Read );
-  
-    adios2::Variable<unsigned int> iphase = 
-        bpIO.InquireVariable< unsigned int >("iphase");
-        
-    const int64_t SZ = dims[ 0 ];
-    const int64_t CS = SZ / nRanks;
-    const int64_t MY_START  = rank * CS;
-    const int64_t MY_END    = rank < nRanks-1 ? MY_START + CS - 1 : SZ - 1;
-    const int64_t MY_CHUNKSIZE = MY_END - MY_START + 1;
+    adios2::Variable<double> iphase = bpIO.InquireVariable< double >("iphase");
 
-    iphase.SetSelection( { 
-        { MY_START, attrKeyToPhaseIndex.at( attr ) }, 
-        { MY_CHUNKSIZE, 1 } } );
+    if( iphase )
+    {
+        auto dims = iphase.Shape();
 
-//    const std::map<std::string, adios2::Params> variables = bpIO.AvailableVariables();
+        const int64_t SZ = dims[ 0 ];
+        const int64_t CS = SZ / nRanks;
+        const int64_t MY_START = rank * CS;
+        const int64_t MY_CHUNKSIZE = MY_LAST - MY_START + 1;
 
-    // for (const auto variablePair : variables)
-    // {
-    //     std::cout << "Name: " << variablePair.first;
-    //     for (const auto &parameter : variablePair.second)
-    //     {
-    //         std::cout << "\t" << parameter.first << ": " << parameter.second << "\n";
-    //     }
-    // }
+        // iphase.SetSelection(
+        // {
+        //     { MY_START,     0 },
+        //     { MY_CHUNKSIZE, 8 }
+        // } );
+
+        vector< double > tmp;
+        bpReader.Get( iphase, tmp, adios2::Mode::Sync );
+
+        result.resize( MY_CHUNKSIZE * 8 );
+        for( size_t pIDX = 0; pIDX < MY_CHUNKSIZE; ++pIDX )
+        {
+            for( size_t vIDX = 0; vIDX < 8; ++vIDX )
+            {
+                result[ vIDX * MY_CHUNKSIZE + pIDX ] = tmp[ ( pIDX + MY_START ) * 9 + vIDX ];
+            }
+        }
+    }
+    else
+    {
+        cerr << "iphase doesn't exist\n";
+        exit( 1 );
+    }
 
     bpReader.Close();
-
-    exit( 0 );
 }
 
 void loadConstants( const string & units_path )
@@ -216,56 +222,56 @@ void computeSummaryStep(
     int rank,
     int nRanks,
     TN::KdTreeSearch2D & kdTree,
-    adios2::IO & bpIO )
+    adios2::ADIOS & adios )
 {
     // need r, z, phi, B, mu, rho_parallel, w0, w1
-    vector< float >                       r,   z,   mu,   rho_parallel,   w0,   w1, B, psin;
-    vector< vector< float > * > ptrs = { &r,  &z,  &mu,  &rho_parallel,  &w0,  &w1  };
-    vector< string > keys =            { "r", "z", "mu", "rho_parallel", "w0", "w1" };
+    vector< float > B, psin;
 
     cout << particle_base_path << endl;
     string tstep = to_string( st );
 
-    for( size_t i = 0; i < ptrs.size(); ++i )
-    {
-        //readParticleDataStep( *( ptrs[ i ] ), ptype, keys[ i ], particle_base_path + "xgc.particle." + string( 5 - tstep.size(), '0' ) + tstep +  ".h5", rank, nRanks );
+    vector< float > iphase;
+    high_resolution_clock::time_point readStartTime = high_resolution_clock::now();
+    readBPParticleDataStep(
+        iphase,
+        ptype,
+        particle_base_path + "xgc.restart." + string( 5 - tstep.size(), '0' ) + tstep +  ".bp",
+        rank,
+        nRanks,
+        adios );
+    high_resolution_clock::time_point readStartEnd = high_resolution_clock::now();
+    cout << "RANK: " << rank
+         << ", adios Read time took "
+         << duration_cast<milliseconds>( readStartEnd - readStartTime ).count()
+         << " milliseconds " << " for " << iphase.size()/8 << " particles" << endl;
 
-        readBPParticleDataStep(
-            *( ptrs[ i ] ),
-            ptype,
-            keys[ i ],
-            particle_base_path + "xgc.restart." + string( 5 - tstep.size(), '0' ) + tstep +  ".bp",
-            rank,
-            nRanks,
-            bpIO );
-    }
-
-    const size_t SZ = r.size();
+    const size_t SZ = iphase.size() / 8;
+    const size_t R_POS = 0, Z_POS = 2*SZ, RHO_POS = 3*SZ, W1_POS = 4*SZ, W0_POS = 7*SZ, MU_POS = 6*SZ;
 
     // get b mapped to particles from field
-    B.resize( r.size() );
+    B.resize( SZ );
     for( size_t i = 0; i < SZ; ++i )
     {
-        Vec3< double > b = bFieldInterpolator( Vec2< double >( r[ i ], z[ i ] ) );
+        Vec3< double > b = bFieldInterpolator( Vec2< double >( iphase[ R_POS + i ], iphase[ Z_POS + i ] ) );
         B[ i ] = sqrt( b.x()*b.x() + b.y()*b.y() + b.z()*b.z() );
     }
 
     // get psi_n mapped from the field
-    psin.resize( r.size() );
+    psin.resize( SZ );
     for( size_t i = 0; i < SZ; ++i )
     {
-        psin[ i ] = psinInterpolator( Vec2< double >( r[ i ], z[ i ] ) );
+        psin[ i ] = psinInterpolator( Vec2< double >( iphase[ R_POS + i ], iphase[ Z_POS + i ] ) );
     }
 
     // compute velocity and weight
-    vector< float > vpara( r.size() );
-    vector< float > vperp( r.size() );
-    vector< float >  w0w1( r.size() );
+    vector< float > vpara( SZ );
+    vector< float > vperp( SZ );
+    vector< float >  w0w1( SZ );
 
     #pragma omp parallel for simd
     for( size_t i = 0; i < SZ; ++i )
     {
-        w0w1[  i ] = w0[ i ] * w1[ i ];
+        w0w1[  i ] = iphase[ W0_POS + i ] * iphase[ W1_POS + i ];
     }
 
     const double mass_ratio = 1000.0;
@@ -280,8 +286,8 @@ void computeSummaryStep(
         #pragma omp parallel for simd
         for( size_t i = 0; i < SZ; ++i )
         {
-            vpara[ i ] = B[ i ] * rho_parallel[ i ] * ( ( ptl_ion_charge_eu * e ) / mi_sim );
-            vperp[ i ] = sqrt( ( mu[ i ] * 2.0 * B[ i ] ) / mi_sim );
+            vpara[ i ] = B[ i ] * iphase[ RHO_POS + i ] * ( ( ptl_ion_charge_eu * e ) / mi_sim );
+            vperp[ i ] = sqrt( ( iphase[   MU_POS + i ] * 2.0 * B[ i ] ) / mi_sim );
         }
     }
     else
@@ -289,8 +295,8 @@ void computeSummaryStep(
         #pragma omp parallel for simd
         for( size_t i = 0; i < SZ; ++i )
         {
-            vpara[ i ] =( B[ i ] * rho_parallel[ i ] * (-e) ) / me_sim;
-            vperp[ i ] = sqrt( ( mu[ i ] * 2.0 * B[ i ]  ) / me_sim  );
+            vpara[ i ] =( B[ i ] * iphase[ RHO_POS + i ] * (-e) ) / me_sim;
+            vperp[ i ] = sqrt( ( iphase[    MU_POS + i ] * 2.0 * B[ i ]  ) / me_sim  );
         }
     }
 
@@ -313,26 +319,31 @@ void computeSummaryStep(
 
     // for VTKM nearest neighbors //////////////////////////////////////////////////////////
 
-    std::vector< int64_t > gridMap;
+    // std::vector< int64_t > gridMap;
+    // high_resolution_clock::time_point kdt1 = high_resolution_clock::now();
+    
+    vector< float > r( iphase.begin() + R_POS, iphase.begin() + R_POS + SZ );
+    vector< float > z( iphase.begin() + Z_POS, iphase.begin() + Z_POS + SZ );
 
-    high_resolution_clock::time_point kdt1 = high_resolution_clock::now();
-    kdTree.run( gridMap, r, z );
-    high_resolution_clock::time_point kdt2 = high_resolution_clock::now();
-    cout << "RANK: " << rank
-         << ", MPI kdtree mapping CHUNK took "
-         << duration_cast<milliseconds>( kdt2 - kdt1 ).count() 
-         << " milliseconds " << " for " << r.size() << " particles" << endl;
+    // kdTree.run( gridMap, r, z );
+    // high_resolution_clock::time_point kdt2 = high_resolution_clock::now();
+    // cout << "RANK: " << rank
+    //      << ", MPI kdtree mapping CHUNK took "
+    //      << duration_cast<milliseconds>( kdt2 - kdt1 ).count()
+    //      << " milliseconds " << " for " << r.size() << " particles" << endl;
 
     /////////////////////////////////////////////////////////////////////////////////////////
 
     #pragma omp simd
     for( size_t i = 0; i < SZ; ++i )
     {
-        int64_t index = gridMap[ i ];//gridBuilder.nearestNeighborIndex( Vec2< double >( r[ i ], z[ i ] ) );
+        //int64_t index = gridMap[ i ];//gridBuilder.nearestNeighborIndex( Vec2< double >( r[ i ], z[ i ] ) );
+
+        int64_t index = gridBuilder.nearestNeighborIndex( Vec2< double >( r[ i ], z[ i ] ) );
         if( index >= 0 )
         {
             summaryStep.w0w1_mean[ index ] += w0w1[ i ];
-            summaryStep.w0w1_rms[  index ] += w0w1[ i ]*w0w1[ i ];
+            summaryStep.w0w1_rms[  index ] += w0w1[ i ] * w0w1[ i ];
             summaryStep.w0w1_min[  index ] = min( w0w1[ i ], summaryStep.w0w1_min[ index ] );
             summaryStep.w0w1_max[  index ] = max( w0w1[ i ], summaryStep.w0w1_max[ index ] );
             summaryStep.num_particles[ index ] += 1.0;
@@ -355,7 +366,7 @@ void computeSummaryStep(
             c = max( min( c, NC - 1 ), 0 );
 
             summaryStep.num_mapped[ index ] += 1.0;
-            summaryStep.velocityDistribution[ index * DIST_STRIDE + r*NC + c ] += w0w1[ i ];
+            summaryStep.velocityDistribution[ index * DIST_STRIDE + r * NC + c ] += w0w1[ i ];
         }
     }
 
@@ -423,7 +434,6 @@ int main( int argc, char** argv )
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
     adios2::ADIOS adios(MPI_COMM_WORLD, adios2::DebugON);
-    adios2::IO bpIO = adios.DeclareIO("XGC-Particle-IO");
 
     // cout << "rank:\t" << rank << "\n";
     if( rank == 0 )
@@ -479,9 +489,9 @@ int main( int argc, char** argv )
 
     high_resolution_clock::time_point t1 = high_resolution_clock::now();
 
-    const int64_t FRST = 200;
+    const int64_t FRST = 400;
     const int64_t LAST = 400;
-    const int64_t STRD = 100;
+    const int64_t STRD = 200;
 
     double summaryStepTime = 0.0;
 
@@ -504,7 +514,7 @@ int main( int argc, char** argv )
             rank,
             nRanks,
             kdTree,
-            bpIO );
+            adios );
 
         high_resolution_clock::time_point st2 = high_resolution_clock::now();
 

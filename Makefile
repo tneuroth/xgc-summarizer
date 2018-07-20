@@ -56,17 +56,6 @@ CMAKE_BINARY_DIR = /home/tn0/repos/xgc-summarizer
 #=============================================================================
 # Targets provided globally by CMake.
 
-# Special rule for the target rebuild_cache
-rebuild_cache:
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Running CMake to regenerate build system..."
-	/usr/local/bin/cmake -H$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR)
-.PHONY : rebuild_cache
-
-# Special rule for the target rebuild_cache
-rebuild_cache/fast: rebuild_cache
-
-.PHONY : rebuild_cache/fast
-
 # Special rule for the target edit_cache
 edit_cache:
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Running CMake cache editor..."
@@ -77,6 +66,17 @@ edit_cache:
 edit_cache/fast: edit_cache
 
 .PHONY : edit_cache/fast
+
+# Special rule for the target rebuild_cache
+rebuild_cache:
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Running CMake to regenerate build system..."
+	/usr/local/bin/cmake -H$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR)
+.PHONY : rebuild_cache
+
+# Special rule for the target rebuild_cache
+rebuild_cache/fast: rebuild_cache
+
+.PHONY : rebuild_cache/fast
 
 # The main all target
 all: cmake_check_build_system
@@ -148,6 +148,46 @@ summarizer: cmake_check_build_system
 summarizer/fast:
 	$(MAKE) -f CMakeFiles/summarizer.dir/build.make CMakeFiles/summarizer.dir/build
 .PHONY : summarizer/fast
+
+#=============================================================================
+# Target rules for targets named bptest
+
+# Build rule for target.
+bptest: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 bptest
+.PHONY : bptest
+
+# fast build rule for target.
+bptest/fast:
+	$(MAKE) -f CMakeFiles/bptest.dir/build.make CMakeFiles/bptest.dir/build
+.PHONY : bptest/fast
+
+source/Minimal.o: source/Minimal.cpp.o
+
+.PHONY : source/Minimal.o
+
+# target to build an object file
+source/Minimal.cpp.o:
+	$(MAKE) -f CMakeFiles/bptest.dir/build.make CMakeFiles/bptest.dir/source/Minimal.cpp.o
+.PHONY : source/Minimal.cpp.o
+
+source/Minimal.i: source/Minimal.cpp.i
+
+.PHONY : source/Minimal.i
+
+# target to preprocess a source file
+source/Minimal.cpp.i:
+	$(MAKE) -f CMakeFiles/bptest.dir/build.make CMakeFiles/bptest.dir/source/Minimal.cpp.i
+.PHONY : source/Minimal.cpp.i
+
+source/Minimal.s: source/Minimal.cpp.s
+
+.PHONY : source/Minimal.s
+
+# target to generate assembly for a file
+source/Minimal.cpp.s:
+	$(MAKE) -f CMakeFiles/bptest.dir/build.make CMakeFiles/bptest.dir/source/Minimal.cpp.s
+.PHONY : source/Minimal.cpp.s
 
 source/SummarizerMPI.o: source/SummarizerMPI.cpp.o
 
@@ -236,11 +276,15 @@ help:
 	@echo "... all (the default if no target is provided)"
 	@echo "... clean"
 	@echo "... depend"
-	@echo "... rebuild_cache"
+	@echo "... edit_cache"
 	@echo "... kdtree-cu"
 	@echo "... kdtree"
 	@echo "... summarizer"
-	@echo "... edit_cache"
+	@echo "... rebuild_cache"
+	@echo "... bptest"
+	@echo "... source/Minimal.o"
+	@echo "... source/Minimal.i"
+	@echo "... source/Minimal.s"
 	@echo "... source/SummarizerMPI.o"
 	@echo "... source/SummarizerMPI.i"
 	@echo "... source/SummarizerMPI.s"

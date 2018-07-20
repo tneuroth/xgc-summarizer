@@ -4,7 +4,9 @@ project(XGC-Summary)
 
 set(SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/source/)
 set(CMAKE_CXX_COMPILER mpicxx)
-set(CMAKE_CXX_FLAGS "-Wall -W -D_REENTRANT -fpic -std=gnu++11 -fopenmp -frounding-math -O3")
+set (CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_FLAGS "-fopenmp -frounding-math")
+set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 
 set(CMAKE_CUDA_COMPILER nvcc)
 set(CUDA_NVCC_FLAGS "-std=c++11 -O4 -m 64 --ptxas-options=-v --compiler-options '-fPIC' -o libkdtree-cu.so --shared")
@@ -24,4 +26,7 @@ target_link_libraries(kdtree vtkm_cont)
 target_link_libraries(kdtree-cu vtkm_cont)
 
 add_executable(summarizer ${SRC_DIR}/SummarizerMPI.cpp)
+add_executable(bptest ${SRC_DIR}/Minimal.cpp)
+
 target_link_libraries(summarizer adios2 pthread mpi vtkm_cont hdf5 CGAL gmp kdtree)
+target_link_libraries(bptest adios2 pthread mpi)
