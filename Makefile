@@ -189,32 +189,32 @@ source/Minimal.cpp.s:
 	$(MAKE) -f CMakeFiles/bptest.dir/build.make CMakeFiles/bptest.dir/source/Minimal.cpp.s
 .PHONY : source/Minimal.cpp.s
 
-source/SummarizerMPI.o: source/SummarizerMPI.cpp.o
+source/SummarizerMPIAdios1.o: source/SummarizerMPIAdios1.cpp.o
 
-.PHONY : source/SummarizerMPI.o
+.PHONY : source/SummarizerMPIAdios1.o
 
 # target to build an object file
-source/SummarizerMPI.cpp.o:
-	$(MAKE) -f CMakeFiles/summarizer.dir/build.make CMakeFiles/summarizer.dir/source/SummarizerMPI.cpp.o
-.PHONY : source/SummarizerMPI.cpp.o
+source/SummarizerMPIAdios1.cpp.o:
+	$(MAKE) -f CMakeFiles/summarizer.dir/build.make CMakeFiles/summarizer.dir/source/SummarizerMPIAdios1.cpp.o
+.PHONY : source/SummarizerMPIAdios1.cpp.o
 
-source/SummarizerMPI.i: source/SummarizerMPI.cpp.i
+source/SummarizerMPIAdios1.i: source/SummarizerMPIAdios1.cpp.i
 
-.PHONY : source/SummarizerMPI.i
+.PHONY : source/SummarizerMPIAdios1.i
 
 # target to preprocess a source file
-source/SummarizerMPI.cpp.i:
-	$(MAKE) -f CMakeFiles/summarizer.dir/build.make CMakeFiles/summarizer.dir/source/SummarizerMPI.cpp.i
-.PHONY : source/SummarizerMPI.cpp.i
+source/SummarizerMPIAdios1.cpp.i:
+	$(MAKE) -f CMakeFiles/summarizer.dir/build.make CMakeFiles/summarizer.dir/source/SummarizerMPIAdios1.cpp.i
+.PHONY : source/SummarizerMPIAdios1.cpp.i
 
-source/SummarizerMPI.s: source/SummarizerMPI.cpp.s
+source/SummarizerMPIAdios1.s: source/SummarizerMPIAdios1.cpp.s
 
-.PHONY : source/SummarizerMPI.s
+.PHONY : source/SummarizerMPIAdios1.s
 
 # target to generate assembly for a file
-source/SummarizerMPI.cpp.s:
-	$(MAKE) -f CMakeFiles/summarizer.dir/build.make CMakeFiles/summarizer.dir/source/SummarizerMPI.cpp.s
-.PHONY : source/SummarizerMPI.cpp.s
+source/SummarizerMPIAdios1.cpp.s:
+	$(MAKE) -f CMakeFiles/summarizer.dir/build.make CMakeFiles/summarizer.dir/source/SummarizerMPIAdios1.cpp.s
+.PHONY : source/SummarizerMPIAdios1.cpp.s
 
 source/kdtree/KdTreeSearch2D.o: source/kdtree/KdTreeSearch2D.cpp.o
 
@@ -285,9 +285,9 @@ help:
 	@echo "... source/Minimal.o"
 	@echo "... source/Minimal.i"
 	@echo "... source/Minimal.s"
-	@echo "... source/SummarizerMPI.o"
-	@echo "... source/SummarizerMPI.i"
-	@echo "... source/SummarizerMPI.s"
+	@echo "... source/SummarizerMPIAdios1.o"
+	@echo "... source/SummarizerMPIAdios1.i"
+	@echo "... source/SummarizerMPIAdios1.s"
 	@echo "... source/kdtree/KdTreeSearch2D.o"
 	@echo "... source/kdtree/KdTreeSearch2D.i"
 	@echo "... source/kdtree/KdTreeSearch2D.s"

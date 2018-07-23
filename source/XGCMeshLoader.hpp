@@ -12,6 +12,20 @@
 #include "SummaryUtils.hpp"
 #include "Types/Vec.hpp"
 
+inline void readMeshBP(
+    TN::SummaryGrid & summaryGrid,
+    const TN::Vec2< float > & poloidal_center,
+    const std::string & path,
+    const std::string & bpath )
+{
+    std::vector< TN::Vec3< double > > Btmp;
+    std::vector< TN::Vec2< double > > tmp2;
+    std::vector< double > tmp1;
+
+    ////////////////////////   Read rz /////////////////////////////////////////////////////////////////////////////////////////
+
+}
+
 inline void readMesh(
     TN::SummaryGrid & summaryGrid,
     const TN::Vec2< float > & poloidal_center,

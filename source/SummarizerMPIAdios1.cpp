@@ -10,7 +10,7 @@
 #include "FieldInterpolator.hpp"
 #include "Types/Vec.hpp"
 
-#include <adios2.h>
+#include "adios_read.h"
 #include <hdf5.h>
 #include <mpi.h>
 
@@ -44,89 +44,51 @@ XGCBFieldInterpolator bFieldInterpolator;
 XGCPsinInterpolator psinInterpolator;
 Vec2< float > poloidal_center;
 
-void readParticleDataStep( vector< float > & result, const string & ptype, const string & attr, const string & path, int rank, int nRanks )
-{
-    hid_t file_id = H5Fopen( path.c_str() , H5F_ACC_RDONLY, H5P_DEFAULT );
-    hid_t group = H5Gopen2( file_id, "/", H5P_DEFAULT );
-    hid_t dataset_id = H5Dopen2( group, ptype == "ions" ? "iphase" : "ephase", H5P_DEFAULT );
-    hid_t dataspace_id = H5Dget_space ( dataset_id );
-    int ndims = H5Sget_simple_extent_ndims( dataspace_id );
-    hsize_t dims[ ndims ];
-    H5Sget_simple_extent_dims( dataspace_id, dims, NULL );
-
-    const int64_t SZ = dims[ 0 ];
-    const int64_t CS = SZ / nRanks;
-    const int64_t MY_START  = rank * CS;
-    const int64_t MY_END    = rank < nRanks-1 ? MY_START + CS - 1 : SZ - 1;
-    const int64_t MY_CHUNKSIZE = MY_END - MY_START + 1;
-
-    hsize_t offset[ 2 ] = { MY_START, attrKeyToPhaseIndex.at( attr ) };
-    hsize_t  count[ 2 ] = { MY_CHUNKSIZE, 1 };
-    hsize_t stride[ 2 ] = { 1, 1 };
-    hsize_t  block[ 2 ] = { 1, 1 };
-
-    herr_t status = H5Sselect_hyperslab( dataspace_id, H5S_SELECT_SET, offset, stride, count, block );
-
-    hsize_t dimsm = MY_CHUNKSIZE;
-    hid_t memspace_id = H5Screate_simple( 1, &dimsm, NULL );
-
-    result.resize( MY_CHUNKSIZE );
-
-    status = H5Dread(  dataset_id, H5T_IEEE_F32LE, memspace_id, dataspace_id, H5P_DEFAULT, result.data() );
-    status = H5Dclose( dataset_id );
-
-    status = H5Gclose(   group );
-    status = H5Fclose( file_id );
-}
-
 void readBPParticleDataStep(
     vector< float > & result,
     const string & ptype,
     const string & path,
     int rank,
-    int nRanks,
-    adios2::ADIOS & adios )
+    int nRanks )
 {
-    static int id = 0;
-    adios2::IO bpIO = adios.DeclareIO( path + "." + to_string( rank ) + "." + to_string( id++ ) );
-    adios2::Engine bpReader = bpIO.Open( path, adios2::Mode::Read );
-    adios2::Variable<double> iphase = bpIO.InquireVariable< double >("iphase");
+    ADIOS_FILE * f = adios_read_open_file ( path.c_str(), ADIOS_READ_METHOD_BP, MPI_COMM_WORLD );
 
-    if( iphase )
+    if (f == NULL) 
     {
-        auto dims = iphase.Shape();
-
-        const int64_t SZ = dims[ 0 ];
-        const int64_t CS = SZ / nRanks;
-        const int64_t MY_START = rank * CS;
-        const int64_t MY_LAST = rank < nRanks-1 ? MY_START + CS - 1 : SZ - 1;
-        const int64_t MY_CHUNKSIZE = 100000;//MY_LAST - MY_START + 1;
-
-        // iphase.SetSelection(
-        // {
-        //     { MY_START,     0 },
-        //     { MY_CHUNKSIZE, 9 }
-        // } );
-
-        vector< double > tmp;
-        bpReader.Get( iphase, tmp, adios2::Mode::Sync );
-
-        result.resize( MY_CHUNKSIZE * 8 );
-        for( size_t pIDX = 0; pIDX < MY_CHUNKSIZE; ++pIDX )
-        {
-            for( size_t vIDX = 0; vIDX < 8; ++vIDX )
-            {
-                result[ vIDX * MY_CHUNKSIZE + pIDX ] = tmp[ ( pIDX + MY_START ) * 9 + vIDX ];
-            }
-        }
-    }
-    else
-    {
-        cerr << "iphase doesn't exist\n";
+        cout << adios_errmsg() << endl;
         exit( 1 );
     }
+    
+    ADIOS_VARINFO * v = adios_inq_var ( f, "iphase" );
 
-    bpReader.Close();
+    const uint64_t SZ = v->dims[ 0 ];
+    const uint64_t CS = SZ / nRanks;
+    const uint64_t MY_START = rank * CS;
+    const uint64_t MY_LAST = rank < nRanks-1 ? MY_START + CS - 1 : SZ - 1;
+    const uint64_t MY_CHUNKSIZE = MY_LAST - MY_START + 1;
+
+    uint64_t start[2] = { MY_START,        0 }; 
+    uint64_t count[2] = { MY_CHUNKSIZE,    9 };
+
+    ADIOS_SELECTION * selection = adios_selection_boundingbox( v->ndim, start, count );
+
+    vector< double > tmp( SZ * 9 );
+    
+    adios_schedule_read ( f, selection, "iphase", 0, 1, tmp.data() );
+    adios_perform_reads ( f, 1 );
+    
+    result.resize( MY_CHUNKSIZE * 9 );
+    for( size_t pIDX = 0; pIDX < MY_CHUNKSIZE; ++pIDX )
+    {
+        for( size_t vIDX = 0; vIDX < 8; ++vIDX )
+        {
+            result[ vIDX * MY_CHUNKSIZE + pIDX ] = tmp[ ( pIDX ) * 9 + vIDX ];
+        }
+    }
+
+    adios_selection_delete ( selection );
+    adios_free_varinfo ( v );
+    adios_read_close ( f );
 }
 
 void loadConstants( const string & units_path )
@@ -223,8 +185,7 @@ void computeSummaryStep(
     const string & units_path,
     int rank,
     int nRanks,
-    TN::KdTreeSearch2D & kdTree,
-    adios2::ADIOS & adios )
+    TN::KdTreeSearch2D & kdTree )
 {
     // need r, z, phi, B, mu, rho_parallel, w0, w1
     vector< float > B, psin;
@@ -239,8 +200,7 @@ void computeSummaryStep(
         ptype,
         particle_base_path + "xgc.restart." + string( 5 - tstep.size(), '0' ) + tstep +  ".bp",
         rank,
-        nRanks,
-        adios );
+        nRanks );
     high_resolution_clock::time_point readStartEnd = high_resolution_clock::now();
     cout << "RANK: " << rank
          << ", adios Read time took "
@@ -435,14 +395,14 @@ int main( int argc, char** argv )
     MPI_Comm_size(MPI_COMM_WORLD, &nRanks);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-    adios2::ADIOS adios(MPI_COMM_WORLD, adios2::DebugON);
+    int err  = adios_read_init_method ( ADIOS_READ_METHOD_BP, MPI_COMM_WORLD, "verbose=3" );
 
     // cout << "rank:\t" << rank << "\n";
     if( rank == 0 )
     {
         cout << "nRanks:\t" << nRanks << endl;
     }
-
+ 
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     const string ptype = "ions";
@@ -509,14 +469,13 @@ int main( int argc, char** argv )
             summaryStep,
             summaryGrid,
             gridBuilder,
-            200,     // simulation tstep that corresponds to file
+            400,     // simulation tstep that corresponds to file
             ptype,
             particle_data_base_path,
             units_path,
             rank,
             nRanks,
-            kdTree,
-            adios );
+            kdTree );
 
         high_resolution_clock::time_point st2 = high_resolution_clock::now();
 
@@ -623,6 +582,7 @@ int main( int argc, char** argv )
         cout << "Summarization step took " << duration / ( N_COMPUTED ) << " milliseconds (on average) including reduction and file reading.\n";
     }
 
+    adios_read_finalize_method ( ADIOS_READ_METHOD_BP );
     MPI_Finalize();
     return 0;
 }
