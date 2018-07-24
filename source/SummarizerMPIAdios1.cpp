@@ -39,7 +39,7 @@ const map< string, int > attrKeyToPhaseIndex =
     { "f0",           8 }
 }; // Grid distribution function
 
-map< string, int > constants_map;
+map< string, double > constants_map;
 XGCBFieldInterpolator bFieldInterpolator;
 XGCPsinInterpolator psinInterpolator;
 Vec2< float > poloidal_center;
@@ -67,8 +67,10 @@ void readBPParticleDataStep(
     const uint64_t MY_LAST = rank < nRanks-1 ? MY_START + CS - 1 : SZ - 1;
     const uint64_t MY_CHUNKSIZE = MY_LAST - MY_START + 1;
 
-    uint64_t start[2] = { MY_START,        0 }; 
-    uint64_t count[2] = { MY_CHUNKSIZE,    9 };
+    uint64_t start[ 2 ] = { MY_START,        0 }; 
+    uint64_t count[ 2 ] = { MY_CHUNKSIZE,    9 };
+
+    cout << "my start " << MY_START << " my size " << MY_CHUNKSIZE << " total " << SZ << endl;
 
     ADIOS_SELECTION * selection = adios_selection_boundingbox( v->ndim, start, count );
 
@@ -80,7 +82,7 @@ void readBPParticleDataStep(
     result.resize( MY_CHUNKSIZE * 9 );
     for( size_t pIDX = 0; pIDX < MY_CHUNKSIZE; ++pIDX )
     {
-        for( size_t vIDX = 0; vIDX < 8; ++vIDX )
+        for( size_t vIDX = 0; vIDX < 9; ++vIDX )
         {
             result[ vIDX * MY_CHUNKSIZE + pIDX ] = tmp[ ( pIDX ) * 9 + vIDX ];
         }
@@ -96,36 +98,24 @@ void loadConstants( const string & units_path )
     ifstream inFile;
     inFile.open( units_path );
     string line;
+
+    if( ! inFile.is_open() )
+    {
+        cout << "couldn't open " << units_path << endl;
+    }
     while( inFile )
     {
         if ( ! getline( inFile, line ) ) break;
-        istringstream ss( line );
-        float value;
-        string name;
-        string valueStr;
-        ss >> name >> valueStr;
+        line.erase(std::remove_if(line.begin(), line.end(), ::isspace), line.end());
+        line.pop_back();
+        stringstream ss( line );
+        string name, valueStr;
+        getline( ss, name, '=' );
+        getline( ss, valueStr );
 
-        if( valueStr == "=" )
-        {
-            ss >> value;
-        }
-        else if( valueStr[ 0 ] == '=' )
-        {
-            valueStr.erase( valueStr.begin() );
-            value = stod( valueStr );
-        }
-        else
-        {
-            value = stod( valueStr );
-        }
-
-        if( name.back() == '=' )
-        {
-            name.pop_back();
-        }
-
-        constants_map.insert( { name, value } );
+        constants_map.insert( { name, std::stod( valueStr ) } );
     }
+
     inFile.close();
 
     if( constants_map.count( "eq_axis_r" ) <= 0 || constants_map.count( "eq_axis_z" ) <= 0 )
@@ -146,13 +136,6 @@ void writeSummaryGrid(
 {
     const int64_t N_CELLS = summaryGrid.probes.r.size();
 
-    // cout << summaryGrid.probes.r[ 0 ] << "\n";
-    // cout << summaryGrid.probes.z[ 0 ] << "\n";
-    // cout << summaryGrid.probes.psin[ 0 ] << "\n";
-    // cout << summaryGrid.probes.poloidalAngle[ 0 ] << "\n";
-    // cout << summaryGrid.probes.B[ 0 ] << "\n";
-    // cout << summaryGrid.probes.volume[ 0 ] << "\n";
-
     string filepath = outpath + "/" + ptype + ".summary.grid.dat";
     ofstream outFile( filepath, ios::out | ios::binary );
     outFile.write( (char*) summaryGrid.probes.r.data(), sizeof( float ) * N_CELLS );
@@ -172,6 +155,32 @@ void writeSummaryGrid(
     outFile << "num_cells  " << to_string( N_CELLS              ) << "\n";
     // partNormFactor ??
     // particle_ratio ??
+    outFile.close();
+
+    // neighborhoods
+
+    int64_t num_neighbors = 0;
+    std::vector< int64_t > nOffsets( N_CELLS );
+    for( int64_t i = 0; i < N_CELLS; ++i )
+    {
+        num_neighbors += summaryGrid.neighborhoods[ i ].size();
+        nOffsets[ i ] = num_neighbors;
+    }
+    std::vector< int64_t > nh( num_neighbors );
+    for( int64_t i = 0, k = 0; i < N_CELLS; ++i )
+    {
+        for( int j = i == 0 ? 0 : nOffsets[ i - 1 ]; j < nOffsets[ i ]; ++j )
+        {
+            nh[ k++ ] = summaryGrid.neighborhoods[ i ][ j ];
+        }
+    }
+
+    outFile.open( outpath + "/" + ptype + ".summary.grid.neighbors.dat", ios::out | ios::binary );
+    outFile.write( (char*) nh.data(), sizeof( int64_t ) * num_neighbors );
+    outFile.close();
+
+    outFile.open( outpath + "/" + ptype + ".summary.grid.neighbor.counts.dat", ios::out | ios::binary );
+    outFile.write( (char*) nOffsets.data(), sizeof( int64_t ) * N_CELLS );
     outFile.close();
 }
 
@@ -205,10 +214,15 @@ void computeSummaryStep(
     cout << "RANK: " << rank
          << ", adios Read time took "
          << duration_cast<milliseconds>( readStartEnd - readStartTime ).count()
-         << " milliseconds " << " for " << iphase.size()/8 << " particles" << endl;
+         << " milliseconds " << " for " << iphase.size()/9 << " particles" << endl;
 
-    const size_t SZ = iphase.size() / 8;
-    const size_t R_POS = 0, Z_POS = 2*SZ, RHO_POS = 3*SZ, W1_POS = 4*SZ, W0_POS = 7*SZ, MU_POS = 6*SZ;
+    const size_t SZ = iphase.size() / 9;
+    const size_t R_POS = attrKeyToPhaseIndex.at( "r" ) * SZ;
+    const size_t Z_POS = attrKeyToPhaseIndex.at( "z" ) * SZ;
+    const size_t RHO_POS = attrKeyToPhaseIndex.at( "rho_parallel" ) * SZ;
+    const size_t W1_POS = attrKeyToPhaseIndex.at( "w1" ) * SZ;        
+    const size_t W0_POS = attrKeyToPhaseIndex.at( "w0" ) * SZ;
+    const size_t MU_POS = attrKeyToPhaseIndex.at( "mu" ) * SZ;       
 
     // get b mapped to particles from field
     B.resize( SZ );
@@ -271,37 +285,44 @@ void computeSummaryStep(
     const int64_t DIST_STRIDE = NR*NC;
 
     const size_t N_CELLS = summaryGrid.probes.volume.size();
-    summaryStep.w0w1_mean.resize( N_CELLS, 0.f );
-    summaryStep.w0w1_rms.resize( N_CELLS, 0.f );
-    summaryStep.w0w1_min.resize( N_CELLS,  numeric_limits< float >::max() );
-    summaryStep.w0w1_max.resize( N_CELLS, -numeric_limits< float >::max() );
-    summaryStep.num_particles.resize( N_CELLS, 0.f );
-    summaryStep.num_mapped.resize( N_CELLS, 0.f );
-    summaryStep.velocityDistribution.resize( N_CELLS*NR*NC, 0.f );
+
+    summaryStep.w0w1_mean            = std::vector< float >( N_CELLS, 0.f );
+    summaryStep.w0w1_rms             = std::vector< float >( N_CELLS, 0.f );
+    summaryStep.w0w1_min             = std::vector< float >( N_CELLS,  numeric_limits< float >::max() );
+    summaryStep.w0w1_max             = std::vector< float >( N_CELLS, -numeric_limits< float >::max() );
+    summaryStep.num_particles        = std::vector< float >( N_CELLS, 0.f );
+    summaryStep.num_mapped           = std::vector< float >( N_CELLS, 0.f );
+    summaryStep.velocityDistribution = std::vector< float >( N_CELLS*NR*NC, 0.f );
 
     // for VTKM nearest neighbors //////////////////////////////////////////////////////////
 
-    // vector< int64_t > gridMap;
-    // high_resolution_clock::time_point kdt1 = high_resolution_clock::now();
+    vector< int64_t > gridMap;
+    high_resolution_clock::time_point kdt1 = high_resolution_clock::now();
     
-    vector< float > r( iphase.begin() + R_POS, iphase.begin() + R_POS + SZ );
-    vector< float > z( iphase.begin() + Z_POS, iphase.begin() + Z_POS + SZ );
+    vector< float > r( SZ );
+    vector< float > z( SZ );
+    for( size_t i = 0; i < SZ; ++i )
+    {
+        r[ i ] = iphase[ R_POS + i ];
+        z[ i ] = iphase[ Z_POS + i ];
+    }
 
-    // kdTree.run( gridMap, r, z );
-    // high_resolution_clock::time_point kdt2 = high_resolution_clock::now();
-    // cout << "RANK: " << rank
-    //      << ", MPI kdtree mapping CHUNK took "
-    //      << duration_cast<milliseconds>( kdt2 - kdt1 ).count()
-    //      << " milliseconds " << " for " << r.size() << " particles" << endl;
+    kdTree.run( gridMap, r, z );
+
+    high_resolution_clock::time_point kdt2 = high_resolution_clock::now();
+    cout << "RANK: " << rank
+         << ", MPI kdtree mapping CHUNK took "
+         << duration_cast<milliseconds>( kdt2 - kdt1 ).count()
+         << " milliseconds " << " for " << r.size() << " particles" << endl;
 
     /////////////////////////////////////////////////////////////////////////////////////////
 
     #pragma omp simd
     for( size_t i = 0; i < SZ; ++i )
     {
-        //int64_t index = gridMap[ i ];//gridBuilder.nearestNeighborIndex( Vec2< double >( r[ i ], z[ i ] ) );
-
-        int64_t index = gridBuilder.nearestNeighborIndex( Vec2< double >( r[ i ], z[ i ] ) );
+        int64_t index = gridMap[ i ];
+        //int64_t index = gridBuilder.nearestNeighborIndex( Vec2< double >( r[ i ], z[ i ] ) );
+        
         if( index >= 0 )
         {
             summaryStep.w0w1_mean[ index ] += w0w1[ i ];
@@ -407,25 +428,73 @@ int main( int argc, char** argv )
 
     const string ptype = "ions";
 
-    const string meshpath   = argv[ 1 ];
-    const string bfieldpath = argv[ 2 ];
+    const string meshpath                = argv[ 1 ];
+    const string bfieldpath              = argv[ 2 ];
     const string particle_data_base_path = argv[ 3 ];
-    const string units_path = argv[ 4 ];
-    const string outpath = argv[ 5 ];
+    const string units_path              = argv[ 4 ];
+    const string outpath                 = argv[ 5 ];
 
     SummaryGrid    summaryGrid;
     XGCGridBuilder gridBuilder;
+    float testVal = 1.0 / nRanks;
 
     loadConstants( units_path );
 
-    readMesh( summaryGrid, poloidal_center, meshpath, bfieldpath );
+    readMeshBP( summaryGrid, poloidal_center, meshpath, bfieldpath );
 
     cout << "Done reading XGC mesh.\n";
 
-    bFieldInterpolator.initialize( meshpath, bfieldpath );
-    psinInterpolator.initialize( meshpath );
+    // get neighborhoods
+ 
+    if( rank == 0 )
+    {
+        const int64_t N_CELLS = summaryGrid.probes.r.size();
+        summaryGrid.neighborhoods.resize(  N_CELLS );
 
-    cout << "Mesh interpolators initialized.\n";
+        for( int64_t i = 0; i < N_CELLS; ++i )
+        {
+            summaryGrid.neighborhoods[ i ].reserve( 6 );
+        }
+
+        const int64_t N_TRIANGLES = summaryGrid.probeTriangulation.size();
+        for( int i = 0; i < N_TRIANGLES; ++i )
+        {
+            auto & tri = summaryGrid.probeTriangulation[ i ];
+            bool in[ 3 ] = { false, false, false };
+
+            for( int p = 0; p < 3; ++p )
+            {
+                for( int j = 0; j < 3; ++j )
+                {
+                    if( p != j )
+                    {
+                        for( int k = 0; k < summaryGrid.neighborhoods[ tri[ p ] ].size(); ++k )
+                        {
+                            if( summaryGrid.neighborhoods[ tri[ p ] ][ k ] == tri[ j ] )
+                            {
+                                in[ j ] = true;
+                                break;
+                            }
+                        }    
+                        if( ! in[ j ] )
+                        {
+                            summaryGrid.neighborhoods[ tri[ p ] ].push_back( tri[ j ] );
+                        }
+                    }
+                }
+            }
+        }
+
+        cout << "Computed neighborhoods\n";
+    }
+
+    psinInterpolator.initializeBP(   meshpath );
+
+    cout << "Psin interpolators initialized.\n";
+
+    bFieldInterpolator.initializeBP( meshpath, bfieldpath );
+
+    cout << "BField interpolators initialized.\n";
 
     gridBuilder.set( summaryGrid.probes.r, summaryGrid.probes.z );
 
@@ -461,15 +530,13 @@ int main( int argc, char** argv )
     for( int64_t tstep = FRST; tstep <= LAST; tstep += STRD )
     {
         // cout << "Summarizing time step " << tstep << ". ";
-        MPI_Barrier(MPI_COMM_WORLD);
-
         high_resolution_clock::time_point st1 = high_resolution_clock::now();
 
         computeSummaryStep(
             summaryStep,
             summaryGrid,
             gridBuilder,
-            400,     // simulation tstep that corresponds to file
+            tstep,     // simulation tstep that corresponds to file
             ptype,
             particle_data_base_path,
             units_path,
@@ -480,7 +547,15 @@ int main( int argc, char** argv )
         high_resolution_clock::time_point st2 = high_resolution_clock::now();
 
         MPI_Barrier(MPI_COMM_WORLD);
-        // cout << "RANK: " << rank << ", MPI summarization step CHUNK took " << duration_cast<milliseconds>( st2 - st1 ).count() << " milliseconds.\n";
+
+        MPI_Reduce(
+            rank == 0 ? MPI_IN_PLACE : &testVal,
+            &testVal,
+            1,
+            MPI_FLOAT,
+            MPI_SUM,
+            0,
+            MPI_COMM_WORLD );
 
         MPI_Reduce(
             rank == 0 ? MPI_IN_PLACE : summaryStep.velocityDistribution.data(),
@@ -551,6 +626,8 @@ int main( int argc, char** argv )
 
         if( rank == 0 )
         {
+            cout << "normalizing " << endl;
+
             const size_t NUM_CELLS = summaryGrid.probes.r.size();
             #pragma omp parallel for simd
             for( size_t i = 0; i < NUM_CELLS; ++i )
@@ -558,7 +635,7 @@ int main( int argc, char** argv )
                 if( summaryStep.num_particles[ i ] > 0 )
                 {
                     summaryStep.w0w1_mean[ i ] /= summaryStep.num_particles[ i ];
-                    summaryStep.w0w1_rms[ i ]   = sqrt( summaryStep.w0w1_rms[ i ] ) / summaryStep.num_particles[ i ];
+                    summaryStep.w0w1_rms[  i ]  = sqrt( summaryStep.w0w1_rms[ i ] ) / summaryStep.num_particles[ i ];
                 }
                 else
                 {
@@ -571,6 +648,7 @@ int main( int argc, char** argv )
             double realtime = ( double ) tstep / 2.0;
             writeSummaryStep( summaryStep, ptype, tstep, realtime, outpath, tstep != FRST );
         }
+        MPI_Barrier(MPI_COMM_WORLD);
     }
 
     const double N_COMPUTED = ( LAST - FRST ) / STRD + 1.0;
@@ -580,6 +658,7 @@ int main( int argc, char** argv )
     if( rank == 0 )
     {
         cout << "Summarization step took " << duration / ( N_COMPUTED ) << " milliseconds (on average) including reduction and file reading.\n";
+        cout << testVal << endl;
     }
 
     adios_read_finalize_method ( ADIOS_READ_METHOD_BP );

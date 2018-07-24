@@ -13,7 +13,6 @@ namespace TN
 struct SummaryGrid
 {
     /* Per Probe/Voronoi Cell Summary Fields */
-
     struct
     {
         std::vector< float > volume;
@@ -24,21 +23,11 @@ struct SummaryGrid
         std::vector< float > B;
     } probes;
 
-    // struct
-    // {
-    //     std::vector< std::vector< float > > r;
-    //     std::vector< std::vector< float > > z;
-    //     std::vector< std::vector< float > > psin;
-    //     std::vector< std::vector< float > > poloidalAngle;
-    //     std::vector< std::vector< float > > B;
-    //     std::vector< float > area;
-    //     std::vector< std::int64_t > probeIndex;
-    //     std::vector< float > radius;
-    // } probeBoundaries;
-
-
     // delaunay triangulation duel to the voronoi decomposition
     std::vector< Triangle > probeTriangulation;
+
+    // neighborhood
+    std::vector< std::vector< int64_t > > neighborhoods;
 };
 
 /* time varying */
