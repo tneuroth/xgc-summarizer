@@ -169,7 +169,7 @@ void writeSummaryGrid(
     std::vector< int64_t > nh( num_neighbors );
     for( int64_t i = 0, k = 0; i < N_CELLS; ++i )
     {
-        for( int j = i == 0 ? 0 : nOffsets[ i - 1 ]; j < nOffsets[ i ]; ++j )
+        for( int j = 0; j < ( i == 0 ? nOffsets[ i ] : nOffsets[ i ] - nOffsets[ i - 1 ] ); ++j )
         {
             nh[ k++ ] = summaryGrid.neighborhoods[ i ][ j ];
         }
