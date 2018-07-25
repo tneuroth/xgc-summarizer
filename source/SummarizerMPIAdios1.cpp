@@ -134,8 +134,10 @@ void writeSummaryGrid(
     const string & ptype,
     const string & outpath )
 {
-    const int64_t N_CELLS = summaryGrid.probes.r.size();
+    cout << "min volume is " << *std::min_element( summaryGrid.probes.volume.begin(), summaryGrid.probes.volume.end() );
+    cout << "max volume is " << *std::max_element( summaryGrid.probes.volume.begin(), summaryGrid.probes.volume.end() );
 
+    const int64_t N_CELLS = summaryGrid.probes.r.size();
     string filepath = outpath + "/" + ptype + ".summary.grid.dat";
     ofstream outFile( filepath, ios::out | ios::binary );
     outFile.write( (char*) summaryGrid.probes.r.data(), sizeof( float ) * N_CELLS );
@@ -167,13 +169,18 @@ void writeSummaryGrid(
         nOffsets[ i ] = num_neighbors;
     }
     std::vector< int64_t > nh( num_neighbors );
-    for( int64_t i = 0, k = 0; i < N_CELLS; ++i )
+    int64_t k = 0;
+    for( int64_t i = 0; i < N_CELLS; ++i )
     {
         for( int j = 0; j < ( i == 0 ? nOffsets[ i ] : nOffsets[ i ] - nOffsets[ i - 1 ] ); ++j )
         {
             nh[ k++ ] = summaryGrid.neighborhoods[ i ][ j ];
         }
     }
+
+    cout << "writing neighbors " << nh.size() << " " << k << " " << num_neighbors <<  " "<< nOffsets.size() << " " << N_CELLS << endl;
+    cout << *max_element( nh.begin(), nh.end() ) << endl;
+    cout << *max_element( nOffsets.begin(), nOffsets.end() ) << endl;
 
     outFile.open( outpath + "/" + ptype + ".summary.grid.neighbors.dat", ios::out | ios::binary );
     outFile.write( (char*) nh.data(), sizeof( int64_t ) * num_neighbors );
