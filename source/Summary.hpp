@@ -27,7 +27,8 @@ struct SummaryGrid
     std::vector< Triangle > probeTriangulation;
 
     // neighborhood
-    std::vector< std::vector< int64_t > > neighborhoods;
+    std::vector< int64_t > neighborhoods;
+    std::vector< int64_t > neighborhoodSums;
 };
 
 /* time varying */

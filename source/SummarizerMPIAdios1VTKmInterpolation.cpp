@@ -1,5 +1,6 @@
 
-#include "kdtree/KdTreeSearch2D.hpp"
+#include "kdtree/ParticleMeshInterpolator2D.hpp"
+
 #include "XGCBFieldInterpolator.hpp"
 #include "XGCPsinInterpolator.hpp"
 #include "XGCMeshLoader.hpp"
@@ -41,7 +42,6 @@ const map< string, int > attrKeyToPhaseIndex =
 
 map< string, double > constants_map;
 XGCBFieldInterpolator bFieldInterpolator;
-XGCPsinInterpolator psinInterpolator;
 Vec2< float > poloidal_center;
 
 void readBPParticleDataStep(
@@ -137,6 +137,8 @@ void writeSummaryGrid(
     cout << "min volume is " << *std::min_element( summaryGrid.probes.volume.begin(), summaryGrid.probes.volume.end() );
     cout << "max volume is " << *std::max_element( summaryGrid.probes.volume.begin(), summaryGrid.probes.volume.end() );
 
+    cout << "r size " << summaryGrid.probes.r.size() << endl;
+
     const int64_t N_CELLS = summaryGrid.probes.r.size();
     string filepath = outpath + "/" + ptype + ".summary.grid.dat";
     ofstream outFile( filepath, ios::out | ios::binary );
@@ -161,50 +163,28 @@ void writeSummaryGrid(
 
     // neighborhoods
 
-    int64_t num_neighbors = 0;
-    std::vector< int64_t > nOffsets( N_CELLS );
-    for( int64_t i = 0; i < N_CELLS; ++i )
-    {
-        num_neighbors += summaryGrid.neighborhoods[ i ].size();
-        nOffsets[ i ] = num_neighbors;
-    }
-    std::vector< int64_t > nh( num_neighbors );
-    int64_t k = 0;
-    for( int64_t i = 0; i < N_CELLS; ++i )
-    {
-        for( int j = 0; j < ( i == 0 ? nOffsets[ i ] : nOffsets[ i ] - nOffsets[ i - 1 ] ); ++j )
-        {
-            nh[ k++ ] = summaryGrid.neighborhoods[ i ][ j ];
-        }
-    }
-
-    cout << "writing neighbors " << nh.size() << " " << k << " " << num_neighbors <<  " "<< nOffsets.size() << " " << N_CELLS << endl;
-    cout << *max_element( nh.begin(), nh.end() ) << endl;
-    cout << *max_element( nOffsets.begin(), nOffsets.end() ) << endl;
-
     outFile.open( outpath + "/" + ptype + ".summary.grid.neighbors.dat", ios::out | ios::binary );
-    outFile.write( (char*) nh.data(), sizeof( int64_t ) * num_neighbors );
+    outFile.write( (char*) summaryGrid.neighborhoods.data(), sizeof( int64_t ) * summaryGrid.neighborhoods.size() );
     outFile.close();
 
     outFile.open( outpath + "/" + ptype + ".summary.grid.neighbor.counts.dat", ios::out | ios::binary );
-    outFile.write( (char*) nOffsets.data(), sizeof( int64_t ) * N_CELLS );
+    outFile.write( (char*) summaryGrid.neighborhoodSums.data(), sizeof( int64_t ) * summaryGrid.neighborhoodSums.size() );
     outFile.close();
 }
 
 void computeSummaryStep(
     SummaryStep & summaryStep,
     const SummaryGrid    & summaryGrid,
-    const XGCGridBuilder & gridBuilder,
     int64_t st,
     const string & ptype,
     const string & particle_base_path,
     const string & units_path,
     int rank,
     int nRanks,
-    TN::KdTreeSearch2D & kdTree )
+    TN::ParticleMeshInterpolator2D & interpolator )
 {
     // need r, z, phi, B, mu, rho_parallel, w0, w1
-    vector< float > B, psin;
+    vector< float > B;
 
     cout << particle_base_path << endl;
     string tstep = to_string( st );
@@ -231,20 +211,29 @@ void computeSummaryStep(
     const size_t W0_POS = attrKeyToPhaseIndex.at( "w0" ) * SZ;
     const size_t MU_POS = attrKeyToPhaseIndex.at( "mu" ) * SZ;       
 
-    // get b mapped to particles from field
-    B.resize( SZ );
+    // for VTKM nearest neighbors and B field Interpolation //////////////////////
+
+    vector< int64_t > gridMap;
+    high_resolution_clock::time_point kdt1 = high_resolution_clock::now();
+    
+    vector< float > r( SZ );
+    vector< float > z( SZ );
+    
     for( size_t i = 0; i < SZ; ++i )
     {
-        Vec3< double > b = bFieldInterpolator( Vec2< double >( iphase[ R_POS + i ], iphase[ Z_POS + i ] ) );
-        B[ i ] = sqrt( b.x()*b.x() + b.y()*b.y() + b.z()*b.z() );
+        r[ i ] = iphase[ R_POS + i ];
+        z[ i ] = iphase[ Z_POS + i ];
     }
 
-    // get psi_n mapped from the field
-    psin.resize( SZ );
-    for( size_t i = 0; i < SZ; ++i )
-    {
-        psin[ i ] = psinInterpolator( Vec2< double >( iphase[ R_POS + i ], iphase[ Z_POS + i ] ) );
-    }
+    B.resize( SZ );
+    gridMap.resize( SZ );
+    interpolator.compute( gridMap, B, r, z );
+
+    high_resolution_clock::time_point kdt2 = high_resolution_clock::now();
+    cout << "RANK: " << rank
+         << ", MPI kdtree mapping CHUNK took "
+         << duration_cast<milliseconds>( kdt2 - kdt1 ).count()
+         << " milliseconds " << " for " << r.size() << " particles" << endl;
 
     // compute velocity and weight
     vector< float > vpara( SZ );
@@ -301,34 +290,10 @@ void computeSummaryStep(
     summaryStep.num_mapped           = std::vector< float >( N_CELLS, 0.f );
     summaryStep.velocityDistribution = std::vector< float >( N_CELLS*NR*NC, 0.f );
 
-    // for VTKM nearest neighbors //////////////////////////////////////////////////////////
-
-    vector< int64_t > gridMap;
-    high_resolution_clock::time_point kdt1 = high_resolution_clock::now();
-    
-    vector< float > r( SZ );
-    vector< float > z( SZ );
-    for( size_t i = 0; i < SZ; ++i )
-    {
-        r[ i ] = iphase[ R_POS + i ];
-        z[ i ] = iphase[ Z_POS + i ];
-    }
-
-    kdTree.run( gridMap, r, z );
-
-    high_resolution_clock::time_point kdt2 = high_resolution_clock::now();
-    cout << "RANK: " << rank
-         << ", MPI kdtree mapping CHUNK took "
-         << duration_cast<milliseconds>( kdt2 - kdt1 ).count()
-         << " milliseconds " << " for " << r.size() << " particles" << endl;
-
-    /////////////////////////////////////////////////////////////////////////////////////////
-
     #pragma omp simd
     for( size_t i = 0; i < SZ; ++i )
     {
         int64_t index = gridMap[ i ];
-        //int64_t index = gridBuilder.nearestNeighborIndex( Vec2< double >( r[ i ], z[ i ] ) );
         
         if( index >= 0 )
         {
@@ -349,14 +314,14 @@ void computeSummaryStep(
             const float R_WIDTH = VPERP_MAX;
             const float C_WIDTH = VPARA_MAX - VPARA_MIN;
 
-            int r = floor( ( ( vperp[ i ] - VPERP_MIN ) / R_WIDTH ) * NR );
-            int c = floor( ( ( vpara[ i ] - VPARA_MIN ) / C_WIDTH ) * NC );
+            int row = floor( ( ( vperp[ i ] - VPERP_MIN ) / R_WIDTH ) * NR );
+            int col = floor( ( ( vpara[ i ] - VPARA_MIN ) / C_WIDTH ) * NC );
 
-            r = max( min( r, NR - 1 ), 0 );
-            c = max( min( c, NC - 1 ), 0 );
+            row = max( min( row, NR - 1 ), 0 );
+            col = max( min( col, NC - 1 ), 0 );
 
             summaryStep.num_mapped[ index ] += 1.0;
-            summaryStep.velocityDistribution[ index * DIST_STRIDE + r * NC + c ] += w0w1[ i ];
+            summaryStep.velocityDistribution[ index * DIST_STRIDE + row * NC + col ] += w0w1[ i ];
         }
     }
 
@@ -442,89 +407,31 @@ int main( int argc, char** argv )
     const string units_path              = argv[ 4 ];
     const string outpath                 = argv[ 5 ];
 
-    SummaryGrid    summaryGrid;
-    XGCGridBuilder gridBuilder;
-    float testVal = 1.0 / nRanks;
+    SummaryGrid summaryGrid;
 
     loadConstants( units_path );
-
     readMeshBP( summaryGrid, poloidal_center, meshpath, bfieldpath );
 
     cout << "Done reading XGC mesh.\n";
 
-    // get neighborhoods
- 
-    if( rank == 0 )
-    {
-        const int64_t N_CELLS = summaryGrid.probes.r.size();
-        summaryGrid.neighborhoods.resize(  N_CELLS );
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-        for( int64_t i = 0; i < N_CELLS; ++i )
-        {
-            summaryGrid.neighborhoods[ i ].reserve( 6 );
-        }
+    TN::ParticleMeshInterpolator2D interpolator;
+    interpolator.setGrid( 
+        summaryGrid.probes.r, 
+        summaryGrid.probes.z, 
+        summaryGrid.probes.B, 
+        summaryGrid.neighborhoods, 
+        summaryGrid.neighborhoodSums );
 
-        const int64_t N_TRIANGLES = summaryGrid.probeTriangulation.size();
-        for( int i = 0; i < N_TRIANGLES; ++i )
-        {
-            auto & tri = summaryGrid.probeTriangulation[ i ];
-            bool in[ 3 ] = { false, false, false };
-
-            for( int p = 0; p < 3; ++p )
-            {
-                for( int j = 0; j < 3; ++j )
-                {
-                    if( p != j )
-                    {
-                        for( int k = 0; k < summaryGrid.neighborhoods[ tri[ p ] ].size(); ++k )
-                        {
-                            if( summaryGrid.neighborhoods[ tri[ p ] ][ k ] == tri[ j ] )
-                            {
-                                in[ j ] = true;
-                                break;
-                            }
-                        }    
-                        if( ! in[ j ] )
-                        {
-                            summaryGrid.neighborhoods[ tri[ p ] ].push_back( tri[ j ] );
-                        }
-                    }
-                }
-            }
-        }
-
-        cout << "Computed neighborhoods\n";
-    }
-
-    psinInterpolator.initializeBP(   meshpath );
-
-    cout << "Psin interpolators initialized.\n";
-
-    bFieldInterpolator.initializeBP( meshpath, bfieldpath );
-
-    cout << "BField interpolators initialized.\n";
-
-    gridBuilder.set( summaryGrid.probes.r, summaryGrid.probes.z );
+    cout << "Done building interpolator\n";
 
     if( rank == 0 )
     {
-        gridBuilder.save( outpath, ptype );
         writeSummaryGrid( summaryGrid, ptype, outpath  );
-        cout << "Delaunay and Voronoi saved to disk.\n";
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-    cout << "Building KDTree\n";
-
-    TN::KdTreeSearch2D kdTree;
-    kdTree.setGrid( summaryGrid.probes.r, summaryGrid.probes.z );
-
-    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-    // cout << "Building summarization grid.\n";
-    // gridBuilder.grid( summaryGrid, psinInterpolator, bFieldInterpolator, poloidal_center );
-    // cout << "Summary mesh constuction complete. ";
 
     high_resolution_clock::time_point t1 = high_resolution_clock::now();
 
@@ -536,7 +443,7 @@ int main( int argc, char** argv )
     int64_t outputStep = 0;
 
     SummaryStep summaryStep;
-    for( int64_t tstep = FRST; tstep <= LAST; tstep += STRD  )
+    for( int64_t tstep = FRST; tstep <= LAST; tstep += STRD )
     {
         // cout << "Summarizing time step " << tstep << ". ";
         high_resolution_clock::time_point st1 = high_resolution_clock::now();
@@ -544,27 +451,17 @@ int main( int argc, char** argv )
         computeSummaryStep(
             summaryStep,
             summaryGrid,
-            gridBuilder,
             tstep,     // simulation tstep that corresponds to file
             ptype,
             particle_data_base_path,
             units_path,
             rank,
             nRanks,
-            kdTree );
+            interpolator );
 
         high_resolution_clock::time_point st2 = high_resolution_clock::now();
 
         MPI_Barrier(MPI_COMM_WORLD);
-
-        MPI_Reduce(
-            rank == 0 ? MPI_IN_PLACE : &testVal,
-            &testVal,
-            1,
-            MPI_FLOAT,
-            MPI_SUM,
-            0,
-            MPI_COMM_WORLD );
 
         MPI_Reduce(
             rank == 0 ? MPI_IN_PLACE : summaryStep.velocityDistribution.data(),
@@ -667,7 +564,6 @@ int main( int argc, char** argv )
     if( rank == 0 )
     {
         cout << "Summarization step took " << duration / ( N_COMPUTED ) << " milliseconds (on average) including reduction and file reading.\n";
-        cout << testVal << endl;
     }
 
     adios_read_finalize_method ( ADIOS_READ_METHOD_BP );

@@ -401,6 +401,8 @@ void writeSummaryStep(
         ofs.close();
     }
 
+    cout << "writing summary step" <<  summaryStep.velocityDistribution.size() << " " << append << endl;
+
     // write results to disk
     ofstream outFile( summary_path, ios::binary | ios_base::app );
     outFile.write( (char*) summaryStep.velocityDistribution.data(), sizeof( float ) * summaryStep.velocityDistribution.size() );
