@@ -1,6 +1,6 @@
 #!/bin/bash
 
-mpirun -np 3\
+mpirun -np 2\
     ./summarizer /home/tn0/xgc.mesh.bp \
                  /home/tn0/xgc.bfield.bp \
                  /home/tn0/ \

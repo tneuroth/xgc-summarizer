@@ -15,7 +15,6 @@ struct XGCBFieldInterpolator
 {
     FieldInterpolator23 interpolator;
 
-
     void initializeBP( const std::string & meshpath, const std::string & bpath  )
     {
         std::vector< TN::Vec3< double > > values;

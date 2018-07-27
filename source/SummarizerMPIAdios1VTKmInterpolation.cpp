@@ -276,54 +276,67 @@ void computeSummaryStep(
 
     high_resolution_clock::time_point st1 = high_resolution_clock::now();
 
-    const int NR = SummaryStep::NR;
-    const int NC = SummaryStep::NC;
-    const int64_t DIST_STRIDE = NR*NC;
+    // With VTKM
 
-    const size_t N_CELLS = summaryGrid.probes.volume.size();
+    interpolator.aggregate(
+        summaryGrid, 
+        summaryStep,
+        vpara,
+        vperp,
+        w0w1,
+        gridMap,
+        summaryGrid.probes.volume.size() );
 
-    summaryStep.w0w1_mean            = std::vector< float >( N_CELLS, 0.f );
-    summaryStep.w0w1_rms             = std::vector< float >( N_CELLS, 0.f );
-    summaryStep.w0w1_min             = std::vector< float >( N_CELLS,  numeric_limits< float >::max() );
-    summaryStep.w0w1_max             = std::vector< float >( N_CELLS, -numeric_limits< float >::max() );
-    summaryStep.num_particles        = std::vector< float >( N_CELLS, 0.f );
-    summaryStep.num_mapped           = std::vector< float >( N_CELLS, 0.f );
-    summaryStep.velocityDistribution = std::vector< float >( N_CELLS*NR*NC, 0.f );
+    // Without VTKM
 
-    #pragma omp simd
-    for( size_t i = 0; i < SZ; ++i )
-    {
-        int64_t index = gridMap[ i ];
+    // const int NR = SummaryStep::NR;
+    // const int NC = SummaryStep::NC;
+    // const int64_t DIST_STRIDE = NR*NC;
+
+    // const size_t N_CELLS = summaryGrid.probes.volume.size();
+
+    // summaryStep.w0w1_mean            = std::vector< float >( N_CELLS, 0.f );
+    // summaryStep.w0w1_rms             = std::vector< float >( N_CELLS, 0.f );
+    // summaryStep.w0w1_min             = std::vector< float >( N_CELLS,  numeric_limits< float >::max() );
+    // summaryStep.w0w1_max             = std::vector< float >( N_CELLS, -numeric_limits< float >::max() );
+    // summaryStep.num_particles        = std::vector< float >( N_CELLS, 0.f );
+    // summaryStep.w0w1_variance        = std::vector< float >( N_CELLS, 0.f );
+    // summaryStep.velocityDistribution = std::vector< float >( N_CELLS*NR*NC, 0.f );
+
+    // #pragma omp simd
+    // for( size_t i = 0; i < SZ; ++i )
+    // {
+    //     int64_t index = gridMap[ i ];
         
-        if( index >= 0 )
-        {
-            summaryStep.w0w1_mean[ index ] += w0w1[ i ];
-            summaryStep.w0w1_rms[  index ] += w0w1[ i ] * w0w1[ i ];
-            summaryStep.w0w1_min[  index ] = min( w0w1[ i ], summaryStep.w0w1_min[ index ] );
-            summaryStep.w0w1_max[  index ] = max( w0w1[ i ], summaryStep.w0w1_max[ index ] );
-            summaryStep.num_particles[ index ] += 1.0;
+    //     if( index >= 0 )
+    //     {
+    //         summaryStep.w0w1_mean[ index ] += w0w1[ i ];
+    //         summaryStep.w0w1_rms[  index ] += w0w1[ i ] * w0w1[ i ];
+    //         summaryStep.w0w1_min[  index ] = min( w0w1[ i ], summaryStep.w0w1_min[ index ] );
+    //         summaryStep.w0w1_max[  index ] = max( w0w1[ i ], summaryStep.w0w1_max[ index ] );
+    //         summaryStep.num_particles[ index ] += 1.0;
 
-            // map to velocity distribution bin
+    //         // map to velocity distribution bin
 
-            const  float VPARA_MIN = -SummaryStep::DELTA_V;
-            const  float VPARA_MAX =  SummaryStep::DELTA_V;
+    //         const  float VPARA_MIN = -SummaryStep::DELTA_V;
+    //         const  float VPARA_MAX =  SummaryStep::DELTA_V;
 
-            const  float VPERP_MIN = 0;
-            const  float VPERP_MAX = SummaryStep::DELTA_V - VPERP_MIN;
+    //         const  float VPERP_MIN = 0;
+    //         const  float VPERP_MAX = SummaryStep::DELTA_V - VPERP_MIN;
 
-            const float R_WIDTH = VPERP_MAX;
-            const float C_WIDTH = VPARA_MAX - VPARA_MIN;
+    //         const float R_WIDTH = VPERP_MAX;
+    //         const float C_WIDTH = VPARA_MAX - VPARA_MIN;
 
-            int row = floor( ( ( vperp[ i ] - VPERP_MIN ) / R_WIDTH ) * NR );
-            int col = floor( ( ( vpara[ i ] - VPARA_MIN ) / C_WIDTH ) * NC );
+    //         int row = floor( ( ( vperp[ i ] - VPERP_MIN ) / R_WIDTH ) * NR );
+    //         int col = floor( ( ( vpara[ i ] - VPARA_MIN ) / C_WIDTH ) * NC );
 
-            row = max( min( row, NR - 1 ), 0 );
-            col = max( min( col, NC - 1 ), 0 );
+    //         row = max( min( row, NR - 1 ), 0 );
+    //         col = max( min( col, NC - 1 ), 0 );
 
-            summaryStep.num_mapped[ index ] += 1.0;
-            summaryStep.velocityDistribution[ index * DIST_STRIDE + row * NC + col ] += w0w1[ i ];
-        }
-    }
+    //         // summaryStep.num_mapped[ index ] += 1.0;
+    //         summaryStep.velocityDistribution[ index * DIST_STRIDE + row * NC + col ] += w0w1[ i ];
+    //     }
+    // }
 
     high_resolution_clock::time_point st2 = high_resolution_clock::now();
     cout << "RANK: " << rank << ", MPI summarization processing CHUNK took " << duration_cast<milliseconds>( st2 - st1 ).count() << " milliseconds " << " for " << r.size() << " particles" << endl;
@@ -360,10 +373,10 @@ void writeSummaryStep(
     outFile.write( (char*) summaryStep.velocityDistribution.data(), sizeof( float ) * summaryStep.velocityDistribution.size() );
     outFile.write( (char*) summaryStep.w0w1_mean.data(), sizeof( float ) * summaryStep.w0w1_mean.size() );
     outFile.write( (char*) summaryStep.w0w1_rms.data(), sizeof( float )  * summaryStep.w0w1_rms.size() );
+    outFile.write( (char*) summaryStep.w0w1_variance.data(), sizeof( float ) * summaryStep.w0w1_variance.size() );
     outFile.write( (char*) summaryStep.w0w1_min.data(), sizeof( float )  * summaryStep.w0w1_min.size() );
     outFile.write( (char*) summaryStep.w0w1_max.data(), sizeof( float )  * summaryStep.w0w1_max.size() );
     outFile.write( (char*) summaryStep.num_particles.data(), sizeof( float ) * summaryStep.num_particles.size() );
-    outFile.write( (char*) summaryStep.num_mapped.data(), sizeof( float ) * summaryStep.num_mapped.size() );
     outFile.close();
 
     const int64_t sim_step = tstep;
@@ -443,7 +456,7 @@ int main( int argc, char** argv )
     int64_t outputStep = 0;
 
     SummaryStep summaryStep;
-    for( int64_t tstep = FRST; tstep <= LAST; tstep += STRD )
+    for( int64_t tstep = FRST;  tstep <= LAST; tstep += STRD )
     {
         // cout << "Summarizing time step " << tstep << ". ";
         high_resolution_clock::time_point st1 = high_resolution_clock::now();
@@ -517,14 +530,14 @@ int main( int argc, char** argv )
             0,
             MPI_COMM_WORLD );
 
-        MPI_Reduce(
-            rank == 0 ? MPI_IN_PLACE : summaryStep.num_mapped.data(),
-            summaryStep.num_mapped.data(),
-            summaryStep.num_mapped.size(),
-            MPI_FLOAT,
-            MPI_SUM,
-            0,
-            MPI_COMM_WORLD );
+        // MPI_Reduce(
+        //     rank == 0 ? MPI_IN_PLACE : summaryStep.num_mapped.data(),
+        //     summaryStep.num_mapped.data(),
+        //     summaryStep.num_mapped.size(),
+        //     MPI_FLOAT,
+        //     MPI_SUM,
+        //     0,
+        //     MPI_COMM_WORLD );
 
         MPI_Barrier(MPI_COMM_WORLD);
 

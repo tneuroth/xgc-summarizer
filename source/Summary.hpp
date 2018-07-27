@@ -46,7 +46,7 @@ struct SummaryStep
     std::vector< float > w0w1_min;
     std::vector< float > w0w1_max;
     std::vector< float > num_particles;
-    std::vector< float > num_mapped;
+    std::vector< float > w0w1_variance;
 
     void resize( size_t sz )
     {
@@ -56,7 +56,7 @@ struct SummaryStep
         w0w1_min.resize( sz );
         w0w1_max.resize( sz );
         num_particles.resize( sz );
-        num_mapped.resize( sz );
+        w0w1_variance.resize( sz );
     }
 
     void clear()
@@ -67,7 +67,7 @@ struct SummaryStep
         w0w1_min.clear();
         w0w1_max.clear();
         num_particles.clear();
-        num_mapped.clear();
+        w0w1_variance.clear();
     }
 
     void merge( const SummaryStep & other )

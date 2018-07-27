@@ -23,6 +23,9 @@ SUFFIXES =
 .SUFFIXES: .hpux_make_needs_suffix_list
 
 
+# Produce verbose output by default.
+VERBOSE = 1
+
 # Suppress display of executed commands.
 $(VERBOSE).SILENT:
 
@@ -56,17 +59,6 @@ CMAKE_BINARY_DIR = /home/tn0/repos/xgc-summarizer
 #=============================================================================
 # Targets provided globally by CMake.
 
-# Special rule for the target edit_cache
-edit_cache:
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Running CMake cache editor..."
-	/usr/local/bin/cmake-gui -H$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR)
-.PHONY : edit_cache
-
-# Special rule for the target edit_cache
-edit_cache/fast: edit_cache
-
-.PHONY : edit_cache/fast
-
 # Special rule for the target rebuild_cache
 rebuild_cache:
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Running CMake to regenerate build system..."
@@ -77,6 +69,17 @@ rebuild_cache:
 rebuild_cache/fast: rebuild_cache
 
 .PHONY : rebuild_cache/fast
+
+# Special rule for the target edit_cache
+edit_cache:
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Running CMake cache editor..."
+	/usr/local/bin/cmake-gui -H$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR)
+.PHONY : edit_cache
+
+# Special rule for the target edit_cache
+edit_cache/fast: edit_cache
+
+.PHONY : edit_cache/fast
 
 # The main all target
 all: cmake_check_build_system
@@ -111,32 +114,6 @@ depend:
 .PHONY : depend
 
 #=============================================================================
-# Target rules for targets named kdtree-cu
-
-# Build rule for target.
-kdtree-cu: cmake_check_build_system
-	$(MAKE) -f CMakeFiles/Makefile2 kdtree-cu
-.PHONY : kdtree-cu
-
-# fast build rule for target.
-kdtree-cu/fast:
-	$(MAKE) -f CMakeFiles/kdtree-cu.dir/build.make CMakeFiles/kdtree-cu.dir/build
-.PHONY : kdtree-cu/fast
-
-#=============================================================================
-# Target rules for targets named kdtree
-
-# Build rule for target.
-kdtree: cmake_check_build_system
-	$(MAKE) -f CMakeFiles/Makefile2 kdtree
-.PHONY : kdtree
-
-# fast build rule for target.
-kdtree/fast:
-	$(MAKE) -f CMakeFiles/kdtree.dir/build.make CMakeFiles/kdtree.dir/build
-.PHONY : kdtree/fast
-
-#=============================================================================
 # Target rules for targets named summarizer
 
 # Build rule for target.
@@ -150,44 +127,17 @@ summarizer/fast:
 .PHONY : summarizer/fast
 
 #=============================================================================
-# Target rules for targets named bptest
+# Target rules for targets named kdtree
 
 # Build rule for target.
-bptest: cmake_check_build_system
-	$(MAKE) -f CMakeFiles/Makefile2 bptest
-.PHONY : bptest
+kdtree: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 kdtree
+.PHONY : kdtree
 
 # fast build rule for target.
-bptest/fast:
-	$(MAKE) -f CMakeFiles/bptest.dir/build.make CMakeFiles/bptest.dir/build
-.PHONY : bptest/fast
-
-source/Minimal.o: source/Minimal.cpp.o
-
-.PHONY : source/Minimal.o
-
-# target to build an object file
-source/Minimal.cpp.o:
-	$(MAKE) -f CMakeFiles/bptest.dir/build.make CMakeFiles/bptest.dir/source/Minimal.cpp.o
-.PHONY : source/Minimal.cpp.o
-
-source/Minimal.i: source/Minimal.cpp.i
-
-.PHONY : source/Minimal.i
-
-# target to preprocess a source file
-source/Minimal.cpp.i:
-	$(MAKE) -f CMakeFiles/bptest.dir/build.make CMakeFiles/bptest.dir/source/Minimal.cpp.i
-.PHONY : source/Minimal.cpp.i
-
-source/Minimal.s: source/Minimal.cpp.s
-
-.PHONY : source/Minimal.s
-
-# target to generate assembly for a file
-source/Minimal.cpp.s:
-	$(MAKE) -f CMakeFiles/bptest.dir/build.make CMakeFiles/bptest.dir/source/Minimal.cpp.s
-.PHONY : source/Minimal.cpp.s
+kdtree/fast:
+	$(MAKE) -f CMakeFiles/kdtree.dir/build.make CMakeFiles/kdtree.dir/build
+.PHONY : kdtree/fast
 
 source/SummarizerMPIAdios1VTKmInterpolation.o: source/SummarizerMPIAdios1VTKmInterpolation.cpp.o
 
@@ -243,54 +193,19 @@ source/kdtree/ParticleMeshInterpolator2D.cpp.s:
 	$(MAKE) -f CMakeFiles/kdtree.dir/build.make CMakeFiles/kdtree.dir/source/kdtree/ParticleMeshInterpolator2D.cpp.s
 .PHONY : source/kdtree/ParticleMeshInterpolator2D.cpp.s
 
-source/kdtree/ParticleMeshInterpolator2D.o: source/kdtree/ParticleMeshInterpolator2D.cu.o
-
-.PHONY : source/kdtree/ParticleMeshInterpolator2D.o
-
-# target to build an object file
-source/kdtree/ParticleMeshInterpolator2D.cu.o:
-	$(MAKE) -f CMakeFiles/kdtree-cu.dir/build.make CMakeFiles/kdtree-cu.dir/source/kdtree/ParticleMeshInterpolator2D.cu.o
-.PHONY : source/kdtree/ParticleMeshInterpolator2D.cu.o
-
-source/kdtree/ParticleMeshInterpolator2D.i: source/kdtree/ParticleMeshInterpolator2D.cu.i
-
-.PHONY : source/kdtree/ParticleMeshInterpolator2D.i
-
-# target to preprocess a source file
-source/kdtree/ParticleMeshInterpolator2D.cu.i:
-	$(MAKE) -f CMakeFiles/kdtree-cu.dir/build.make CMakeFiles/kdtree-cu.dir/source/kdtree/ParticleMeshInterpolator2D.cu.i
-.PHONY : source/kdtree/ParticleMeshInterpolator2D.cu.i
-
-source/kdtree/ParticleMeshInterpolator2D.s: source/kdtree/ParticleMeshInterpolator2D.cu.s
-
-.PHONY : source/kdtree/ParticleMeshInterpolator2D.s
-
-# target to generate assembly for a file
-source/kdtree/ParticleMeshInterpolator2D.cu.s:
-	$(MAKE) -f CMakeFiles/kdtree-cu.dir/build.make CMakeFiles/kdtree-cu.dir/source/kdtree/ParticleMeshInterpolator2D.cu.s
-.PHONY : source/kdtree/ParticleMeshInterpolator2D.cu.s
-
 # Help Target
 help:
 	@echo "The following are some of the valid targets for this Makefile:"
 	@echo "... all (the default if no target is provided)"
 	@echo "... clean"
 	@echo "... depend"
-	@echo "... edit_cache"
-	@echo "... kdtree-cu"
-	@echo "... kdtree"
-	@echo "... summarizer"
 	@echo "... rebuild_cache"
-	@echo "... bptest"
-	@echo "... source/Minimal.o"
-	@echo "... source/Minimal.i"
-	@echo "... source/Minimal.s"
+	@echo "... edit_cache"
+	@echo "... summarizer"
+	@echo "... kdtree"
 	@echo "... source/SummarizerMPIAdios1VTKmInterpolation.o"
 	@echo "... source/SummarizerMPIAdios1VTKmInterpolation.i"
 	@echo "... source/SummarizerMPIAdios1VTKmInterpolation.s"
-	@echo "... source/kdtree/ParticleMeshInterpolator2D.o"
-	@echo "... source/kdtree/ParticleMeshInterpolator2D.i"
-	@echo "... source/kdtree/ParticleMeshInterpolator2D.s"
 	@echo "... source/kdtree/ParticleMeshInterpolator2D.o"
 	@echo "... source/kdtree/ParticleMeshInterpolator2D.i"
 	@echo "... source/kdtree/ParticleMeshInterpolator2D.s"

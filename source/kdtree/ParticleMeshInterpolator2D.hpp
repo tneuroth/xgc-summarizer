@@ -1,6 +1,7 @@
 #ifndef TN_PTCL_MESH_INTERPOLATOR_HPP
 #define TN_PTCL_MESH_INTERPOLATOR_HPP
 
+#include "../Summary.hpp"
 #include "KDTree/KdTree.h"
 #include "VTKmInterpolator.hpp"
 
@@ -16,6 +17,7 @@ private:
 
     vtkm::worklet::KdTree< 2 > m_kdTree;
     TN::VTKmInterpolator2D m_interpolator;
+    TN::VTKmAggregator m_aggregator;
 
     vtkm::cont::ArrayHandle< vtkm::Vec< vtkm::Float32, 2 > > m_gridHandle;
     std::vector< vtkm::Vec< vtkm::Float32, 2 > > m_gridPoints;
@@ -45,7 +47,16 @@ public:
 	    const std::vector< float > & r,
 	    const std::vector< float > & z );
 
-    ParticleMeshInterpolator2D();
+	void aggregate( 
+	    const SummaryGrid & summaryGrid, 
+	    SummaryStep & summary,
+	    const std::vector< float > & vX,
+	    const std::vector< float > & vY,
+	    const std::vector< float > & w, 
+	    const std::vector< int64_t > & gIDs,            
+	    const int64_t N_CELLS );
+
+	ParticleMeshInterpolator2D();
 };
 
 }

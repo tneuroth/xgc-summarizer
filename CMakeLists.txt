@@ -19,14 +19,14 @@ link_directories(/usr/lib/x86_64-linux-gnu/hdf5/serial/ /usr/lib/x86_64-linux-gn
 
 find_package(VTKm  REQUIRED)
 
-add_library(kdtree-cu ${SRC_DIR}/kdtree/ParticleMeshInterpolator2D.cu)
+# add_library(kdtree-cu ${SRC_DIR}/kdtree/ParticleMeshInterpolator2D.cu)
 add_library(kdtree ${SRC_DIR}/kdtree/ParticleMeshInterpolator2D.cpp)
 
 target_link_libraries(kdtree vtkm_cont)
-target_link_libraries(kdtree-cu vtkm_cont)
+# target_link_libraries(kdtree-cu vtkm_cont)
 
 add_executable(summarizer ${SRC_DIR}/SummarizerMPIAdios1VTKmInterpolation.cpp)
-add_executable(bptest ${SRC_DIR}/Minimal.cpp)
+# add_executable(bptest ${SRC_DIR}/Minimal.cpp)
 
 target_link_libraries(summarizer vtkm_cont adios -lm -lmxml -lhdf5_hl -lhdf5 -lz -libverbs -lglib-2.0 -lz -lbz2 -Wl,-Bsymbolic-functions -Wl,-z,relro -lpthread CGAL gmp kdtree)
-target_link_libraries(bptest adios2 pthread mpi)
+# target_link_libraries(bptest adios2 pthread mpi)

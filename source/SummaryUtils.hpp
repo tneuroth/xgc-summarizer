@@ -1,6 +1,10 @@
 #ifndef TN_SUMMARY_UTILS
 #define TN_SUMMARY_UTILS
 
+#include <vector>
+#include <string>
+#include <fstream>
+
 struct Triangle
 {
     int64_t indices[ 3 ];
