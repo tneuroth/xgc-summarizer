@@ -136,99 +136,59 @@ summarizer/fast:
 	$(MAKE) -f CMakeFiles/summarizer.dir/build.make CMakeFiles/summarizer.dir/build
 .PHONY : summarizer/fast
 
-#=============================================================================
-# Target rules for targets named kdtree-cu
+source/Main.o: source/Main.cpp.o
 
-# Build rule for target.
-kdtree-cu: cmake_check_build_system
-	$(MAKE) -f CMakeFiles/Makefile2 kdtree-cu
-.PHONY : kdtree-cu
-
-# fast build rule for target.
-kdtree-cu/fast:
-	$(MAKE) -f CMakeFiles/kdtree-cu.dir/build.make CMakeFiles/kdtree-cu.dir/build
-.PHONY : kdtree-cu/fast
-
-source/SummarizerMPIAdios1VTKmInterpolation.o: source/SummarizerMPIAdios1VTKmInterpolation.cpp.o
-
-.PHONY : source/SummarizerMPIAdios1VTKmInterpolation.o
+.PHONY : source/Main.o
 
 # target to build an object file
-source/SummarizerMPIAdios1VTKmInterpolation.cpp.o:
-	$(MAKE) -f CMakeFiles/summarizer.dir/build.make CMakeFiles/summarizer.dir/source/SummarizerMPIAdios1VTKmInterpolation.cpp.o
-.PHONY : source/SummarizerMPIAdios1VTKmInterpolation.cpp.o
+source/Main.cpp.o:
+	$(MAKE) -f CMakeFiles/summarizer.dir/build.make CMakeFiles/summarizer.dir/source/Main.cpp.o
+.PHONY : source/Main.cpp.o
 
-source/SummarizerMPIAdios1VTKmInterpolation.i: source/SummarizerMPIAdios1VTKmInterpolation.cpp.i
+source/Main.i: source/Main.cpp.i
 
-.PHONY : source/SummarizerMPIAdios1VTKmInterpolation.i
+.PHONY : source/Main.i
 
 # target to preprocess a source file
-source/SummarizerMPIAdios1VTKmInterpolation.cpp.i:
-	$(MAKE) -f CMakeFiles/summarizer.dir/build.make CMakeFiles/summarizer.dir/source/SummarizerMPIAdios1VTKmInterpolation.cpp.i
-.PHONY : source/SummarizerMPIAdios1VTKmInterpolation.cpp.i
+source/Main.cpp.i:
+	$(MAKE) -f CMakeFiles/summarizer.dir/build.make CMakeFiles/summarizer.dir/source/Main.cpp.i
+.PHONY : source/Main.cpp.i
 
-source/SummarizerMPIAdios1VTKmInterpolation.s: source/SummarizerMPIAdios1VTKmInterpolation.cpp.s
+source/Main.s: source/Main.cpp.s
 
-.PHONY : source/SummarizerMPIAdios1VTKmInterpolation.s
+.PHONY : source/Main.s
 
 # target to generate assembly for a file
-source/SummarizerMPIAdios1VTKmInterpolation.cpp.s:
-	$(MAKE) -f CMakeFiles/summarizer.dir/build.make CMakeFiles/summarizer.dir/source/SummarizerMPIAdios1VTKmInterpolation.cpp.s
-.PHONY : source/SummarizerMPIAdios1VTKmInterpolation.cpp.s
+source/Main.cpp.s:
+	$(MAKE) -f CMakeFiles/summarizer.dir/build.make CMakeFiles/summarizer.dir/source/Main.cpp.s
+.PHONY : source/Main.cpp.s
 
-source/kdtree/ParticleMeshInterpolator2D.o: source/kdtree/ParticleMeshInterpolator2D.cpp.o
+source/XGCAggregator.o: source/XGCAggregator.cxx.o
 
-.PHONY : source/kdtree/ParticleMeshInterpolator2D.o
+.PHONY : source/XGCAggregator.o
 
 # target to build an object file
-source/kdtree/ParticleMeshInterpolator2D.cpp.o:
-	$(MAKE) -f CMakeFiles/kdtree.dir/build.make CMakeFiles/kdtree.dir/source/kdtree/ParticleMeshInterpolator2D.cpp.o
-.PHONY : source/kdtree/ParticleMeshInterpolator2D.cpp.o
+source/XGCAggregator.cxx.o:
+	$(MAKE) -f CMakeFiles/kdtree.dir/build.make CMakeFiles/kdtree.dir/source/XGCAggregator.cxx.o
+.PHONY : source/XGCAggregator.cxx.o
 
-source/kdtree/ParticleMeshInterpolator2D.i: source/kdtree/ParticleMeshInterpolator2D.cpp.i
+source/XGCAggregator.i: source/XGCAggregator.cxx.i
 
-.PHONY : source/kdtree/ParticleMeshInterpolator2D.i
-
-# target to preprocess a source file
-source/kdtree/ParticleMeshInterpolator2D.cpp.i:
-	$(MAKE) -f CMakeFiles/kdtree.dir/build.make CMakeFiles/kdtree.dir/source/kdtree/ParticleMeshInterpolator2D.cpp.i
-.PHONY : source/kdtree/ParticleMeshInterpolator2D.cpp.i
-
-source/kdtree/ParticleMeshInterpolator2D.s: source/kdtree/ParticleMeshInterpolator2D.cpp.s
-
-.PHONY : source/kdtree/ParticleMeshInterpolator2D.s
-
-# target to generate assembly for a file
-source/kdtree/ParticleMeshInterpolator2D.cpp.s:
-	$(MAKE) -f CMakeFiles/kdtree.dir/build.make CMakeFiles/kdtree.dir/source/kdtree/ParticleMeshInterpolator2D.cpp.s
-.PHONY : source/kdtree/ParticleMeshInterpolator2D.cpp.s
-
-source/kdtree/ParticleMeshInterpolator2D.o: source/kdtree/ParticleMeshInterpolator2D.cu.o
-
-.PHONY : source/kdtree/ParticleMeshInterpolator2D.o
-
-# target to build an object file
-source/kdtree/ParticleMeshInterpolator2D.cu.o:
-	$(MAKE) -f CMakeFiles/kdtree-cu.dir/build.make CMakeFiles/kdtree-cu.dir/source/kdtree/ParticleMeshInterpolator2D.cu.o
-.PHONY : source/kdtree/ParticleMeshInterpolator2D.cu.o
-
-source/kdtree/ParticleMeshInterpolator2D.i: source/kdtree/ParticleMeshInterpolator2D.cu.i
-
-.PHONY : source/kdtree/ParticleMeshInterpolator2D.i
+.PHONY : source/XGCAggregator.i
 
 # target to preprocess a source file
-source/kdtree/ParticleMeshInterpolator2D.cu.i:
-	$(MAKE) -f CMakeFiles/kdtree-cu.dir/build.make CMakeFiles/kdtree-cu.dir/source/kdtree/ParticleMeshInterpolator2D.cu.i
-.PHONY : source/kdtree/ParticleMeshInterpolator2D.cu.i
+source/XGCAggregator.cxx.i:
+	$(MAKE) -f CMakeFiles/kdtree.dir/build.make CMakeFiles/kdtree.dir/source/XGCAggregator.cxx.i
+.PHONY : source/XGCAggregator.cxx.i
 
-source/kdtree/ParticleMeshInterpolator2D.s: source/kdtree/ParticleMeshInterpolator2D.cu.s
+source/XGCAggregator.s: source/XGCAggregator.cxx.s
 
-.PHONY : source/kdtree/ParticleMeshInterpolator2D.s
+.PHONY : source/XGCAggregator.s
 
 # target to generate assembly for a file
-source/kdtree/ParticleMeshInterpolator2D.cu.s:
-	$(MAKE) -f CMakeFiles/kdtree-cu.dir/build.make CMakeFiles/kdtree-cu.dir/source/kdtree/ParticleMeshInterpolator2D.cu.s
-.PHONY : source/kdtree/ParticleMeshInterpolator2D.cu.s
+source/XGCAggregator.cxx.s:
+	$(MAKE) -f CMakeFiles/kdtree.dir/build.make CMakeFiles/kdtree.dir/source/XGCAggregator.cxx.s
+.PHONY : source/XGCAggregator.cxx.s
 
 # Help Target
 help:
@@ -240,16 +200,12 @@ help:
 	@echo "... edit_cache"
 	@echo "... kdtree"
 	@echo "... summarizer"
-	@echo "... kdtree-cu"
-	@echo "... source/SummarizerMPIAdios1VTKmInterpolation.o"
-	@echo "... source/SummarizerMPIAdios1VTKmInterpolation.i"
-	@echo "... source/SummarizerMPIAdios1VTKmInterpolation.s"
-	@echo "... source/kdtree/ParticleMeshInterpolator2D.o"
-	@echo "... source/kdtree/ParticleMeshInterpolator2D.i"
-	@echo "... source/kdtree/ParticleMeshInterpolator2D.s"
-	@echo "... source/kdtree/ParticleMeshInterpolator2D.o"
-	@echo "... source/kdtree/ParticleMeshInterpolator2D.i"
-	@echo "... source/kdtree/ParticleMeshInterpolator2D.s"
+	@echo "... source/Main.o"
+	@echo "... source/Main.i"
+	@echo "... source/Main.s"
+	@echo "... source/XGCAggregator.o"
+	@echo "... source/XGCAggregator.i"
+	@echo "... source/XGCAggregator.s"
 .PHONY : help
 
 

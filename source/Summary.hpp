@@ -1,7 +1,7 @@
 #ifndef TN_SUMMARY_HPP
 #define TN_SUMMARY_HPP
 
-#include "../Types/Vec.hpp"
+#include "Types/Vec.hpp"
 #include "SummaryUtils.hpp"
 
 #include <vector>

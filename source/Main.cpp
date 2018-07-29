@@ -1,14 +1,8 @@
 
-#include "kdtree/ParticleMeshInterpolator2D.hpp"
-
-//#include "XGCBFieldInterpolator.hpp"
-//#include "XGCPsinInterpolator.hpp"
+#include "XGCAggregator.hpp"
 #include "XGCMeshLoader.hpp"
 #include "Summary.hpp"
-//#include "XGCGridBuilder.hpp"
 #include "SummaryUtils.hpp"
-
-//#include "FieldInterpolator.hpp"
 #include "Types/Vec.hpp"
 
 #include "adios_read.h"

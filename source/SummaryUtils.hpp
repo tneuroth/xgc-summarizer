@@ -1,6 +1,8 @@
 #ifndef TN_SUMMARY_UTILS
 #define TN_SUMMARY_UTILS
 
+#include "Types/Vec.hpp"
+
 #include <vector>
 #include <string>
 #include <fstream>
@@ -8,7 +10,7 @@
 inline void writeTriangularMeshObj(
     const std::vector< float > & r,
     const std::vector< float > & z,
-    const std::vector< Triangle > & mesh,
+    const std::vector< TN::Triangle > & mesh,
     const std::string & outpath )
 {
     std::ofstream outfile( outpath );

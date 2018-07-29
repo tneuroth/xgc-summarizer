@@ -10,6 +10,7 @@
 #ifndef VEC_HPP_INCLUDED
 #define VEC_HPP_INCLUDED
 
+#include <cstdint>
 #include <cmath>
 // #include <QVector3D>
 
@@ -816,7 +817,7 @@ struct Triangle
         return indices[ i ];
     }
 
-    const int64_t & operator[] ( int64_t i ) const
+    int64_t operator[] ( int64_t i ) const
     {
         return indices[ i ];
     }
@@ -824,17 +825,17 @@ struct Triangle
 
 }
 
-namespace std
-{
-template <>
-template <typename T>
-struct hash<TN::Vec3<T>>
-{
-    size_t operator ()( const TN::Vec3<float> & v ) const
-    {
-        return std::hash<T>()( v.x() ) ^ std::hash<T>()( v.y() ) ^ std::hash<T>()( v.z() );
-    }
-};
-}
+//namespace std
+//{
+//template <>
+//template <typename T>
+//struct hash<TN::Vec3<T>>
+//{
+//    size_t operator ()( const TN::Vec3<float> & v ) const
+//    {
+//        return std::hash<T>()( v.x() ) ^ std::hash<T>()( v.y() ) ^ std::hash<T>()( v.z() );
+//    }
+//};
+//}
 
 #endif
