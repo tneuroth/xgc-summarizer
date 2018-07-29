@@ -1,18 +1,17 @@
 
 #include "kdtree/ParticleMeshInterpolator2D.hpp"
 
-#include "XGCBFieldInterpolator.hpp"
-#include "XGCPsinInterpolator.hpp"
+//#include "XGCBFieldInterpolator.hpp"
+//#include "XGCPsinInterpolator.hpp"
 #include "XGCMeshLoader.hpp"
 #include "Summary.hpp"
-#include "XGCGridBuilder.hpp"
+//#include "XGCGridBuilder.hpp"
 #include "SummaryUtils.hpp"
 
-#include "FieldInterpolator.hpp"
+//#include "FieldInterpolator.hpp"
 #include "Types/Vec.hpp"
 
 #include "adios_read.h"
-#include <hdf5.h>
 #include <mpi.h>
 
 #include <fstream>
@@ -41,7 +40,7 @@ const map< string, int > attrKeyToPhaseIndex =
 }; // Grid distribution function
 
 map< string, double > constants_map;
-XGCBFieldInterpolator bFieldInterpolator;
+//XGCBFieldInterpolator bFieldInterpolator;
 Vec2< float > poloidal_center;
 
 void readBPParticleDataStep(

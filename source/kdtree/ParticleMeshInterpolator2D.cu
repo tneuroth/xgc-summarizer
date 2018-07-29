@@ -159,23 +159,38 @@ void ParticleMeshInterpolator2D::aggregate(
 
     auto uniqueKeys = keys.GetUniqueKeys(); 
     const int64_t N_UK = uniqueKeys.GetNumberOfValues();
+    std::cout << histHndl.GetNumberOfValues() << " values ";
+    std::cout << sizeof( histHndl.GetPortalControl().Get( 0 ) ) << " is size of each" << std::endl;
+    std::cout << summaryStep.velocityDistribution.size() << " is summary size of each" << std::endl;
 
     // #pragma omp parallel for simd
     for( int64_t i = 0; i < N_UK; ++i )
     {
-        std::cout << (size_t)uniqueKeys.GetPortalControl().Get( i ) << std::end;
+        int64_t key = static_cast< int64_t >( uniqueKeys.GetPortalControl().Get( i ) );
 
-        // summaryStep.w0w1_mean[ key ] = meanHdl.GetPortalControl().Get( i );
-        // summaryStep.w0w1_rms[  key ] = rmsHdl.GetPortalControl().Get( i );
+        summaryStep.w0w1_mean[ key ] = meanHdl.GetPortalControl().Get( i );
+        summaryStep.w0w1_rms[  key ] = rmsHdl.GetPortalControl().Get( i );
         // // summaryStep.w0w1_variance[ i ] = varHdl.GetPortalControl().Get( i );                
-        // summaryStep.w0w1_min[ key ] = minHdl.GetPortalControl().Get( i );
-        // summaryStep.w0w1_max[ key ] = maxHdl.GetPortalControl().Get( i );                
-        // summaryStep.num_particles[ key ] = cntHdl.GetPortalControl().Get( i );
-        // for( int64_t j = 0; j < BINS_PER_CELL; ++j )
-        // {
-        //     summaryStep.velocityDistribution[ key * BINS_PER_CELL + j ] 
-        //         = histHndl.GetPortalControl().Get( i )[ j ];
-        // }
+        summaryStep.w0w1_min[ key ] = minHdl.GetPortalControl().Get( i );
+        summaryStep.w0w1_max[ key ] = maxHdl.GetPortalControl().Get( i );                
+        summaryStep.num_particles[ key ] = cntHdl.GetPortalControl().Get( i );
+
+        for( int64_t j = 0; j < BINS_PER_CELL; ++j )
+        {
+            if( key * BINS_PER_CELL + j >= N_CELLS * BINS_PER_CELL )
+            {
+                std::cout << "error " << key * BINS_PER_CELL + j << " / " << N_CELLS * BINS_PER_CELL << std::endl;
+                exit( 1 );
+            }
+            if( key >= N_CELLS  )
+            {
+                std::cout << "error " << key << " / " << N_CELLS << std::endl;
+                exit( 1 );
+            }
+
+            summaryStep.velocityDistribution[ key * BINS_PER_CELL + j ] 
+                = histHndl.GetPortalControl().Get( i )[ j ];
+        }
     }
 }
 

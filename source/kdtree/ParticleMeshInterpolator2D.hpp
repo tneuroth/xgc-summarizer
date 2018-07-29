@@ -2,7 +2,7 @@
 #define TN_PTCL_MESH_INTERPOLATOR_HPP
 
 #include "../Summary.hpp"
-#include "KDTree/KdTree.h"
+#include <KDTree/KdTree.h>
 #include "VTKmInterpolator.hpp"
 
 #include <vector>
