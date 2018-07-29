@@ -5,4 +5,7 @@ CMakeCache.txt
 CMakeFiles/
 cmake*
 *.orig
+summarizer
+*.so
+
 

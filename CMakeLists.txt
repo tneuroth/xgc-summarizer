@@ -13,6 +13,9 @@ set(CMAKE_C_FLAGS "-lm")
 set(CMAKE_CUDA_COMPILER nvcc)
 set(CUDA_NVCC_FLAGS "-std=c++11 -O4 -m 64 -Xcompiler \" -openmp\" --ptxas-options=-v --compiler-options '-fPIC' -o libkdtree-cu.so --shared")
 
+get_source_file_property( _cuda_source_format XGCAggregator.cxx CUDA_SOURCE_PROPERTY_FORMAT)
+set_source_files_properties( XGCAggregator.cxx PROPERTIES CUDA_SOURCE_PROPERTY_FORMAT _cuda_source_format )
+
 set(CMAKE_BUILD_TYPE Release)
 set(VTKm_DIR "/ccs/home/tneuroth/vtkm-build/lib/cmake/vtkm-1.2")
 
@@ -22,13 +25,12 @@ link_directories(/usr/lib/x86_64-linux-gnu /usr/lib /usr/lib64 ${DEV}/adios-buil
 
 find_package(VTKm  REQUIRED)
 
-add_library(kdtree-cu ${SRC_DIR}/kdtree/ParticleMeshInterpolator2D.cu)
-add_library(kdtree ${SRC_DIR}/kdtree/ParticleMeshInterpolator2D.cpp)
+add_library(kdtree ${SRC_DIR}/XGCAggregator.cxx)
 
 target_link_libraries(kdtree vtkm_cont)
 target_link_libraries(kdtree-cu vtkm_cont)
 
-add_executable(summarizer ${SRC_DIR}/SummarizerMPIAdios1VTKmInterpolation.cpp)
+add_executable(summarizer ${SRC_DIR}/Main.cpp)
 
 target_link_libraries(summarizer vtkm_cont adios gmp kdtree)
 

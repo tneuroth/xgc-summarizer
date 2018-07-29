@@ -1,6 +1,7 @@
 #ifndef TN_SUMMARY_HPP
 #define TN_SUMMARY_HPP
 
+#include "../Types/Vec.hpp"
 #include "SummaryUtils.hpp"
 
 #include <vector>
@@ -23,7 +24,7 @@ struct SummaryGrid
         std::vector< float > B;
     } probes;
 
-    // delaunay triangulation duel to the voronoi decomposition
+    // delaunay triangulation dual to the voronoi decomposition
     std::vector< Triangle > probeTriangulation;
 
     // neighborhood
@@ -43,10 +44,10 @@ struct SummaryStep
     std::vector< float > velocityDistribution;
     std::vector< float > w0w1_mean;
     std::vector< float > w0w1_rms;
+    std::vector< float > w0w1_variance;
     std::vector< float > w0w1_min;
     std::vector< float > w0w1_max;
     std::vector< float > num_particles;
-    std::vector< float > w0w1_variance;
 
     void resize( size_t sz )
     {
@@ -68,28 +69,6 @@ struct SummaryStep
         w0w1_max.clear();
         num_particles.clear();
         w0w1_variance.clear();
-    }
-
-    void merge( const SummaryStep & other )
-    {
-        const std::int64_t SZ = velocityDistribution.size();
-        #pragma omp parallel for simd
-        for( int64_t i = 0; i < SZ; ++i )
-        {
-            #pragma omp simd
-            for( int64_t b = 0; b < NR*NC; ++b )
-            {
-                velocityDistribution[ i*NC*NC + b ] = other.velocityDistribution[ i*NC*NC + b ];
-            }
-
-            // Pooled mean = (N1*M1+N2*M2+N3*M3)/(N1+N2+N3)
-            // Pooled SD ={ (N1-1)*S1+(N2-1)*S2+(N3-1)S3}/(N1+N2+N3-3)
-            // Pooled RMS = ?
-
-            w0w1_min[ i ] = std::min( w0w1_min[ i ], other.w0w1_min[ i ] );
-            w0w1_max[ i ] = std::min( w0w1_max[ i ], other.w0w1_max[ i ] );
-            num_particles[ i ] += other.num_particles[ i ];
-        }
     }
 };
 

@@ -1,17 +1,17 @@
 
-#include "kdtree/KdTreeSearch2D.hpp"
-#include "XGCBFieldInterpolator.hpp"
-#include "XGCPsinInterpolator.hpp"
+#include "kdtree/ParticleMeshInterpolator2D.hpp"
+
+//#include "XGCBFieldInterpolator.hpp"
+//#include "XGCPsinInterpolator.hpp"
 #include "XGCMeshLoader.hpp"
 #include "Summary.hpp"
-#include "XGCGridBuilder.hpp"
+//#include "XGCGridBuilder.hpp"
 #include "SummaryUtils.hpp"
 
-#include "FieldInterpolator.hpp"
+//#include "FieldInterpolator.hpp"
 #include "Types/Vec.hpp"
 
 #include "adios_read.h"
-#include <hdf5.h>
 #include <mpi.h>
 
 #include <fstream>
@@ -40,8 +40,7 @@ const map< string, int > attrKeyToPhaseIndex =
 }; // Grid distribution function
 
 map< string, double > constants_map;
-XGCBFieldInterpolator bFieldInterpolator;
-XGCPsinInterpolator psinInterpolator;
+//XGCBFieldInterpolator bFieldInterpolator;
 Vec2< float > poloidal_center;
 
 void readBPParticleDataStep(
@@ -53,12 +52,12 @@ void readBPParticleDataStep(
 {
     ADIOS_FILE * f = adios_read_open_file ( path.c_str(), ADIOS_READ_METHOD_BP, MPI_COMM_WORLD );
 
-    if (f == NULL) 
+    if (f == NULL)
     {
         cout << adios_errmsg() << endl;
         exit( 1 );
     }
-    
+
     ADIOS_VARINFO * v = adios_inq_var ( f, "iphase" );
 
     const uint64_t SZ = v->dims[ 0 ];
@@ -67,7 +66,7 @@ void readBPParticleDataStep(
     const uint64_t MY_LAST = rank < nRanks-1 ? MY_START + CS - 1 : SZ - 1;
     const uint64_t MY_CHUNKSIZE = MY_LAST - MY_START + 1;
 
-    uint64_t start[ 2 ] = { MY_START,        0 }; 
+    uint64_t start[ 2 ] = { MY_START,        0 };
     uint64_t count[ 2 ] = { MY_CHUNKSIZE,    9 };
 
     cout << "my start " << MY_START << " my size " << MY_CHUNKSIZE << " total " << SZ << endl;
@@ -75,10 +74,10 @@ void readBPParticleDataStep(
     ADIOS_SELECTION * selection = adios_selection_boundingbox( v->ndim, start, count );
 
     vector< double > tmp( SZ * 9 );
-    
+
     adios_schedule_read ( f, selection, "iphase", 0, 1, tmp.data() );
     adios_perform_reads ( f, 1 );
-    
+
     result.resize( MY_CHUNKSIZE * 9 );
     for( size_t pIDX = 0; pIDX < MY_CHUNKSIZE; ++pIDX )
     {
@@ -137,6 +136,8 @@ void writeSummaryGrid(
     cout << "min volume is " << *std::min_element( summaryGrid.probes.volume.begin(), summaryGrid.probes.volume.end() );
     cout << "max volume is " << *std::max_element( summaryGrid.probes.volume.begin(), summaryGrid.probes.volume.end() );
 
+    cout << "r size " << summaryGrid.probes.r.size() << endl;
+
     const int64_t N_CELLS = summaryGrid.probes.r.size();
     string filepath = outpath + "/" + ptype + ".summary.grid.dat";
     ofstream outFile( filepath, ios::out | ios::binary );
@@ -161,50 +162,28 @@ void writeSummaryGrid(
 
     // neighborhoods
 
-    int64_t num_neighbors = 0;
-    std::vector< int64_t > nOffsets( N_CELLS );
-    for( int64_t i = 0; i < N_CELLS; ++i )
-    {
-        num_neighbors += summaryGrid.neighborhoods[ i ].size();
-        nOffsets[ i ] = num_neighbors;
-    }
-    std::vector< int64_t > nh( num_neighbors );
-    int64_t k = 0;
-    for( int64_t i = 0; i < N_CELLS; ++i )
-    {
-        for( int j = 0; j < ( i == 0 ? nOffsets[ i ] : nOffsets[ i ] - nOffsets[ i - 1 ] ); ++j )
-        {
-            nh[ k++ ] = summaryGrid.neighborhoods[ i ][ j ];
-        }
-    }
-
-    cout << "writing neighbors " << nh.size() << " " << k << " " << num_neighbors <<  " "<< nOffsets.size() << " " << N_CELLS << endl;
-    cout << *max_element( nh.begin(), nh.end() ) << endl;
-    cout << *max_element( nOffsets.begin(), nOffsets.end() ) << endl;
-
     outFile.open( outpath + "/" + ptype + ".summary.grid.neighbors.dat", ios::out | ios::binary );
-    outFile.write( (char*) nh.data(), sizeof( int64_t ) * num_neighbors );
+    outFile.write( (char*) summaryGrid.neighborhoods.data(), sizeof( int64_t ) * summaryGrid.neighborhoods.size() );
     outFile.close();
 
     outFile.open( outpath + "/" + ptype + ".summary.grid.neighbor.counts.dat", ios::out | ios::binary );
-    outFile.write( (char*) nOffsets.data(), sizeof( int64_t ) * N_CELLS );
+    outFile.write( (char*) summaryGrid.neighborhoodSums.data(), sizeof( int64_t ) * summaryGrid.neighborhoodSums.size() );
     outFile.close();
 }
 
 void computeSummaryStep(
     SummaryStep & summaryStep,
     const SummaryGrid    & summaryGrid,
-    const XGCGridBuilder & gridBuilder,
     int64_t st,
     const string & ptype,
     const string & particle_base_path,
     const string & units_path,
     int rank,
     int nRanks,
-    TN::KdTreeSearch2D & kdTree )
+    TN::ParticleMeshInterpolator2D & interpolator )
 {
     // need r, z, phi, B, mu, rho_parallel, w0, w1
-    vector< float > B, psin;
+    vector< float > B;
 
     cout << particle_base_path << endl;
     string tstep = to_string( st );
@@ -227,24 +206,33 @@ void computeSummaryStep(
     const size_t R_POS = attrKeyToPhaseIndex.at( "r" ) * SZ;
     const size_t Z_POS = attrKeyToPhaseIndex.at( "z" ) * SZ;
     const size_t RHO_POS = attrKeyToPhaseIndex.at( "rho_parallel" ) * SZ;
-    const size_t W1_POS = attrKeyToPhaseIndex.at( "w1" ) * SZ;        
+    const size_t W1_POS = attrKeyToPhaseIndex.at( "w1" ) * SZ;
     const size_t W0_POS = attrKeyToPhaseIndex.at( "w0" ) * SZ;
-    const size_t MU_POS = attrKeyToPhaseIndex.at( "mu" ) * SZ;       
+    const size_t MU_POS = attrKeyToPhaseIndex.at( "mu" ) * SZ;
 
-    // get b mapped to particles from field
+    // for VTKM nearest neighbors and B field Interpolation //////////////////////
+
+    vector< int64_t > gridMap;
+    high_resolution_clock::time_point kdt1 = high_resolution_clock::now();
+
+    vector< float > r( SZ );
+    vector< float > z( SZ );
+
+    for( size_t i = 0; i < SZ; ++i )
+    {
+        r[ i ] = iphase[ R_POS + i ];
+        z[ i ] = iphase[ Z_POS + i ];
+    }
+
     B.resize( SZ );
-    for( size_t i = 0; i < SZ; ++i )
-    {
-        Vec3< double > b = bFieldInterpolator( Vec2< double >( iphase[ R_POS + i ], iphase[ Z_POS + i ] ) );
-        B[ i ] = sqrt( b.x()*b.x() + b.y()*b.y() + b.z()*b.z() );
-    }
+    gridMap.resize( SZ );
+    interpolator.compute( gridMap, B, r, z );
 
-    // get psi_n mapped from the field
-    psin.resize( SZ );
-    for( size_t i = 0; i < SZ; ++i )
-    {
-        psin[ i ] = psinInterpolator( Vec2< double >( iphase[ R_POS + i ], iphase[ Z_POS + i ] ) );
-    }
+    high_resolution_clock::time_point kdt2 = high_resolution_clock::now();
+    cout << "RANK: " << rank
+         << ", MPI kdtree mapping CHUNK took "
+         << duration_cast<milliseconds>( kdt2 - kdt1 ).count()
+         << " milliseconds " << " for " << r.size() << " particles" << endl;
 
     // compute velocity and weight
     vector< float > vpara( SZ );
@@ -287,78 +275,67 @@ void computeSummaryStep(
 
     high_resolution_clock::time_point st1 = high_resolution_clock::now();
 
-    const int NR = SummaryStep::NR;
-    const int NC = SummaryStep::NC;
-    const int64_t DIST_STRIDE = NR*NC;
+    // With VTKM
 
-    const size_t N_CELLS = summaryGrid.probes.volume.size();
+    interpolator.aggregate(
+        summaryGrid,
+        summaryStep,
+        vpara,
+        vperp,
+        w0w1,
+        gridMap,
+        summaryGrid.probes.volume.size() );
 
-    summaryStep.w0w1_mean            = std::vector< float >( N_CELLS, 0.f );
-    summaryStep.w0w1_rms             = std::vector< float >( N_CELLS, 0.f );
-    summaryStep.w0w1_min             = std::vector< float >( N_CELLS,  numeric_limits< float >::max() );
-    summaryStep.w0w1_max             = std::vector< float >( N_CELLS, -numeric_limits< float >::max() );
-    summaryStep.num_particles        = std::vector< float >( N_CELLS, 0.f );
-    summaryStep.num_mapped           = std::vector< float >( N_CELLS, 0.f );
-    summaryStep.velocityDistribution = std::vector< float >( N_CELLS*NR*NC, 0.f );
+    // Without VTKM
 
-    // for VTKM nearest neighbors //////////////////////////////////////////////////////////
+    // const int NR = SummaryStep::NR;
+    // const int NC = SummaryStep::NC;
+    // const int64_t DIST_STRIDE = NR*NC;
 
-    vector< int64_t > gridMap;
-    high_resolution_clock::time_point kdt1 = high_resolution_clock::now();
-    
-    vector< float > r( SZ );
-    vector< float > z( SZ );
-    for( size_t i = 0; i < SZ; ++i )
-    {
-        r[ i ] = iphase[ R_POS + i ];
-        z[ i ] = iphase[ Z_POS + i ];
-    }
+    // const size_t N_CELLS = summaryGrid.probes.volume.size();
 
-    kdTree.run( gridMap, r, z );
+    // summaryStep.w0w1_mean            = std::vector< float >( N_CELLS, 0.f );
+    // summaryStep.w0w1_rms             = std::vector< float >( N_CELLS, 0.f );
+    // summaryStep.w0w1_min             = std::vector< float >( N_CELLS,  numeric_limits< float >::max() );
+    // summaryStep.w0w1_max             = std::vector< float >( N_CELLS, -numeric_limits< float >::max() );
+    // summaryStep.num_particles        = std::vector< float >( N_CELLS, 0.f );
+    // summaryStep.w0w1_variance        = std::vector< float >( N_CELLS, 0.f );
+    // summaryStep.velocityDistribution = std::vector< float >( N_CELLS*NR*NC, 0.f );
 
-    high_resolution_clock::time_point kdt2 = high_resolution_clock::now();
-    cout << "RANK: " << rank
-         << ", MPI kdtree mapping CHUNK took "
-         << duration_cast<milliseconds>( kdt2 - kdt1 ).count()
-         << " milliseconds " << " for " << r.size() << " particles" << endl;
+    // #pragma omp simd
+    // for( size_t i = 0; i < SZ; ++i )
+    // {
+    //     int64_t index = gridMap[ i ];
 
-    /////////////////////////////////////////////////////////////////////////////////////////
+    //     if( index >= 0 )
+    //     {
+    //         summaryStep.w0w1_mean[ index ] += w0w1[ i ];
+    //         summaryStep.w0w1_rms[  index ] += w0w1[ i ] * w0w1[ i ];
+    //         summaryStep.w0w1_min[  index ] = min( w0w1[ i ], summaryStep.w0w1_min[ index ] );
+    //         summaryStep.w0w1_max[  index ] = max( w0w1[ i ], summaryStep.w0w1_max[ index ] );
+    //         summaryStep.num_particles[ index ] += 1.0;
 
-    #pragma omp simd
-    for( size_t i = 0; i < SZ; ++i )
-    {
-        int64_t index = gridMap[ i ];
-        //int64_t index = gridBuilder.nearestNeighborIndex( Vec2< double >( r[ i ], z[ i ] ) );
-        
-        if( index >= 0 )
-        {
-            summaryStep.w0w1_mean[ index ] += w0w1[ i ];
-            summaryStep.w0w1_rms[  index ] += w0w1[ i ] * w0w1[ i ];
-            summaryStep.w0w1_min[  index ] = min( w0w1[ i ], summaryStep.w0w1_min[ index ] );
-            summaryStep.w0w1_max[  index ] = max( w0w1[ i ], summaryStep.w0w1_max[ index ] );
-            summaryStep.num_particles[ index ] += 1.0;
+    //         // map to velocity distribution bin
 
-            // map to velocity distribution bin
+    //         const  float VPARA_MIN = -SummaryStep::DELTA_V;
+    //         const  float VPARA_MAX =  SummaryStep::DELTA_V;
 
-            const  float VPARA_MIN = -SummaryStep::DELTA_V;
-            const  float VPARA_MAX =  SummaryStep::DELTA_V;
+    //         const  float VPERP_MIN = 0;
+    //         const  float VPERP_MAX = SummaryStep::DELTA_V - VPERP_MIN;
 
-            const  float VPERP_MIN = 0;
-            const  float VPERP_MAX = SummaryStep::DELTA_V - VPERP_MIN;
+    //         const float R_WIDTH = VPERP_MAX;
+    //         const float C_WIDTH = VPARA_MAX - VPARA_MIN;
 
-            const float R_WIDTH = VPERP_MAX;
-            const float C_WIDTH = VPARA_MAX - VPARA_MIN;
+    //         int row = floor( ( ( vperp[ i ] - VPERP_MIN ) / R_WIDTH ) * NR );
+    //         int col = floor( ( ( vpara[ i ] - VPARA_MIN ) / C_WIDTH ) * NC );
 
-            int r = floor( ( ( vperp[ i ] - VPERP_MIN ) / R_WIDTH ) * NR );
-            int c = floor( ( ( vpara[ i ] - VPARA_MIN ) / C_WIDTH ) * NC );
+    //         row = max( min( row, NR - 1 ), 0 );
+    //         col = max( min( col, NC - 1 ), 0 );
 
-            r = max( min( r, NR - 1 ), 0 );
-            c = max( min( c, NC - 1 ), 0 );
-
-            summaryStep.num_mapped[ index ] += 1.0;
-            summaryStep.velocityDistribution[ index * DIST_STRIDE + r * NC + c ] += w0w1[ i ];
-        }
-    }
+    //         // summaryStep.num_mapped[ index ] += 1.0;
+    //         summaryStep.velocityDistribution[ index * DIST_STRIDE + row * NC + col ] += w0w1[ i ];
+    //     }
+    // }
 
     high_resolution_clock::time_point st2 = high_resolution_clock::now();
     cout << "RANK: " << rank << ", MPI summarization processing CHUNK took " << duration_cast<milliseconds>( st2 - st1 ).count() << " milliseconds " << " for " << r.size() << " particles" << endl;
@@ -369,7 +346,7 @@ void writeSummaryStep(
     const string & ptype,
     int64_t tstep,
     double realtime,
-    int64_t outputStep,    
+    int64_t outputStep,
     const string & outpath,
     bool append )
 {
@@ -395,10 +372,10 @@ void writeSummaryStep(
     outFile.write( (char*) summaryStep.velocityDistribution.data(), sizeof( float ) * summaryStep.velocityDistribution.size() );
     outFile.write( (char*) summaryStep.w0w1_mean.data(), sizeof( float ) * summaryStep.w0w1_mean.size() );
     outFile.write( (char*) summaryStep.w0w1_rms.data(), sizeof( float )  * summaryStep.w0w1_rms.size() );
+    outFile.write( (char*) summaryStep.w0w1_variance.data(), sizeof( float ) * summaryStep.w0w1_variance.size() );
     outFile.write( (char*) summaryStep.w0w1_min.data(), sizeof( float )  * summaryStep.w0w1_min.size() );
     outFile.write( (char*) summaryStep.w0w1_max.data(), sizeof( float )  * summaryStep.w0w1_max.size() );
     outFile.write( (char*) summaryStep.num_particles.data(), sizeof( float ) * summaryStep.num_particles.size() );
-    outFile.write( (char*) summaryStep.num_mapped.data(), sizeof( float ) * summaryStep.num_mapped.size() );
     outFile.close();
 
     const int64_t sim_step = tstep;
@@ -431,7 +408,7 @@ int main( int argc, char** argv )
     {
         cout << "nRanks:\t" << nRanks << endl;
     }
- 
+
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     const string ptype = "ions";
@@ -442,89 +419,31 @@ int main( int argc, char** argv )
     const string units_path              = argv[ 4 ];
     const string outpath                 = argv[ 5 ];
 
-    SummaryGrid    summaryGrid;
-    XGCGridBuilder gridBuilder;
-    float testVal = 1.0 / nRanks;
+    SummaryGrid summaryGrid;
 
     loadConstants( units_path );
-
     readMeshBP( summaryGrid, poloidal_center, meshpath, bfieldpath );
 
     cout << "Done reading XGC mesh.\n";
 
-    // get neighborhoods
- 
-    if( rank == 0 )
-    {
-        const int64_t N_CELLS = summaryGrid.probes.r.size();
-        summaryGrid.neighborhoods.resize(  N_CELLS );
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-        for( int64_t i = 0; i < N_CELLS; ++i )
-        {
-            summaryGrid.neighborhoods[ i ].reserve( 6 );
-        }
+    TN::ParticleMeshInterpolator2D interpolator;
+    interpolator.setGrid(
+        summaryGrid.probes.r,
+        summaryGrid.probes.z,
+        summaryGrid.probes.B,
+        summaryGrid.neighborhoods,
+        summaryGrid.neighborhoodSums );
 
-        const int64_t N_TRIANGLES = summaryGrid.probeTriangulation.size();
-        for( int i = 0; i < N_TRIANGLES; ++i )
-        {
-            auto & tri = summaryGrid.probeTriangulation[ i ];
-            bool in[ 3 ] = { false, false, false };
-
-            for( int p = 0; p < 3; ++p )
-            {
-                for( int j = 0; j < 3; ++j )
-                {
-                    if( p != j )
-                    {
-                        for( int k = 0; k < summaryGrid.neighborhoods[ tri[ p ] ].size(); ++k )
-                        {
-                            if( summaryGrid.neighborhoods[ tri[ p ] ][ k ] == tri[ j ] )
-                            {
-                                in[ j ] = true;
-                                break;
-                            }
-                        }    
-                        if( ! in[ j ] )
-                        {
-                            summaryGrid.neighborhoods[ tri[ p ] ].push_back( tri[ j ] );
-                        }
-                    }
-                }
-            }
-        }
-
-        cout << "Computed neighborhoods\n";
-    }
-
-    psinInterpolator.initializeBP(   meshpath );
-
-    cout << "Psin interpolators initialized.\n";
-
-    bFieldInterpolator.initializeBP( meshpath, bfieldpath );
-
-    cout << "BField interpolators initialized.\n";
-
-    gridBuilder.set( summaryGrid.probes.r, summaryGrid.probes.z );
+    cout << "Done building interpolator\n";
 
     if( rank == 0 )
     {
-        gridBuilder.save( outpath, ptype );
         writeSummaryGrid( summaryGrid, ptype, outpath  );
-        cout << "Delaunay and Voronoi saved to disk.\n";
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-    cout << "Building KDTree\n";
-
-    TN::KdTreeSearch2D kdTree;
-    kdTree.setGrid( summaryGrid.probes.r, summaryGrid.probes.z );
-
-    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-    // cout << "Building summarization grid.\n";
-    // gridBuilder.grid( summaryGrid, psinInterpolator, bFieldInterpolator, poloidal_center );
-    // cout << "Summary mesh constuction complete. ";
 
     high_resolution_clock::time_point t1 = high_resolution_clock::now();
 
@@ -536,7 +455,7 @@ int main( int argc, char** argv )
     int64_t outputStep = 0;
 
     SummaryStep summaryStep;
-    for( int64_t tstep = FRST; tstep <= LAST; tstep += STRD  )
+    for( int64_t tstep = FRST;  tstep <= LAST; tstep += STRD )
     {
         // cout << "Summarizing time step " << tstep << ". ";
         high_resolution_clock::time_point st1 = high_resolution_clock::now();
@@ -544,27 +463,17 @@ int main( int argc, char** argv )
         computeSummaryStep(
             summaryStep,
             summaryGrid,
-            gridBuilder,
             tstep,     // simulation tstep that corresponds to file
             ptype,
             particle_data_base_path,
             units_path,
             rank,
             nRanks,
-            kdTree );
+            interpolator );
 
         high_resolution_clock::time_point st2 = high_resolution_clock::now();
 
         MPI_Barrier(MPI_COMM_WORLD);
-
-        MPI_Reduce(
-            rank == 0 ? MPI_IN_PLACE : &testVal,
-            &testVal,
-            1,
-            MPI_FLOAT,
-            MPI_SUM,
-            0,
-            MPI_COMM_WORLD );
 
         MPI_Reduce(
             rank == 0 ? MPI_IN_PLACE : summaryStep.velocityDistribution.data(),
@@ -620,14 +529,14 @@ int main( int argc, char** argv )
             0,
             MPI_COMM_WORLD );
 
-        MPI_Reduce(
-            rank == 0 ? MPI_IN_PLACE : summaryStep.num_mapped.data(),
-            summaryStep.num_mapped.data(),
-            summaryStep.num_mapped.size(),
-            MPI_FLOAT,
-            MPI_SUM,
-            0,
-            MPI_COMM_WORLD );
+        // MPI_Reduce(
+        //     rank == 0 ? MPI_IN_PLACE : summaryStep.num_mapped.data(),
+        //     summaryStep.num_mapped.data(),
+        //     summaryStep.num_mapped.size(),
+        //     MPI_FLOAT,
+        //     MPI_SUM,
+        //     0,
+        //     MPI_COMM_WORLD );
 
         MPI_Barrier(MPI_COMM_WORLD);
 
@@ -667,7 +576,6 @@ int main( int argc, char** argv )
     if( rank == 0 )
     {
         cout << "Summarization step took " << duration / ( N_COMPUTED ) << " milliseconds (on average) including reduction and file reading.\n";
-        cout << testVal << endl;
     }
 
     adios_read_finalize_method ( ADIOS_READ_METHOD_BP );

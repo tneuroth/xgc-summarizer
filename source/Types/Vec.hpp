@@ -763,9 +763,9 @@ struct I2
         return i2;
     }
 };
+
 struct I3
 {
-
     unsigned int i1;
     unsigned int i2;
     unsigned int i3;
@@ -798,6 +798,27 @@ struct I3
     bool operator == ( const I3 & other )
     {
         return i1 == other.i1 && i2 == other.i2 && i3 == other.i3;
+    }
+};
+
+struct Triangle
+{
+    int64_t indices[ 3 ];
+    Triangle() {}
+    Triangle( int64_t i1, int64_t i2, int64_t i3 )
+    {
+        indices[ 0 ] = i1;
+        indices[ 1 ] = i2;
+        indices[ 2 ] = i3;
+    }
+    int64_t & operator[] ( int64_t i )
+    {
+        return indices[ i ];
+    }
+
+    const int64_t & operator[] ( int64_t i ) const
+    {
+        return indices[ i ];
     }
 };
 

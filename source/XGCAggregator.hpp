@@ -1,9 +1,10 @@
 #ifndef TN_PTCL_MESH_INTERPOLATOR_HPP
 #define TN_PTCL_MESH_INTERPOLATOR_HPP
 
-#include "../Summary.hpp"
+#include "Summary.hpp"
 #include <KDTree/KdTree.h>
 #include "VTKmInterpolator.hpp"
+#include "VTKmAggregator.hpp"
 
 #include <vector>
 
@@ -33,30 +34,30 @@ private:
 
 public:
 
-	void setGrid( 
-		const std::vector< float >   & r,
-	    const std::vector< float >   & z,
-        const std::vector< float > & scalar,	    
-	    const std::vector< int64_t > & gridNeighborhoods,
-	    const std::vector< int64_t > & gridNeighborhoodSums
-	 );
+    void setGrid(
+        const std::vector< float >   & r,
+        const std::vector< float >   & z,
+        const std::vector< float > & scalar,
+        const std::vector< int64_t > & gridNeighborhoods,
+        const std::vector< int64_t > & gridNeighborhoodSums
+    );
 
-	void compute(
-	    std::vector< int64_t > & neighbors,
-	    std::vector< float   > & field,
-	    const std::vector< float > & r,
-	    const std::vector< float > & z );
+    void compute(
+        std::vector< int64_t > & neighbors,
+        std::vector< float   > & field,
+        const std::vector< float > & r,
+        const std::vector< float > & z );
 
-	void aggregate( 
-	    const SummaryGrid & summaryGrid, 
-	    SummaryStep & summary,
-	    const std::vector< float > & vX,
-	    const std::vector< float > & vY,
-	    const std::vector< float > & w, 
-	    const std::vector< int64_t > & gIDs,            
-	    const int64_t N_CELLS );
+    void aggregate(
+        const SummaryGrid & summaryGrid,
+        SummaryStep & summary,
+        const std::vector< float > & vX,
+        const std::vector< float > & vY,
+        const std::vector< float > & w,
+        const std::vector< int64_t > & gIDs,
+        const int64_t N_CELLS );
 
-	ParticleMeshInterpolator2D();
+    ParticleMeshInterpolator2D();
 };
 
 }
