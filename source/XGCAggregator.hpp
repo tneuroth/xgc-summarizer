@@ -6,13 +6,14 @@
 #include "VTKmInterpolator.hpp"
 #include "VTKmAggregator.hpp"
 #include <map>
+#include <set>
 #include <string>
 #include <vector>
 
 namespace TN
 {
 
-const std::map< string, int > XGC_PHASE_INDEX_MAP =
+const std::map< std::string, int > XGC_PHASE_INDEX_MAP =
 {
     { "r",            0 },   // Major radius [m]
     { "z",            1 },   // Azimuthal direction [m]
@@ -28,16 +29,24 @@ const std::map< string, int > XGC_PHASE_INDEX_MAP =
 class XGCAggregator
 {
 
+    std::string m_meshFilePath;
+    std::string m_bFieldFilePath;
+    std::string m_restartDirectory;
+    std::string m_unitsMFilePath;
+    std::string m_outputDirectory;
+
+    int m_rank; 
+    int m_nranks;
+
+    std::vector< float > m_phase;
+    std::vector< float > m_B;
+
 public:
 
 	void computeSummaryStep(
 	    TN::SummaryStep & summaryStep,
-	    int64_t st,
-	    const std::string & ptype,
-	    const std::string & particle_base_path,
-	    const std::string & units_path,
-	    int rank,ss
-	    int nRanks );
+        const std::string & ptype,
+	    int64_t st );
 
 	XGCAggregator(
 		const std::string & meshFilePath,
@@ -69,7 +78,7 @@ private:
     vtkm::cont::ArrayHandle< vtkm::Int64 > m_gridNeighborhoodSumsHandle;
     std::vector< vtkm::Int64 > m_gridNeighborhoodSums;
 
-    std::map< string, double > m_constants;
+    std::map< std::string, double > m_constants;
 
     void setGrid(
         const std::vector< float >   & r,

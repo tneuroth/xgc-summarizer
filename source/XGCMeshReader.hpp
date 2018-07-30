@@ -11,9 +11,10 @@
 #include "adios_read.h"
 
 #include "Summary.hpp"
-#include "SummaryUtils.hpp"
 #include "Types/Vec.hpp"
 
+namespace TN
+{
 
 inline void getNeighborhoods( TN::SummaryGrid & summaryGrid )
 {
@@ -226,5 +227,6 @@ inline void readMeshBP(
     getNeighborhoods( summaryGrid );
 }
 
+}
 
 #endif

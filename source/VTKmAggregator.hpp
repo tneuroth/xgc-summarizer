@@ -129,9 +129,8 @@ struct VTKmAggregator
                 row = vtkm::Max( vtkm::Min( row, N_ROWS - 1 ), 0 );
                 col = vtkm::Max( vtkm::Min( col, N_COLS - 1 ), 0 );
                 const vtkm::Int64 index = row * N_COLS + col;
-
-                vtkm::Float32 _yh = v - _hc[ index ];
-                vtkm::Float32 _th = histOut[ index ] + _yh;
+                const vtkm::Float32 _yh = v - _hc[ index ];
+                const vtkm::Float32 _th = histOut[ index ] + _yh;
                 _hc[ index ] = ( _th - histOut[ index ] ) - _yh;
                 histOut[ index ] = _th;
             }
@@ -149,17 +148,17 @@ struct VTKmAggregator
                                      ReducedValuesIn<> meansIn,
                                      ReducedValuesOut<> sumOut );
 
-        using ExecutionSignature = void( _1, _2, _3 );
+        using ExecutionSignature = void( _2, _3, _4 );
         using InputDomain = _1;
 
         VTKM_CONT
         VarianceSumWorklet() {}
 
-        template < typename ScalarType >
+        template < typename ScalarVecType, typename ReduceType >
         VTKM_EXEC void operator()(
-            const ScalarType & values,
-            const ScalarType & mean,
-            ScalarType & sum ) const
+            const ScalarVecType & values,
+            const ReduceType & mean,
+            ReduceType & sum ) const
         {
             const vtkm::Int64 SZ = values.GetNumberOfComponents();
 
@@ -169,9 +168,9 @@ struct VTKmAggregator
             // using the Kahan summation algorithm (compensated summatation)
             for( vtkm::Int64 i = 0; i < SZ; ++i )
             {
-                const ScalarType v = values[ i ] - mean;
-                vtkm::Float64 _y = v*v - _c;
-                vtkm::Float64 _t = _sum + _y;
+                const vtkm::Float64 v = values[ i ] - mean;
+                const vtkm::Float64 _y = v*v - _c;
+                const vtkm::Float64 _t = _sum + _y;
                 _c = ( _t - _sum ) - _y;
                 _sum = _t;
             }
@@ -179,48 +178,48 @@ struct VTKmAggregator
         }
     };
 
-    struct Normalize1Worklet : public vtkm::worklet::WorkletMapField
-    {
-        using ControlSignature = void(
-                                     FieldInOut<>  vInOut,
-                                     FieldIn<>    countIn );
+    // struct Normalize1Worklet : public vtkm::worklet::WorkletMapField
+    // {
+    //     using ControlSignature = void(
+    //                                  FieldInOut<>  vInOut,
+    //                                  FieldIn<>    countIn );
 
-        using ExecutionSignature = void( _1, _2, _3 );
+    //     using ExecutionSignature = void( _1, _2, _3 );
 
-        VTKM_CONT
-        Normalize1Worklet() {}
+    //     VTKM_CONT
+    //     Normalize1Worklet() {}
 
-        template < typename ScalarType >
-        VTKM_EXEC void operator()(
-            ScalarType  & v,
-            const ScalarType  & count ) const
-        {
-            v = v / count;
-        }
-    };
+    //     template < typename ScalarType >
+    //     VTKM_EXEC void operator()(
+    //         ScalarType  & v,
+    //         const ScalarType  & count ) const
+    //     {
+    //         v = v / count;
+    //     }
+    // };
 
-    struct Normalize2Worklet : public vtkm::worklet::WorkletMapField
-    {
-        using ControlSignature = void(
-                                     FieldInOut<>  mInOut,
-                                     FieldInOut<> msInOut,
-                                     FieldIn<>    countIn );
+    // struct Normalize2Worklet : public vtkm::worklet::WorkletMapField
+    // {
+    //     using ControlSignature = void(
+    //                                  FieldInOut<>  mInOut,
+    //                                  FieldInOut<> msInOut,
+    //                                  FieldIn<>    countIn );
 
-        using ExecutionSignature = void( _1, _2, _3 );
+    //     using ExecutionSignature = void( _1, _2, _3 );
 
-        VTKM_CONT
-        Normalize2Worklet() {}
+    //     VTKM_CONT
+    //     Normalize2Worklet() {}
 
-        template < typename ScalarType >
-        VTKM_EXEC void operator()(
-            ScalarType  & m,
-            ScalarType  & ms,
-            const ScalarType  & count ) const
-        {
-            m = m / count;
-            ms = vtkm::Sqrt( ms ) / count;
-        }
-    };
+    //     template < typename ScalarType >
+    //     VTKM_EXEC void operator()(
+    //         ScalarType  & m,
+    //         ScalarType  & ms,
+    //         const ScalarType  & count ) const
+    //     {
+    //         m = m / count;
+    //         ms = vtkm::Sqrt( ms ) / count;
+    //     }
+    // };
 
     template < typename IntType,
                typename ScalarType,
@@ -249,7 +248,7 @@ struct VTKmAggregator
     {
         AggregateWorklet aggregateWorklet( histDims, xRange, yRange, nHists );
         vtkm::worklet::DispatcherReduceByKey< AggregateWorklet, DeviceAdapter >
-        aggregateDispatcher( aggregateWorklet );
+            aggregateDispatcher( aggregateWorklet );
         aggregateDispatcher.Invoke(
             keys,
             vX,
@@ -261,6 +260,18 @@ struct VTKmAggregator
             maxOut,
             countOut,
             histOut
+        );
+
+        VarianceSumWorklet varianceSumWorklet;
+
+        vtkm::worklet::DispatcherReduceByKey< VarianceSumWorklet, DeviceAdapter >
+            varianceSumDispatcher( varianceSumWorklet );
+        
+        varianceSumDispatcher.Invoke(
+            keys,
+            w,
+            meanOut,
+            varianceOut
         );
     }
 };

@@ -1,14 +1,17 @@
 
 #include "XGCAggregator.hpp"
 #include "Summary.hpp"
-#include "SummarWriter.hpp"
+#include "SummaryWriter.hpp"
 #include "XGCMeshReader.hpp"
 #include "XGCParticleReader.hpp"
+#include "XGCConstantReader.hpp"
 
 #include <vtkm/cont/DeviceAdapterAlgorithm.h>
 #include <vtkm/worklet/DispatcherMapField.h>
-#include <std::vector>
+#include <vector>
+#include <set>
 #include <chrono>
+#include <exception>
 
 template< typename DeviceAdapter >
 void checkDevice(DeviceAdapter)
@@ -28,15 +31,23 @@ XGCAggregator::XGCAggregator(
     const std::string & outputDirectory,
     const std::set< std::string > & particleTypes,
     int rank,
-    int nranks )
+    int nranks ) : 
+        m_meshFilePath( meshFilePath ),
+        m_bFieldFilePath( bfieldFilePath ),
+        m_restartDirectory( restartDirectory ),
+        m_unitsMFilePath( unitsFilePath ),
+        m_outputDirectory( outputDirectory ),
+        m_rank( rank ),
+        m_nranks( nranks )
+
 {
-    TN::loadConstants( unitsFilePath, m_constants );
+    TN::loadConstants( m_unitsMFilePath, m_constants );
 
     TN::readMeshBP(
-        m_summarGrid,
+        m_summaryGrid,
         { m_constants.at( "eq_axis_r" ), m_constants.at( "eq_axis_z" ) },
-        meshPath,
-        bFieldPath ); 
+        meshFilePath,
+        m_bFieldFilePath ); 
     
     setGrid(
         m_summaryGrid.probes.r,
@@ -48,7 +59,7 @@ XGCAggregator::XGCAggregator(
     if( rank == 0 )
     {
         checkDevice( VTKM_DEFAULT_DEVICE_ADAPTER_TAG() );
-        writeGrid( outputDirectory );
+        writeGrid( m_outputDirectory );
     }
 }
 
@@ -87,6 +98,11 @@ void XGCAggregator::compute(
     const std::vector< float > & r,
     const std::vector< float > & z )
 {
+    if( r.size() != z.size() )
+    {
+        throw std::invalid_argument( "r and z are different sizes in aggregator compute" );
+    }
+
     const int64_t SZ = r.size();
     std::vector< vtkm::Vec< vtkm::Float32, 2 > > ptclPos( SZ );
 
@@ -100,7 +116,14 @@ void XGCAggregator::compute(
     vtkm::cont::ArrayHandle<vtkm::Id> idHandle;
     vtkm::cont::ArrayHandle<vtkm::Float32> distHandle;
 
+    std::cout << "Running kdtree neighbor mapper" << std::endl;
+
     m_kdTree.Run( m_gridHandle, ptclHandle, idHandle, distHandle, VTKM_DEFAULT_DEVICE_ADAPTER_TAG() );
+
+    if( idHandle.GetPortalControl().GetNumberOfValues() != SZ )
+    {
+        throw std::invalid_argument( "kdtree returned wrong number of values" );
+    }
 
     result.resize( SZ );
     #pragma omp parallel for simd
@@ -111,6 +134,19 @@ void XGCAggregator::compute(
 
     vtkm::cont::ArrayHandle<vtkm::Float32> fieldResultHandle;
 
+    if( m_gridNeighborhoodSumsHandle.GetNumberOfValues() != m_gridHandle.GetNumberOfValues() )
+    {
+        throw std::invalid_argument( "grid neighborhoods has wrong number of values" );
+    }
+
+    if( m_gridNeighborhoodSumsHandle.GetPortalControl().Get( m_gridNeighborhoodSumsHandle.GetNumberOfValues() - 1 ) 
+        != m_gridNeighborhoodsHandle.GetNumberOfValues() )
+    {
+        throw std::invalid_argument( "wrong number of neighbors" );
+    }
+
+    std::cout << "running interpolator" << std::endl;
+
     m_interpolator.run(
         ptclHandle,
         idHandle,
@@ -120,6 +156,12 @@ void XGCAggregator::compute(
         m_gridNeighborhoodSumsHandle,
         fieldResultHandle,
         VTKM_DEFAULT_DEVICE_ADAPTER_TAG() );
+
+
+    if( fieldResultHandle.GetNumberOfValues() != SZ )
+    {
+        throw std::invalid_argument( "field result has wrong number of values" );
+    }
 
     field.resize( SZ );
     #pragma omp parallel for simd
@@ -132,10 +174,10 @@ void XGCAggregator::compute(
 void XGCAggregator::aggregate(
     const SummaryGrid & summaryGrid,
     SummaryStep       & summaryStep,
-    const std::std::vector< float > & vX,
-    const std::std::vector< float > & vY,
-    const std::std::vector< float > & w,
-    const std::std::vector< int64_t > & gIDs,
+    const std::vector< float > & vX,
+    const std::vector< float > & vY,
+    const std::vector< float > & w,
+    const std::vector< int64_t > & gIDs,
     const int64_t N_CELLS )
 {
     const int64_t BINS_PER_CELL = SummaryStep::NR*SummaryStep::NC;
@@ -158,6 +200,8 @@ void XGCAggregator::aggregate(
     const vtkm::Vec< vtkm::Float32,  2 >  xRange   = { -SummaryStep::DELTA_V, SummaryStep::DELTA_V };
     const vtkm::Vec< vtkm::Float32,  2 >  yRange   = { 0,                     SummaryStep::DELTA_V };
 
+    std::cout << "running aggregate" << std::endl;
+
     m_aggregator.Run(
         N_CELLS,
         histDims,
@@ -176,30 +220,35 @@ void XGCAggregator::aggregate(
         histHndl,
         VTKM_DEFAULT_DEVICE_ADAPTER_TAG() );
 
-    summaryStep.w0w1_mean            = std::std::vector< float >( N_CELLS, 0.f );
-    summaryStep.w0w1_rms             = std::std::vector< float >( N_CELLS, 0.f );
-    summaryStep.w0w1_variance        = std::std::vector< float >( N_CELLS, 0.f );
-    summaryStep.w0w1_min             = std::std::vector< float >( N_CELLS,  numeric_limits< float >::max() );
-    summaryStep.w0w1_max             = std::std::vector< float >( N_CELLS, -numeric_limits< float >::max() );
-    summaryStep.num_particles        = std::std::vector< float >( N_CELLS, 0.f );
-    summaryStep.velocityDistribution = std::std::vector< float >( N_CELLS*SummaryStep::NR*SummaryStep::NC, 0.f );
+    std::cout << "done aggregating" << std::endl;
+
+    summaryStep.w0w1_mean            = std::vector< float >( N_CELLS, 0.f );
+    summaryStep.w0w1_rms             = std::vector< float >( N_CELLS, 0.f );
+    summaryStep.w0w1_variance        = std::vector< float >( N_CELLS, 0.f );
+    summaryStep.w0w1_min             = std::vector< float >( N_CELLS,  std::numeric_limits< float >::max() );
+    summaryStep.w0w1_max             = std::vector< float >( N_CELLS, -std::numeric_limits< float >::max() );
+    summaryStep.num_particles        = std::vector< float >( N_CELLS, 0.f );
+    summaryStep.velocityDistribution = std::vector< float >( N_CELLS*SummaryStep::NR*SummaryStep::NC, 0.f );
 
     auto uniqueKeys = keys.GetUniqueKeys();
     const int64_t N_UK = uniqueKeys.GetNumberOfValues();
+
     std::cout << histHndl.GetNumberOfValues() << " values ";
     std::cout << sizeof( histHndl.GetPortalControl().Get( 0 ) ) << " is size of each" << std::endl;
     std::cout << summaryStep.velocityDistribution.size() << " is summary size of each" << std::endl;
+
+    std::cout << "copying aggregation results" << std::endl;
 
     // #pragma omp parallel for simd
     for( int64_t i = 0; i < N_UK; ++i )
     {
         int64_t key = static_cast< int64_t >( uniqueKeys.GetPortalControl().Get( i ) );
 
-        summaryStep.w0w1_mean[ key ] = meanHdl.GetPortalControl().Get( i );
-        summaryStep.w0w1_rms[  key ] = rmsHdl.GetPortalControl().Get( i );
-        // // summaryStep.w0w1_variance[ i ] = varHdl.GetPortalControl().Get( i );
-        summaryStep.w0w1_min[ key ] = minHdl.GetPortalControl().Get( i );
-        summaryStep.w0w1_max[ key ] = maxHdl.GetPortalControl().Get( i );
+        summaryStep.w0w1_mean[     key ] = meanHdl.GetPortalControl().Get( i );
+        summaryStep.w0w1_rms[      key ] = rmsHdl.GetPortalControl().Get( i );
+        summaryStep.w0w1_variance[ key ] = varHdl.GetPortalControl().Get( i );
+        summaryStep.w0w1_min[      key ] = minHdl.GetPortalControl().Get( i );
+        summaryStep.w0w1_max[      key ] = maxHdl.GetPortalControl().Get( i );
         summaryStep.num_particles[ key ] = cntHdl.GetPortalControl().Get( i );
 
         for( int64_t j = 0; j < BINS_PER_CELL; ++j )
@@ -227,30 +276,30 @@ void XGCAggregator::writeGrid( const std::string & path )
 }
 
 void XGCAggregator::computeSummaryStep(
-    TN::SummaryStep & summaryStep,
+    TN::SummaryStep & summaryStep, 
+    const std::string & ptype,
     int64_t st )
 {
     // need r, z, phi, B, mu, rho_parallel, w0, w1
-    std::vector< float > B;
 
-    std::cout << particle_base_path << std::endl;
-    std::string tstep = to_string( st );
+    std::cout << m_restartDirectory << std::endl;
+    std::string tstep = std::to_string( st );
 
-    std::vector< float > iphase;
-    high_resolution_clock::time_point readStartTime = high_resolution_clock::now();
+    std::cout << "reading particle step " << std::endl;
+    std::chrono::high_resolution_clock::time_point readStartTime = std::chrono::high_resolution_clock::now();
     readBPParticleDataStep(
-        iphase,
+        m_phase,
         ptype,
-        particle_base_path + "xgc.restart." + string( 5 - tstep.size(), '0' ) + tstep +  ".bp",
-        rank,
-        nRanks );
-    high_resolution_clock::time_point readStartEnd = high_resolution_clock::now();
-    std::cout << "RANK: " << rank
+        m_restartDirectory + "xgc.restart." + std::string( 5 - tstep.size(), '0' ) + tstep +  ".bp",
+        m_rank,
+        m_nranks );
+    std::chrono::high_resolution_clock::time_point readStartEnd = std::chrono::high_resolution_clock::now();
+    std::cout << "RANK: " << m_rank
          << ", adios Read time took "
-         << duration_cast<milliseconds>( readStartEnd - readStartTime ).count()
-         << " milliseconds " << " for " << iphase.size()/9 << " particles" << std::endl;
+         << std::chrono::duration_cast<std::chrono::milliseconds>( readStartEnd - readStartTime ).count()
+         << " milliseconds " << " for " << m_phase.size()/9 << " particles" << std::endl;
 
-    const size_t SZ      = iphase.size() / 9;
+    const size_t SZ      = m_phase.size() / 9;
     const size_t R_POS   = XGC_PHASE_INDEX_MAP.at( "r" ) * SZ;
     const size_t Z_POS   = XGC_PHASE_INDEX_MAP.at( "z" ) * SZ;
     const size_t RHO_POS = XGC_PHASE_INDEX_MAP.at( "rho_parallel" ) * SZ;
@@ -261,25 +310,25 @@ void XGCAggregator::computeSummaryStep(
     // for VTKM nearest neighbors and B field Interpolation //////////////////////
 
     std::vector< int64_t > gridMap;
-    high_resolution_clock::time_point kdt1 = high_resolution_clock::now();
+    std::chrono::high_resolution_clock::time_point kdt1 = std::chrono::high_resolution_clock::now();
 
     std::vector< float > r( SZ );
     std::vector< float > z( SZ );
 
     for( size_t i = 0; i < SZ; ++i )
     {
-        r[ i ] = iphase[ R_POS + i ];
-        z[ i ] = iphase[ Z_POS + i ];
+        r[ i ] = m_phase[ R_POS + i ];
+        z[ i ] = m_phase[ Z_POS + i ];
     }
 
-    B.resize( SZ );
+    m_B.resize( SZ );
     gridMap.resize( SZ );
-    interpolator.compute( gridMap, B, r, z );
+    compute( gridMap, m_B, r, z );
 
-    high_resolution_clock::time_point kdt2 = high_resolution_clock::now();
-    std::cout << "RANK: " << rank
+    std::chrono::high_resolution_clock::time_point kdt2 = std::chrono::high_resolution_clock::now();
+    std::cout << "RANK: " << m_rank
          << ", MPI kdtree mapping CHUNK took "
-         << duration_cast<milliseconds>( kdt2 - kdt1 ).count()
+         << std::chrono::duration_cast<std::chrono::milliseconds>( kdt2 - kdt1 ).count()
          << " milliseconds " << " for " << r.size() << " particles" << std::endl;
 
     // compute velocity and weight
@@ -290,7 +339,7 @@ void XGCAggregator::computeSummaryStep(
     #pragma omp parallel for simd
     for( size_t i = 0; i < SZ; ++i )
     {
-        w0w1[  i ] = iphase[ W0_POS + i ] * iphase[ W1_POS + i ];
+        w0w1[  i ] = m_phase[ W0_POS + i ] * m_phase[ W1_POS + i ];
     }
 
     const double mass_ratio = 1000.0;
@@ -305,8 +354,8 @@ void XGCAggregator::computeSummaryStep(
         #pragma omp parallel for simd
         for( size_t i = 0; i < SZ; ++i )
         {
-            vpara[ i ] = B[ i ] * iphase[ RHO_POS + i ] * ( ( ptl_ion_charge_eu * e ) / mi_sim );
-            vperp[ i ] = sqrt( ( iphase[   MU_POS + i ] * 2.0 * B[ i ] ) / mi_sim );
+            vpara[ i ] = m_B[ i ] * m_phase[ RHO_POS + i ] * ( ( ptl_ion_charge_eu * e ) / mi_sim );
+            vperp[ i ] = sqrt( ( m_phase[   MU_POS + i ] * 2.0 * m_B[ i ] ) / mi_sim );
         }
     }
     else
@@ -314,14 +363,14 @@ void XGCAggregator::computeSummaryStep(
         #pragma omp parallel for simd
         for( size_t i = 0; i < SZ; ++i )
         {
-            vpara[ i ] =( B[ i ] * iphase[ RHO_POS + i ] * (-e) ) / me_sim;
-            vperp[ i ] = sqrt( ( iphase[    MU_POS + i ] * 2.0 * B[ i ]  ) / me_sim  );
+            vpara[ i ] =( m_B[ i ] * m_phase[ RHO_POS + i ] * (-e) ) / me_sim;
+            vperp[ i ] = sqrt( ( m_phase[    MU_POS + i ] * 2.0 * m_B[ i ]  ) / me_sim  );
         }
     }
 
     // compute summations over particles in each cell
 
-    high_resolution_clock::time_point st1 = high_resolution_clock::now();
+    std::chrono::high_resolution_clock::time_point st1 = std::chrono::high_resolution_clock::now();
 
     // With VTKM
 
@@ -385,10 +434,10 @@ void XGCAggregator::computeSummaryStep(
     //     }
     // }
 
-    high_resolution_clock::time_point st2 = high_resolution_clock::now();
-    std::cout << "RANK: "  << rank 
+    std::chrono::high_resolution_clock::time_point st2 = std::chrono::high_resolution_clock::now();
+    std::cout << "RANK: "  << m_rank 
               << ", MPI summarization processing CHUNK took " 
-              << duration_cast<milliseconds>( st2 - st1 ).count() << " milliseconds " 
+              << std::chrono::duration_cast<std::chrono::milliseconds>( st2 - st1 ).count() << " milliseconds " 
               << " for " << r.size() << " particles" << std::endl;
 }
 

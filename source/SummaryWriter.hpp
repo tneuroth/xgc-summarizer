@@ -1,7 +1,7 @@
 #ifndef TN_SUMMARY_WRITER
 #define TN_SUMMARY_WRITER
 
-#include "summary.hpp"
+#include "Summary.hpp"
 
 #include <vector>
 #include <iostream>
@@ -13,13 +13,39 @@
 namespace TN
 {
 
+inline void writeTriangularMeshObj(
+    const std::vector< float > & r,
+    const std::vector< float > & z,
+    const std::vector< TN::Triangle > & mesh,
+    const std::string & outpath )
+{
+    std::ofstream outfile( outpath );
+    for( std::size_t i = 0, end = r.size(); i < end; ++i )
+    {
+        outfile << "v " << r[ i ] << " " << z[ i ] << " 0\n";
+    }
+    outfile << "\n";
+
+    for( std::size_t i = 0, end = mesh.size(); i < end; ++i )
+    {
+        outfile << "f";
+        for( std::size_t j = 0; j < 3; ++j )
+        {
+            outfile << " " << mesh[ i ][ j ] + 1;
+        }
+        outfile << "\n";
+    }
+    outfile.close();
+}
+
+
 inline void writeSummaryGrid(
     const SummaryGrid & summaryGrid,
     const std::string & outpath )
 {
     const int64_t N_CELLS = summaryGrid.probes.r.size();
     std::string filepath = outpath + "/" + "summary.grid.dat";
-    std::ofstream outFile( filepath, ios::out | ios::binary );
+    std::ofstream outFile( filepath, std::ios::out | std::ios::binary );
     outFile.write( (char*) summaryGrid.probes.r.data(), sizeof( float ) * N_CELLS );
     outFile.write( (char*) summaryGrid.probes.z.data(), sizeof( float ) * N_CELLS );
     outFile.write( (char*) summaryGrid.probes.psin.data(), sizeof( float ) * N_CELLS );
@@ -32,29 +58,29 @@ inline void writeSummaryGrid(
     	summaryGrid.probes.r, 
     	summaryGrid.probes.z, 
     	summaryGrid.probeTriangulation, 
-    	outpath + "/" + ptype + ".summary.grid.delaunay.obj" );
+    	outpath + "/summary.grid.delaunay.obj" );
 
-    outFile.open( outpath + "/" + ptype + ".summary.meta.txt" );
-    outFile << "delta_v "    << to_string( SummaryStep::DELTA_V ) << "\n";
-    outFile << "vpara_bins " << to_string( SummaryStep::NC      ) << "\n";
-    outFile << "vperp_bins " << to_string( SummaryStep::NR      ) << "\n";
-    outFile << "num_cells  " << to_string( N_CELLS              ) << "\n";
+    outFile.open( outpath + "/summary.meta.txt" );
+    outFile << "delta_v "    << std::to_string( SummaryStep::DELTA_V ) << "\n";
+    outFile << "vpara_bins " << std::to_string( SummaryStep::NC      ) << "\n";
+    outFile << "vperp_bins " << std::to_string( SummaryStep::NR      ) << "\n";
+    outFile << "num_cells  " << std::to_string( N_CELLS              ) << "\n";
     // partNormFactor ??
     // particle_ratio ??
     outFile.close();
 
     // neighborhoods
 
-    outFile.open( outpath + "/" + "summary.grid.neighbors.dat", ios::out | ios::binary );
+    outFile.open( outpath + "/" + "summary.grid.neighbors.dat", std::ios::out | std::ios::binary );
     outFile.write( (char*) summaryGrid.neighborhoods.data(), sizeof( int64_t ) * summaryGrid.neighborhoods.size() );
     outFile.close();
 
-    outFile.open( outpath + "/" + "summary.grid.neighbor.counts.dat", ios::out | ios::binary );
+    outFile.open( outpath + "/" + "summary.grid.neighbor.counts.dat", std::ios::out | std::ios::binary );
     outFile.write( (char*) summaryGrid.neighborhoodSums.data(), sizeof( int64_t ) * summaryGrid.neighborhoodSums.size() );
     outFile.close();
 }
 
-void writeSummaryStep(
+inline void writeSummaryStep(
     const SummaryStep & summaryStep,
     const std::string & ptype,
     int64_t tstep,
@@ -69,19 +95,19 @@ void writeSummaryStep(
 
     if( ! append )
     {
-        ofstream ofs;
-        ofs.open( summary_path, ofstream::out | ofstream::trunc);
+        std::ofstream ofs;
+        ofs.open( summary_path, std::ofstream::out | std::ofstream::trunc);
         ofs.close();
 
-        ofs.open( tsteps_path, ofstream::out | ofstream::trunc);
+        ofs.open( tsteps_path, std::ofstream::out | std::ofstream::trunc);
         ofs.close();
 
-        ofs.open( realtime_path, ofstream::out | ofstream::trunc);
+        ofs.open( realtime_path, std::ofstream::out | std::ofstream::trunc);
         ofs.close();
     }
 
     // write results to disk
-    ofstream outFile( summary_path, ios::binary | ios_base::app );
+    std::ofstream outFile( summary_path, std::ios::binary | std::ios_base::app );
     outFile.write( (char*) summaryStep.velocityDistribution.data(), sizeof( float ) * summaryStep.velocityDistribution.size() );
     outFile.write( (char*) summaryStep.w0w1_mean.data(), sizeof( float ) * summaryStep.w0w1_mean.size() );
     outFile.write( (char*) summaryStep.w0w1_rms.data(), sizeof( float )  * summaryStep.w0w1_rms.size() );
@@ -92,37 +118,12 @@ void writeSummaryStep(
     outFile.close();
 
     const int64_t sim_step = tstep;
-    ofstream tsFile(  tsteps_path, ios::binary | ios_base::app );
+    std::ofstream tsFile(  tsteps_path, std::ios::binary | std::ios_base::app );
     tsFile.write( (char*) & outputStep, sizeof( outputStep ) ); // or sim_step ...
     tsFile.close();
 
-    ofstream realTimeFile( realtime_path, ios::binary | ios_base::app );
+    std::ofstream realTimeFile( realtime_path, std::ios::binary | std::ios_base::app );
     realTimeFile.write( (char*) & realtime, sizeof( realtime ) );
-}
-
-inline void writeTriangularMeshObj(
-    const std::vector< float > & r,
-    const std::vector< float > & z,
-    const std::vector< TN::Triangle > & mesh,
-    const std::string & outpath )
-{
-    std::ofstream outfile( outpath );
-    for( size_t i = 0, end = r.size(); i < end; ++i )
-    {
-        outfile << "v " << r[ i ] << " " << z[ i ] << " 0\n";
-    }
-    outfile << "\n";
-
-    for( size_t i = 0, end = mesh.size(); i < end; ++i )
-    {
-        outfile << "f";
-        for( size_t j = 0; j < 3; ++j )
-        {
-            outfile << " " << mesh[ i ][ j ] + 1;
-        }
-        outfile << "\n";
-    }
-    outfile.close();
 }
 
 }

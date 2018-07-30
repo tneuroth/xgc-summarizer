@@ -2,10 +2,10 @@
 #define TN_SUMMARY_HPP
 
 #include "Types/Vec.hpp"
-#include "SummaryUtils.hpp"
 
 #include <vector>
 #include <list>
+#include <cstdint>
 
 namespace TN
 {
@@ -49,7 +49,7 @@ struct SummaryStep
     std::vector< float > w0w1_max;
     std::vector< float > num_particles;
 
-    void resize( size_t sz )
+    void resize( std::size_t sz )
     {
         velocityDistribution.resize( sz*NR*NC );
         w0w1_mean.resize( sz );

@@ -23,7 +23,7 @@ inline void readBPParticleDataStep(
 
     if (f == NULL)
     {
-        std::cerr << adios_errmsg() << endl;
+        std::cerr << adios_errmsg() << std::endl;
         exit( 1 );
     }
 
@@ -40,7 +40,7 @@ inline void readBPParticleDataStep(
     uint64_t start[ 2 ] = { MY_START,        0 };
     uint64_t count[ 2 ] = { MY_CHUNKSIZE,    9 };
 
-    std::cout << "my start " << MY_START << " my size " << MY_CHUNKSIZE << " total " << SZ << endl;
+    std::cout << "my start " << MY_START << " my size " << MY_CHUNKSIZE << " total " << SZ << std::endl;
 
     ADIOS_SELECTION * selection = adios_selection_boundingbox( v->ndim, start, count );
 
