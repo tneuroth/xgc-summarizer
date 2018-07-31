@@ -53,21 +53,19 @@ struct VTKmInterpolator2D
             const IdPortalType     & meshNeighborhoodSums,
             ScalarType             & myScalarOut ) const
         {
-            // const IndexType OFFSET = myNearestNeighbor > 0 ? meshNeighborhoodSums[ myNearestNeighbor - 1 ] : 0;
-            //    const IndexType NUM_NEIGHBORS = meshNeighborhoodSums[ myNearestNeighbor ] - OFFSET;
-            //    myScalarOut = 0;
-            //    ScalarType distanceSum = 0;
-
-            //    for( IndexType i = OFFSET; i < NUM_NEIGHBORS; ++i )
-            //    {
-            //    	const IndexType IDX = meshNeighborhoods[ i ];
-            //    	const ScalarType dist = vtkm::Magnitude( myPos - meshCoords[ IDX ] );
-            //        myScalarOut += dist * meshScalars[ IDX ];
-            //        distanceSum += dist;
-            //    }
-
-            //    myScalarOut /= distanceSum;
-            myScalarOut = meshScalars[ myNearestNeighbor ];
+            const IndexType OFFSET = myNearestNeighbor > 0 ? meshNeighborhoodSums[ myNearestNeighbor - 1 ] : 0;
+            const IndexType NUM_NEIGHBORS = meshNeighborhoodSums[ myNearestNeighbor ] - OFFSET;
+            const ScalarType nearestDistance = vtkm::Magnitude( myPos - meshCoords[ myNearestNeighbor ] );
+            myScalarOut = nearestDistance * meshScalars[ myNearestNeighbor ];
+            ScalarType distanceSum = nearestDistance;
+            for( IndexType i = OFFSET; i < OFFSET + NUM_NEIGHBORS; ++i )
+            {
+            	const IndexType IDX = meshNeighborhoods[ i ];
+            	const ScalarType dist = vtkm::Magnitude( myPos - meshCoords[ IDX ] );
+                myScalarOut += dist * meshScalars[ IDX ];
+                distanceSum += dist;
+            }
+            myScalarOut /= distanceSum;
         }
     };
 

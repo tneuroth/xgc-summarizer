@@ -67,7 +67,7 @@ int main( int argc, char** argv )
     high_resolution_clock::time_point t1 = high_resolution_clock::now();
 
     double summaryStepTime = 0.0;
-    int64_t outputStep = 0;
+    int64_t outputStep     = 0;
 
     std::vector< int64_t > steps = { 200, 400 };
 
@@ -159,7 +159,7 @@ int main( int argc, char** argv )
         MPI_Barrier(MPI_COMM_WORLD);
 
         st2 = high_resolution_clock::now();
-        
+
         /////////////////////////////////////////////////////////////////////////
 
         if( rank == 0 )
