@@ -159,12 +159,13 @@ int main( int argc, char** argv )
         MPI_Barrier(MPI_COMM_WORLD);
 
         st2 = high_resolution_clock::now();
-
+        
         /////////////////////////////////////////////////////////////////////////
 
         if( rank == 0 )
         {
-            cout << "normalizing " << endl;
+            std::cout << "mpi reduction took " << duration_cast<milliseconds>( st2 - st1 ).count() << " milliseconds" << std::endl;
+            std::cout << "normalizing " << std::endl;
 
             const size_t NUM_CELLS = summaryStep.w0w1_mean.size();
             #pragma omp parallel for simd

@@ -61,7 +61,6 @@ struct VTKmAggregator
         using ExecutionSignature = void( _2, _3, _4, _5, _6, _7, _8, _9, _10 );
         using InputDomain = _1;
 
-
         template < typename OrigionalScalarVecType,
                    typename ReduceType,
                    typename HistReduceType  >
@@ -87,35 +86,37 @@ struct VTKmAggregator
             count         = SZ;
 
             histOut       = 0;
-            HistReduceType _hc;
+            HistReduceType _hc = 0;
 
             if( SZ == 0 )
             {
                 return;
             }
 
-            vtkm::Float64 _sum  = 0;
-            vtkm::Float64 _ssum = 0;
+            volatile vtkm::Float64 _sum  = 0;
+            volatile vtkm::Float64 _ssum = 0;
 
-            vtkm::Float64 _c  = 0;
-            vtkm::Float64 _cs = 0;
+            volatile vtkm::Float64 _c  = 0;
+            volatile vtkm::Float64 _cs = 0;
+
 
             // using the Kahan summation algorithm (compensated summatation)
+
             for( vtkm::Int64 i = 0; i < SZ; ++i )
             {
                 const vtkm::Float64 v = w[ i ];
 
                 // Weight Mean
 
-                vtkm::Float64 _y = v - _c;
-                vtkm::Float64 _t = _sum + _y;
+                volatile vtkm::Float64 _y = v - _c;
+                volatile vtkm::Float64 _t = _sum + _y;
                 _c = ( _t - _sum ) - _y;
                 _sum = _t;
 
                 // Weight Variance
 
-                vtkm::Float64 _ys = v - _cs;
-                vtkm::Float64 _ts = _ssum + _ys;
+                volatile vtkm::Float64 _ys = v - _cs;
+                volatile vtkm::Float64 _ts = _ssum + _ys;
                 _c = ( _ts - _ssum ) - _ys;
                 _ssum = _ts;
 
@@ -128,10 +129,12 @@ struct VTKmAggregator
                 vtkm::Int32 col = vtkm::Floor( ( ( vX[ i ] - m_xRange[ 0 ] ) / m_xWidth ) * N_COLS );
                 row = vtkm::Max( vtkm::Min( row, N_ROWS - 1 ), 0 );
                 col = vtkm::Max( vtkm::Min( col, N_COLS - 1 ), 0 );
+                
                 const vtkm::Int64 index = row * N_COLS + col;
-                const vtkm::Float32 _yh = v - _hc[ index ];
-                const vtkm::Float32 _th = histOut[ index ] + _yh;
-                _hc[ index ] = ( _th - histOut[ index ] ) - _yh;
+                
+                volatile vtkm::Float32 _yh = v -_hc[ index ];
+                volatile vtkm::Float32 _th = histOut[ index ] + _yh;
+                _hc[ index ] = ( _th - histOut [ index ] ) - _yh;
                 histOut[ index ] = _th;
             }
 
@@ -145,10 +148,11 @@ struct VTKmAggregator
         using ControlSignature = void(
                                      KeysIn keys,
                                      ValuesIn<> vIn,
-                                     ReducedValuesIn<> meansIn,
+                                     ReducedValuesIn<> sumsIn,
+                                     ReducedValuesIn<> countsIn,                                     
                                      ReducedValuesOut<> sumOut );
 
-        using ExecutionSignature = void( _2, _3, _4 );
+        using ExecutionSignature = void( _2, _3, _4, _5 );
         using InputDomain = _1;
 
         VTKM_CONT
@@ -157,24 +161,25 @@ struct VTKmAggregator
         template < typename ScalarVecType, typename ReduceType >
         VTKM_EXEC void operator()(
             const ScalarVecType & values,
-            const ReduceType & mean,
-            ReduceType & sum ) const
+            const ReduceType & sum,
+            const ReduceType & count,            
+            ReduceType & result ) const
         {
             const vtkm::Int64 SZ = values.GetNumberOfComponents();
 
-            vtkm::Float64 _sum = 0;
-            vtkm::Float64 _c = 0;
+            volatile vtkm::Float64 _r = 0;
+            volatile vtkm::Float64 _c = 0;
 
             // using the Kahan summation algorithm (compensated summatation)
             for( vtkm::Int64 i = 0; i < SZ; ++i )
             {
-                const vtkm::Float64 v = values[ i ] - mean;
-                const vtkm::Float64 _y = v*v - _c;
-                const vtkm::Float64 _t = _sum + _y;
-                _c = ( _t - _sum ) - _y;
-                _sum = _t;
+                volatile vtkm::Float64 v = values[ i ] - ( sum / count );
+                volatile vtkm::Float64 _y = v*v - _c;
+                volatile vtkm::Float64 _t = _r + _y;
+                _c = ( _t - _r ) - _y;
+                _r = _t;
             }
-            sum = _sum;
+            result = _r;
         }
     };
 
@@ -246,6 +251,8 @@ struct VTKmAggregator
         vtkm::cont::ArrayHandle< ScalarHistType, ScalarHistTypeStorageTag  > & histOut,
         DeviceAdapter device  )
     {
+        std::cout << "running aggregator worklet" << std::endl;
+
         AggregateWorklet aggregateWorklet( histDims, xRange, yRange, nHists );
         vtkm::worklet::DispatcherReduceByKey< AggregateWorklet, DeviceAdapter >
             aggregateDispatcher( aggregateWorklet );
@@ -266,11 +273,14 @@ struct VTKmAggregator
 
         vtkm::worklet::DispatcherReduceByKey< VarianceSumWorklet, DeviceAdapter >
             varianceSumDispatcher( varianceSumWorklet );
+
+        std::cout << "running variance sum worklet" << std::endl;
         
         varianceSumDispatcher.Invoke(
             keys,
             w,
             meanOut,
+            countOut,
             varianceOut
         );
     }
