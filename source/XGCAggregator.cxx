@@ -294,7 +294,7 @@ void XGCAggregator::compute(
 {
     if( r.size() != z.size() )
     {
-        throw std::invalid_argument( "r and z are different sizes in aggregator compute" );
+        std::cout << "r and z are different sizes in aggregator compute" << std::endl;
     }
 
     const int64_t SZ = r.size();
@@ -316,7 +316,7 @@ void XGCAggregator::compute(
 
     if( idHandle.GetPortalControl().GetNumberOfValues() != SZ )
     {
-        throw std::invalid_argument( "kdtree returned wrong number of values" );
+        std::cout << "kdtree returned wrong number of values" << std::endl;
     }
 
     result.resize( SZ );
@@ -330,13 +330,13 @@ void XGCAggregator::compute(
 
     if( m_gridNeighborhoodSumsHandle.GetNumberOfValues() != m_gridHandle.GetNumberOfValues() )
     {
-        throw std::invalid_argument( "grid neighborhoods has wrong number of values" );
+        std::cout << "grid neighborhoods has wrong number of values" << std::endl;
     }
 
     if( m_gridNeighborhoodSumsHandle.GetPortalControl().Get( m_gridNeighborhoodSumsHandle.GetNumberOfValues() - 1 ) 
         != m_gridNeighborhoodsHandle.GetNumberOfValues() )
     {
-        throw std::invalid_argument( "wrong number of neighbors" );
+        std::cout << "wrong number of neighbors" << std::endl;
     }
 
     std::cout << "running interpolator" << std::endl;
@@ -351,10 +351,11 @@ void XGCAggregator::compute(
         fieldResultHandle,
         VTKM_DEFAULT_DEVICE_ADAPTER_TAG() );
 
+    std::cout << "DONE" << std::endl;
 
     if( fieldResultHandle.GetNumberOfValues() != SZ )
     {
-        throw std::invalid_argument( "field result has wrong number of values" );
+        std::cout << "field result has wrong number of values" << std::endl;
     }
 
     field.resize( SZ );
@@ -509,6 +510,8 @@ void XGCAggregator::computeSummaryStep(
     std::vector< float > r( SZ );
     std::vector< float > z( SZ );
 
+    std::cout << "end is " << R_POS + SZ << std::endl;
+
     for( size_t i = 0; i < SZ; ++i )
     {
         r[ i ] = m_phase[ R_POS + i ];
@@ -517,6 +520,7 @@ void XGCAggregator::computeSummaryStep(
 
     m_B.resize( SZ );
     gridMap.resize( SZ );
+
     compute( gridMap, m_B, r, z );
 
     std::chrono::high_resolution_clock::time_point kdt2 = std::chrono::high_resolution_clock::now();
