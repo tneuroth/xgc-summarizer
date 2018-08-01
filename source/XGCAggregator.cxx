@@ -118,114 +118,128 @@ void XGCAggregator::reduceMesh(
  
     MPI_Barrier(MPI_COMM_WORLD);
     std::cout << "getting neighborhoods " << std::endl;
-
     TN::getNeighborhoods( newGrid );
 
-    const int64_t SZ = newGrid.probes.r.size();
-    std::vector< vtkm::Vec< vtkm::Float32, 2 > > pos( SZ );
+    std::cout << "Copying over values from old mesh " << newGrid.probes.r.size() << "/" << m_summaryGrid.probes.r.size() << std::endl; 
+    
+    newGrid.probes.B.resize( newGrid.probes.r.size() );
+    newGrid.probes.psin.resize( newGrid.probes.r.size() );
+    newGrid.probes.poloidalAngle.resize( newGrid.probes.r.size() );
 
-    #pragma omp parallel for simd
-    for( int64_t i = 0; i < SZ; ++i )
+    for( int64_t i = 0; i < newGrid.probes.r.size(); ++i )
     {
-        pos[ i ] = vtkm::Vec< vtkm::Float32, 2 >( newGrid.probes.r[ i ], newGrid.probes.z[ i ] );
+        newGrid.probes.B[ i ] = m_summaryGrid.probes.B[ i*2 ];
+        newGrid.probes.psin[ i ] = m_summaryGrid.probes.psin[ i*2 ];       
+        newGrid.probes.poloidalAngle[ i ] = m_summaryGrid.probes.poloidalAngle[ i*2 ];                
     }
 
-    auto posHandle = vtkm::cont::make_ArrayHandle( pos );
-    vtkm::cont::ArrayHandle<vtkm::Id> idHandle;
-    vtkm::cont::ArrayHandle<vtkm::Float32> distHandle;
+    // const int64_t SZ = newGrid.probes.r.size();
+    // std::vector< vtkm::Vec< vtkm::Float32, 2 > > pos( SZ );
+    // #pragma omp parallel for simd
+    // for( int64_t i = 0; i < SZ; ++i )
+    // {
+    //     pos[ i ] = vtkm::Vec< vtkm::Float32, 2 >( newGrid.probes.r[ i ], newGrid.probes.z[ i ] );
+    // }
 
-    MPI_Barrier(MPI_COMM_WORLD);
-    std::cout << "getting neighbors " << std::endl;
+    // auto posHandle = vtkm::cont::make_ArrayHandle( pos );
+    // vtkm::cont::ArrayHandle<vtkm::Id> idHandle;
+    // vtkm::cont::ArrayHandle<vtkm::Float32> distHandle;
 
-    m_kdTree.Run( m_gridHandle, posHandle, idHandle, distHandle, VTKM_DEFAULT_DEVICE_ADAPTER_TAG() );
+    // MPI_Barrier(MPI_COMM_WORLD);
+    // std::cout << "getting neighbors" 
+    //           << m_gridHandle.GetNumberOfValues() << " " 
+    //           << posHandle.GetNumberOfValues()    << " " << std::endl;
 
-    if( idHandle.GetNumberOfValues() < SZ )
-    {
-        std::cout << "wrong number of ids " << std::endl;
-        exit( 1 );
-    }
+    // m_kdTree.Run( m_gridHandle, posHandle, idHandle, distHandle, VTKM_DEFAULT_DEVICE_ADAPTER_TAG() );
+    // std::cout << "finished getting neighbors" << std::endl;
+
+    // if( idHandle.GetNumberOfValues() < SZ )
+    // {
+    //     std::cout << "wrong number of ids " << std::endl;
+    //     exit( 1 );
+    // }
   
-    std::vector< int64_t > ids( SZ );
-    #pragma omp parallel for simd
-    for( int64_t i = 0; i < SZ; ++i )
-    {
-        ids[ i ] = idHandle.GetPortalControl().Get( i );
-    }
+    // std::vector< int64_t > ids( SZ );
+    // #pragma omp parallel for simd
+    // for( int64_t i = 0; i < SZ; ++i )
+    // {
+    //     ids[ i ] = idHandle.GetPortalControl().Get( i );
+    // }
 
-    vtkm::cont::ArrayHandle<vtkm::Float32> fieldResultHandle;
+    // vtkm::cont::ArrayHandle<vtkm::Float32> fieldResultHandle;
 
-    // Psi
+    // // Psi
 
-    MPI_Barrier(MPI_COMM_WORLD);
-    std::cout << "interpolating psi " << std::endl;
+    // MPI_Barrier(MPI_COMM_WORLD);
+    // std::cout << "interpolating psi " << std::endl;
 
-    auto psinHandle = vtkm::cont::make_ArrayHandle( m_summaryGrid.probes.psin );
-    m_interpolator.run(
-        posHandle,
-        idHandle,
-        m_gridHandle,
-        psinHandle,
-        m_gridNeighborhoodsHandle,
-        m_gridNeighborhoodSumsHandle,
-        fieldResultHandle,
-        VTKM_DEFAULT_DEVICE_ADAPTER_TAG() );
+    // auto psinHandle = vtkm::cont::make_ArrayHandle( m_summaryGrid.probes.psin );
+    // m_interpolator.run(
+    //     posHandle,
+    //     idHandle,
+    //     m_gridHandle,
+    //     psinHandle,
+    //     m_gridNeighborhoodsHandle,
+    //     m_gridNeighborhoodSumsHandle,
+    //     fieldResultHandle,
+    //     VTKM_DEFAULT_DEVICE_ADAPTER_TAG() );
 
-    if( fieldResultHandle.GetNumberOfValues() < SZ )
-    {
-        std::cout << "wrong number of psi values " << std::endl;
-        exit( 1 );
-    }
+    // if( fieldResultHandle.GetNumberOfValues() < SZ )
+    // {
+    //     std::cout << "wrong number of psi values " << std::endl;
+    //     exit( 1 );
+    // }
 
-    newGrid.probes.psin.resize( SZ );
-    #pragma omp parallel for simd
-    for( int64_t i = 0; i < SZ; ++i )
-    {
-        newGrid.probes.psin[ i ] = fieldResultHandle.GetPortalControl().Get( i );
-    }
+    // newGrid.probes.psin.resize( SZ );
+    // #pragma omp parallel for simd
+    // for( int64_t i = 0; i < SZ; ++i )
+    // {
+    //     newGrid.probes.psin[ i ] = fieldResultHandle.GetPortalControl().Get( i );
+    // }
 
-    // B
+    // // B
 
-    MPI_Barrier(MPI_COMM_WORLD);
-    std::cout << "interpolating B " << std::endl;   
+    // MPI_Barrier(MPI_COMM_WORLD);
+    // std::cout << "interpolating B " << std::endl;   
 
-    auto bHandle = vtkm::cont::make_ArrayHandle( m_summaryGrid.probes.B );
-    m_interpolator.run(
-        posHandle,
-        idHandle,
-        m_gridHandle,
-        bHandle,
-        m_gridNeighborhoodsHandle,
-        m_gridNeighborhoodSumsHandle,
-        fieldResultHandle,
-        VTKM_DEFAULT_DEVICE_ADAPTER_TAG() );
+    // auto bHandle = vtkm::cont::make_ArrayHandle( m_summaryGrid.probes.B );
+    // m_interpolator.run(
+    //     posHandle,
+    //     idHandle,
+    //     m_gridHandle,
+    //     bHandle,
+    //     m_gridNeighborhoodsHandle,
+    //     m_gridNeighborhoodSumsHandle,
+    //     fieldResultHandle,
+    //     VTKM_DEFAULT_DEVICE_ADAPTER_TAG() );
 
-    if( fieldResultHandle.GetNumberOfValues() < SZ )
-    {
-        std::cout << "wrong number of B values " << std::endl;
-        exit( 1 );
-    }
+    // if( fieldResultHandle.GetNumberOfValues() < SZ )
+    // {
+    //     std::cout << "wrong number of B values " << std::endl;
+    //     exit( 1 );
+    // }
 
-    newGrid.probes.B.resize( SZ );
-    #pragma omp parallel for simd
-    for( int64_t i = 0; i < SZ; ++i )
-    {
-        newGrid.probes.B[ i ] = fieldResultHandle.GetPortalControl().Get( i );
-    }
+    // newGrid.probes.B.resize( SZ );
+    // #pragma omp parallel for simd
+    // for( int64_t i = 0; i < SZ; ++i )
+    // {
+    //     newGrid.probes.B[ i ] = fieldResultHandle.GetPortalControl().Get( i );
+    // }
 
-    // Poloidal Angle
+    // // Poloidal Angle
 
-    MPI_Barrier(MPI_COMM_WORLD);
-    std::cout << "calculating angles " << std::endl;
+    // MPI_Barrier(MPI_COMM_WORLD);
+    // std::cout << "calculating angles " << std::endl;
 
-    newGrid.probes.poloidalAngle.resize( SZ );
-    const TN::Vec2< float > poloidal_center = { m_constants.at( "eq_axis_r" ), m_constants.at( "eq_axis_z" ) };
-    #pragma omp parallel for simd
-    for( int64_t i = 0; i < SZ; ++i )
-    {
-        newGrid.probes.poloidalAngle[ i ] =
-            ( TN::Vec2< float >( newGrid.probes.r[ i ], newGrid.probes.z[ i ] )
-              - poloidal_center ).angle( TN::Vec2< float >( 1.0, 0.0 ) );
-    }
+    // newGrid.probes.poloidalAngle.resize( SZ );
+    // const TN::Vec2< float > poloidal_center = { m_constants.at( "eq_axis_r" ), m_constants.at( "eq_axis_z" ) };
+    // #pragma omp parallel for simd
+    // for( int64_t i = 0; i < SZ; ++i )
+    // {
+    //     newGrid.probes.poloidalAngle[ i ] =
+    //         ( TN::Vec2< float >( newGrid.probes.r[ i ], newGrid.probes.z[ i ] )
+    //           - poloidal_center ).angle( TN::Vec2< float >( 1.0, 0.0 ) );
+    // }
 
     m_summaryGrid = newGrid;
 

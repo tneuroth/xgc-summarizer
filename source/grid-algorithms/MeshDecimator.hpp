@@ -83,22 +83,22 @@ public:
         outFile.close();
     }
 
-    void reduce()
-    {
-        std::set< size_t > toRemove();
-        for( auto face = tri.faces_begin(); face != tri.faces_end(); ++face )
-        {
-            TN::Vec2< double > v1( face->vertex(0)->point().x(), face->vertex(0)->point().y() );
-            TN::Vec2< double > v2( face->vertex(1)->point().x(), face->vertex(1)->point().y() );
-            TN::Vec2< double > v3( face->vertex(2)->point().x(), face->vertex(2)->point().y() );
+    // void reduce()
+    // {
+    //     std::set< size_t > toRemove();
+    //     for( auto face = tri.faces_begin(); face != tri.faces_end(); ++face )
+    //     {
+    //         TN::Vec2< double > v1( face->vertex(0)->point().x(), face->vertex(0)->point().y() );
+    //         TN::Vec2< double > v2( face->vertex(1)->point().x(), face->vertex(1)->point().y() );
+    //         TN::Vec2< double > v3( face->vertex(2)->point().x(), face->vertex(2)->point().y() );
 
-            std::int64_t i1( idMap.find( face->vertex(0)->point() )->second );
-            std::int64_t i2( idMap.find( face->vertex(1)->point() )->second );
-            std::int64_t i3( idMap.find( face->vertex(2)->point() )->second );
+    //         std::int64_t i1( idMap.find( face->vertex(0)->point() )->second );
+    //         std::int64_t i2( idMap.find( face->vertex(1)->point() )->second );
+    //         std::int64_t i3( idMap.find( face->vertex(2)->point() )->second );
   
-            outfile << "f " << (i1+1) << " " << (i2+1) << " " << (i3+1) << "\n";
-        }
-    }
+    //         std::outfile << "f " << (i1+1) << " " << (i2+1) << " " << (i3+1) << "\n";
+    //     }
+    // }
 
     void writeObj( const std::string & outpath )
 	{
@@ -135,9 +135,10 @@ public:
         const size_t SZ = xy.size();
         vertices.clear();
         
-        for( size_t i = 0, j = 0; i < SZ; ++i )
+        std::cout << "\n" << SZ;
+        for( size_t i = 0, j = 0; i < SZ-1; ++i )
         {
-            if( i % 3 == 0 )
+            if( i % 2 == 0 )
             {
                 MeshType p( xy[ i ].x(), xy[ i ].y() );
                 tri.insert( p );
@@ -146,6 +147,7 @@ public:
                 ++j;
             }
         }
+        std::cout << " " << vertices.size() << std::endl;
 
         writeObj("triangulation.obj");
     }
