@@ -65,7 +65,10 @@ struct VTKmInterpolator2D
                 myScalarOut += dist * meshScalars[ IDX ];
                 distanceSum += dist;
             }
-            myScalarOut /= distanceSum;
+            if( distanceSum > 0 )
+            {
+                myScalarOut /= distanceSum;
+            }
         }
     };
 
@@ -91,6 +94,13 @@ struct VTKmInterpolator2D
 
         vtkm::worklet::DispatcherMapField< InterpolationWorklet2D, DeviceAdapter >
         interpDispatcher( interpolationWorklet );
+
+        std::cout << "invoking vtkm interpolator " << particleCoords.GetNumberOfValues() << " "
+                  << particleNeighbors.GetNumberOfValues() << " "
+                  << meshCoords.GetNumberOfValues() << " "
+                  << meshScalars.GetNumberOfValues() << " "
+                  << meshNeighborhoods.GetNumberOfValues() << " " 
+                  << meshNeighborhoodSums.GetNumberOfValues() << std::endl;
 
         interpDispatcher.Invoke(
             particleCoords,

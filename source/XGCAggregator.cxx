@@ -139,6 +139,12 @@ void XGCAggregator::reduceMesh(
 
     m_kdTree.Run( m_gridHandle, posHandle, idHandle, distHandle, VTKM_DEFAULT_DEVICE_ADAPTER_TAG() );
 
+    if( idHandle.GetNumberOfValues() < SZ )
+    {
+        std::cout << "wrong number of ids " << std::endl;
+        exit( 1 );
+    }
+  
     std::vector< int64_t > ids( SZ );
     #pragma omp parallel for simd
     for( int64_t i = 0; i < SZ; ++i )
@@ -164,6 +170,12 @@ void XGCAggregator::reduceMesh(
         fieldResultHandle,
         VTKM_DEFAULT_DEVICE_ADAPTER_TAG() );
 
+    if( fieldResultHandle.GetNumberOfValues() < SZ )
+    {
+        std::cout << "wrong number of psi values " << std::endl;
+        exit( 1 );
+    }
+
     newGrid.probes.psin.resize( SZ );
     #pragma omp parallel for simd
     for( int64_t i = 0; i < SZ; ++i )
@@ -186,6 +198,12 @@ void XGCAggregator::reduceMesh(
         m_gridNeighborhoodSumsHandle,
         fieldResultHandle,
         VTKM_DEFAULT_DEVICE_ADAPTER_TAG() );
+
+    if( fieldResultHandle.GetNumberOfValues() < SZ )
+    {
+        std::cout << "wrong number of B values " << std::endl;
+        exit( 1 );
+    }
 
     newGrid.probes.B.resize( SZ );
     #pragma omp parallel for simd
