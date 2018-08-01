@@ -53,31 +53,19 @@ struct VTKmInterpolator2D
             const IdPortalType     & meshNeighborhoodSums,
             ScalarType             & myScalarOut ) const
         {
-            // const IndexType OFFSET = myNearestNeighbor > 0 ? meshNeighborhoodSums[ myNearestNeighbor - 1 ] : 0;
-            // const IndexType NUM_NEIGHBORS = meshNeighborhoodSums[ myNearestNeighbor ] - OFFSET;
-            // const ScalarType nearestDistance = vtkm::Magnitude( myPos - meshCoords[ myNearestNeighbor ] );
-            // myScalarOut = nearestDistance * meshScalars[ myNearestNeighbor ];
-            if( myNearestNeighbor >= 131621 )
+            const IndexType OFFSET = myNearestNeighbor > 0 ? meshNeighborhoodSums[ myNearestNeighbor - 1 ] : 0;
+            const IndexType NUM_NEIGHBORS = meshNeighborhoodSums[ myNearestNeighbor ] - OFFSET;
+            const ScalarType nearestDistance = vtkm::Magnitude( myPos - meshCoords[ myNearestNeighbor ] );
+            myScalarOut = nearestDistance * meshScalars[ myNearestNeighbor ];
+            ScalarType distanceSum = nearestDistance;
+            for( IndexType i = OFFSET; i < OFFSET + NUM_NEIGHBORS; ++i )
             {
-                std::cout << "invalid neighbor " << myNearestNeighbor << std::endl; 
-                myScalarOut = 1.0;
+            	const IndexType IDX = meshNeighborhoods[ i ];
+            	const ScalarType dist = vtkm::Magnitude( myPos - meshCoords[ IDX ] );
+                myScalarOut += dist * meshScalars[ IDX ];
+                distanceSum += dist;
             }
-            else
-            {
-                myScalarOut = meshScalars[ myNearestNeighbor ];            
-            }
-            // ScalarType distanceSum = nearestDistance;
-            // for( IndexType i = OFFSET; i < OFFSET + NUM_NEIGHBORS; ++i )
-            // {
-            // 	const IndexType IDX = meshNeighborhoods[ i ];
-            // 	const ScalarType dist = vtkm::Magnitude( myPos - meshCoords[ IDX ] );
-            //     myScalarOut += dist * meshScalars[ IDX ];
-            //     distanceSum += dist;
-            // }
-            // if( distanceSum > 0 )
-            // {
-            //     myScalarOut /= distanceSum;
-            // }
+            myScalarOut /= distanceSum;
         }
     };
 
@@ -95,20 +83,14 @@ struct VTKmInterpolator2D
         const vtkm::cont::ArrayHandle< ScalarType, ScalarStorageTag >               & meshScalars,
         const vtkm::cont::ArrayHandle< IndexType, IndexStorageTag >                 & meshNeighborhoods,
         const vtkm::cont::ArrayHandle< IndexType, IndexStorageTag >                 & meshNeighborhoodSums,
-        vtkm::cont::ArrayHandle< ScalarType, ScalarStorageTag >                     & result,
+        vtkm::cont::ArrayHandle< ScalarType, ScalarStorageTag >               & result,
         DeviceAdapter device )
     {
+
         InterpolationWorklet2D interpolationWorklet;
 
         vtkm::worklet::DispatcherMapField< InterpolationWorklet2D, DeviceAdapter >
         interpDispatcher( interpolationWorklet );
-
-        std::cout << "invoking vtkm interpolator " << particleCoords.GetNumberOfValues() << " "
-                  << particleNeighbors.GetNumberOfValues() << " "
-                  << meshCoords.GetNumberOfValues() << " "
-                  << meshScalars.GetNumberOfValues() << " "
-                  << meshNeighborhoods.GetNumberOfValues() << " " 
-                  << meshNeighborhoodSums.GetNumberOfValues() << std::endl;
 
         interpDispatcher.Invoke(
             particleCoords,
@@ -118,8 +100,6 @@ struct VTKmInterpolator2D
             meshNeighborhoods,
             meshNeighborhoodSums,
             result );
-
-        std::cout << "done" << std::endl;
     }
 };
 

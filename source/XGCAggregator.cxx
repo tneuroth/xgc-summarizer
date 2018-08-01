@@ -320,52 +320,54 @@ void XGCAggregator::compute(
     }
 
     result.resize( SZ );
-    #pragma omp parallel for simd
-    for( int64_t i = 0; i < SZ; ++i )
-    {
-        result[ i ] = idHandle.GetPortalControl().Get( i );
-    }
-
-    vtkm::cont::ArrayHandle<vtkm::Float32> fieldResultHandle;
-
-    if( m_gridNeighborhoodSumsHandle.GetNumberOfValues() != m_gridHandle.GetNumberOfValues() )
-    {
-        std::cout << "grid neighborhoods has wrong number of values" << std::endl;
-    }
-
-    if( m_gridNeighborhoodSumsHandle.GetPortalControl().Get( m_gridNeighborhoodSumsHandle.GetNumberOfValues() - 1 ) 
-        != m_gridNeighborhoodsHandle.GetNumberOfValues() )
-    {
-        std::cout << "wrong number of neighbors" << std::endl;
-    }
-
-    std::cout << "running interpolator" << std::endl;
-
-    m_interpolator.run(
-        ptclHandle,
-        idHandle,
-        m_gridHandle,
-        m_gridScalarHandle,
-        m_gridNeighborhoodsHandle,
-        m_gridNeighborhoodSumsHandle,
-        fieldResultHandle,
-        VTKM_DEFAULT_DEVICE_ADAPTER_TAG() );
-
-    std::cout << "DONE" << std::endl;
-
-    if( fieldResultHandle.GetNumberOfValues() != SZ )
-    {
-        std::cout << "field result has wrong number of values" << std::endl;
-    }
-
     field.resize( SZ );
     #pragma omp parallel for simd
     for( int64_t i = 0; i < SZ; ++i )
     {
-        field[ i ] = fieldResultHandle.GetPortalControl().Get( i );
+        result[ i ] = idHandle.GetPortalControl().Get( i );
+        field[  i ] = m_gridScalars[ result[ i ] ];
     }
 
-    std::cout << "copied " << std::endl;
+    // vtkm::cont::ArrayHandle<vtkm::Float32> fieldResultHandle;
+
+    // if( m_gridNeighborhoodSumsHandle.GetNumberOfValues() != m_gridHandle.GetNumberOfValues() )
+    // {
+    //     std::cout << "grid neighborhoods has wrong number of values" << std::endl;
+    // }
+
+    // if( m_gridNeighborhoodSumsHandle.GetPortalControl().Get( m_gridNeighborhoodSumsHandle.GetNumberOfValues() - 1 ) 
+    //     != m_gridNeighborhoodsHandle.GetNumberOfValues() )
+    // {
+    //     std::cout << "wrong number of neighbors" << std::endl;
+    // }
+
+    // std::cout << "running interpolator" << std::endl;
+
+    // m_interpolator.run(
+    //     ptclHandle,
+    //     idHandle,
+    //     m_gridHandle,
+    //     m_gridScalarHandle,
+    //     m_gridNeighborhoodsHandle,
+    //     m_gridNeighborhoodSumsHandle,
+    //     fieldResultHandle,
+    //     VTKM_DEFAULT_DEVICE_ADAPTER_TAG() );
+
+    // std::cout << "DONE" << std::endl;
+
+    // if( fieldResultHandle.GetNumberOfValues() != SZ )
+    // {
+    //     std::cout << "field result has wrong number of values" << std::endl;
+    // }
+
+    // field.resize( SZ );
+    // #pragma omp parallel for simd
+    // for( int64_t i = 0; i < SZ; ++i )
+    // {
+    //     field[ i ] = fieldResultHandle.GetPortalControl().Get( i );
+    // }
+
+    // std::cout << "copied " << std::endl;
 }
 
 void XGCAggregator::aggregate(

@@ -1,10 +1,10 @@
 #!/bin/bash
 
 mpirun -np 4\
-    ./summarizer /home/tn0/xgc.mesh.bp \
-                 /home/tn0/xgc.bfield.bp \
-                 /home/tn0/ \
-                 /home/tn0/units.m \
+    ./summarizer /media/tn0/data/datasets/CODAR/xgc.mesh.bp \
+                 /media/tn0/data/datasets/CODAR/xgc.bfield.bp \
+                 /media/tn0/data/datasets/CODAR/ \
+                 /media/tn0/data/datasets/CODAR/units.m \
                  /media/tn0/data/datasets/ITER_SummaryMPI/ \
                  /home/tn0/repos/xgc-summarizer/source/grid-algorithms/triangulation.obj
 
