@@ -59,10 +59,13 @@ struct VTKmInterpolator2D
             // myScalarOut = nearestDistance * meshScalars[ myNearestNeighbor ];
             if( myNearestNeighbor >= 131621 )
             {
-              std::cout << "invalid neighbor " << myNearestNeighbor << " pos is " << myPos[ 0 ] << ", " << myPos[ 1 ] << std::endl; 
-              exit( 1 );
+                std::cout << "invalid neighbor " << myNearestNeighbor << std::endl; 
+                myScalarOut = 1.0;
             }
-            myScalarOut = meshScalars[ myNearestNeighbor ];            
+            else
+            {
+                myScalarOut = meshScalars[ myNearestNeighbor ];            
+            }
             // ScalarType distanceSum = nearestDistance;
             // for( IndexType i = OFFSET; i < OFFSET + NUM_NEIGHBORS; ++i )
             // {
@@ -92,7 +95,7 @@ struct VTKmInterpolator2D
         const vtkm::cont::ArrayHandle< ScalarType, ScalarStorageTag >               & meshScalars,
         const vtkm::cont::ArrayHandle< IndexType, IndexStorageTag >                 & meshNeighborhoods,
         const vtkm::cont::ArrayHandle< IndexType, IndexStorageTag >                 & meshNeighborhoodSums,
-        vtkm::cont::ArrayHandle< ScalarType, ScalarStorageTag >               & result,
+        vtkm::cont::ArrayHandle< ScalarType, ScalarStorageTag >                     & result,
         DeviceAdapter device )
     {
         InterpolationWorklet2D interpolationWorklet;
