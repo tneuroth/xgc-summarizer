@@ -364,6 +364,8 @@ void XGCAggregator::compute(
     {
         field[ i ] = fieldResultHandle.GetPortalControl().Get( i );
     }
+
+    std::cout << "copied " << std::endl;
 }
 
 void XGCAggregator::aggregate(
@@ -534,7 +536,7 @@ void XGCAggregator::computeSummaryStep(
         {
             if( gID < 0 || gID >= m_summaryGrid.probes.volume.size() )
             {
-                throw std::out_of_range( "gID invalid" );
+                std::cout << "gID invalid " << gID << std::endl;
             }
         }
     }
@@ -607,6 +609,8 @@ void XGCAggregator::computeSummaryStep(
     summaryStep.w0w1_variance        = std::vector< float >( N_CELLS, 0.f );
     summaryStep.velocityDistribution = std::vector< float >( N_CELLS*NR*NC, 0.f );
 
+    std::cout << "computing histograms " << std::endl;
+
     #pragma omp simd
     for( size_t i = 0; i < SZ; ++i )
     {
@@ -638,6 +642,8 @@ void XGCAggregator::computeSummaryStep(
         // summaryStep.num_mapped[ index ] += 1.0;
         summaryStep.velocityDistribution[ index * DIST_STRIDE + row * NC + col ] += w0w1[ i ];
     }
+
+    std::cout << "done computing histograms " << std::endl;
 
     #pragma omp simd
     for( size_t i = 0; i < SZ; ++i )
