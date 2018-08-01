@@ -37,7 +37,7 @@ struct SummaryStep
 {
     static const int NC = 33;
     static const int NR = 17;
-    static constexpr double DELTA_V = 3378743.0;
+    static constexpr double DELTA_V = 3378743.0 / 2.0;
 
     /* Per Probe Voronoi Cell Summary Fields */
 

@@ -24,9 +24,9 @@ using namespace chrono;
 
 int main( int argc, char** argv )
 {
-    if( argc != 6 )
+    if( argc < 6 )
     {
-        cerr << "expected: <executable> <mesh path> <bfield path> <particle data base path> <units.m path> <outpath>\n";
+        cerr << "expected: <executable> <mesh path> <bfield path> <particle data base path> <units.m path> <optional|reduced mesh>  <outpath>\n";
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -62,6 +62,16 @@ int main( int argc, char** argv )
         rank,
         nRanks );
 
+    if( argc == 7 )
+    {
+        aggregator.reduceMesh( argv[ 6 ] );
+    }
+
+    if( rank == 0 )
+    {
+        aggregator.writeMesh();
+    }
+    
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     high_resolution_clock::time_point t1 = high_resolution_clock::now();
@@ -69,7 +79,7 @@ int main( int argc, char** argv )
     double summaryStepTime = 0.0;
     int64_t outputStep     = 0;
 
-    std::vector< int64_t > steps = { 200, 400 };
+    std::vector< int64_t > steps = { 200, 400, 4000, 4200 };
 
     SummaryStep summaryStep;
     for( auto tstep : steps )

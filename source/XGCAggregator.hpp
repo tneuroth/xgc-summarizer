@@ -58,6 +58,10 @@ public:
         int rank,
         int nranks );
 
+    void reduceMesh( const std::string & reducedMeshFilePath );
+
+    void writeMesh();
+
 private:
 
     TN::SummaryGrid m_summaryGrid;

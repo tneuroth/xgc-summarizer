@@ -92,8 +92,6 @@ struct VTKmInterpolator2D
         vtkm::worklet::DispatcherMapField< InterpolationWorklet2D, DeviceAdapter >
         interpDispatcher( interpolationWorklet );
 
-        std::cout << "running interpolation worklet" << std::endl;
-
         interpDispatcher.Invoke(
             particleCoords,
             particleNeighbors,

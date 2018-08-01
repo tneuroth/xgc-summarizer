@@ -251,8 +251,6 @@ struct VTKmAggregator
         vtkm::cont::ArrayHandle< ScalarHistType, ScalarHistTypeStorageTag  > & histOut,
         DeviceAdapter device  )
     {
-        std::cout << "running aggregator worklet" << std::endl;
-
         AggregateWorklet aggregateWorklet( histDims, xRange, yRange, nHists );
         vtkm::worklet::DispatcherReduceByKey< AggregateWorklet, DeviceAdapter >
             aggregateDispatcher( aggregateWorklet );
@@ -273,8 +271,6 @@ struct VTKmAggregator
 
         vtkm::worklet::DispatcherReduceByKey< VarianceSumWorklet, DeviceAdapter >
             varianceSumDispatcher( varianceSumWorklet );
-
-        std::cout << "running variance sum worklet" << std::endl;
         
         varianceSumDispatcher.Invoke(
             keys,

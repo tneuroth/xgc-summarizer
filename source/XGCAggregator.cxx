@@ -6,6 +6,8 @@
 #include "XGCParticleReader.hpp"
 #include "XGCConstantReader.hpp"
 
+#include <mpi.h>
+
 #include <vtkm/cont/DeviceAdapterAlgorithm.h>
 #include <vtkm/worklet/DispatcherMapField.h>
 #include <vector>
@@ -56,11 +58,171 @@ XGCAggregator::XGCAggregator(
         m_summaryGrid.neighborhoods,
         m_summaryGrid.neighborhoodSums );
 
-    if( rank == 0 )
+    if( m_rank == 0 )
     {
         checkDevice( VTKM_DEFAULT_DEVICE_ADAPTER_TAG() );
+    }
+}
+
+void XGCAggregator::writeMesh()
+{
+    if( m_rank == 0 )
+    {
         writeGrid( m_outputDirectory );
     }
+}
+
+void XGCAggregator::reduceMesh( 
+    const std::string & reducedMeshFilePath )
+{
+    std::ifstream meshFile( reducedMeshFilePath );
+    std::string line;
+
+    if( ! meshFile.is_open() )
+    {
+        std::cerr << "couldn't open file: " << reducedMeshFilePath << std::endl;
+        exit( 1 );
+    }
+
+    SummaryGrid newGrid;
+
+    while( std::getline( meshFile, line ) )
+    {
+        if( line.size() > 3 )
+        {
+            std::stringstream sstr( line );
+            std::string v;
+            sstr >> v;
+            
+            if( v == "v" )
+            {
+                float x, y, z;
+                sstr >> x >> y >> z;
+                newGrid.probes.r.push_back( x );
+                newGrid.probes.z.push_back( y );
+
+                //just for now until voronoi cell face area can be calculated.
+                newGrid.probes.volume.push_back( 1.f );
+            }
+            else if( v == "f" )
+            {
+                unsigned int i1, i2, i3;
+                sstr >> i1 >> i2 >> i3;
+                newGrid.probeTriangulation.push_back( { 
+                    i1 - 1,
+                    i2 - 1,
+                    i3 - 1 } );
+            }
+        }
+    }
+ 
+    MPI_Barrier(MPI_COMM_WORLD);
+    std::cout << "getting neighborhoods " << std::endl;
+
+    TN::getNeighborhoods( newGrid );
+
+    const int64_t SZ = newGrid.probes.r.size();
+    std::vector< vtkm::Vec< vtkm::Float32, 2 > > pos( SZ );
+
+    #pragma omp parallel for simd
+    for( int64_t i = 0; i < SZ; ++i )
+    {
+        pos[ i ] = vtkm::Vec< vtkm::Float32, 2 >( newGrid.probes.r[ i ], newGrid.probes.z[ i ] );
+    }
+
+    auto posHandle = vtkm::cont::make_ArrayHandle( pos );
+    vtkm::cont::ArrayHandle<vtkm::Id> idHandle;
+    vtkm::cont::ArrayHandle<vtkm::Float32> distHandle;
+
+    MPI_Barrier(MPI_COMM_WORLD);
+    std::cout << "getting neighbors " << std::endl;
+
+    m_kdTree.Run( m_gridHandle, posHandle, idHandle, distHandle, VTKM_DEFAULT_DEVICE_ADAPTER_TAG() );
+
+    std::vector< int64_t > ids( SZ );
+    #pragma omp parallel for simd
+    for( int64_t i = 0; i < SZ; ++i )
+    {
+        ids[ i ] = idHandle.GetPortalControl().Get( i );
+    }
+
+    vtkm::cont::ArrayHandle<vtkm::Float32> fieldResultHandle;
+
+    // Psi
+
+    MPI_Barrier(MPI_COMM_WORLD);
+    std::cout << "interpolating psi " << std::endl;
+
+    auto psinHandle = vtkm::cont::make_ArrayHandle( m_summaryGrid.probes.psin );
+    m_interpolator.run(
+        posHandle,
+        idHandle,
+        m_gridHandle,
+        psinHandle,
+        m_gridNeighborhoodsHandle,
+        m_gridNeighborhoodSumsHandle,
+        fieldResultHandle,
+        VTKM_DEFAULT_DEVICE_ADAPTER_TAG() );
+
+    newGrid.probes.psin.resize( SZ );
+    #pragma omp parallel for simd
+    for( int64_t i = 0; i < SZ; ++i )
+    {
+        newGrid.probes.psin[ i ] = fieldResultHandle.GetPortalControl().Get( i );
+    }
+
+    // B
+
+    MPI_Barrier(MPI_COMM_WORLD);
+    std::cout << "interpolating B " << std::endl;   
+
+    auto bHandle = vtkm::cont::make_ArrayHandle( m_summaryGrid.probes.B );
+    m_interpolator.run(
+        posHandle,
+        idHandle,
+        m_gridHandle,
+        bHandle,
+        m_gridNeighborhoodsHandle,
+        m_gridNeighborhoodSumsHandle,
+        fieldResultHandle,
+        VTKM_DEFAULT_DEVICE_ADAPTER_TAG() );
+
+    newGrid.probes.B.resize( SZ );
+    #pragma omp parallel for simd
+    for( int64_t i = 0; i < SZ; ++i )
+    {
+        newGrid.probes.B[ i ] = fieldResultHandle.GetPortalControl().Get( i );
+    }
+
+    // Poloidal Angle
+
+    MPI_Barrier(MPI_COMM_WORLD);
+    std::cout << "calculating angles " << std::endl;
+
+    newGrid.probes.poloidalAngle.resize( SZ );
+    const TN::Vec2< float > poloidal_center = { m_constants.at( "eq_axis_r" ), m_constants.at( "eq_axis_z" ) };
+    #pragma omp parallel for simd
+    for( int64_t i = 0; i < SZ; ++i )
+    {
+        newGrid.probes.poloidalAngle[ i ] =
+            ( TN::Vec2< float >( newGrid.probes.r[ i ], newGrid.probes.z[ i ] )
+              - poloidal_center ).angle( TN::Vec2< float >( 1.0, 0.0 ) );
+    }
+
+    m_summaryGrid = newGrid;
+
+    MPI_Barrier(MPI_COMM_WORLD);
+    std::cout << "setting static handles " << std::endl;
+
+    setGrid(
+        m_summaryGrid.probes.r,
+        m_summaryGrid.probes.z,
+        m_summaryGrid.probes.B,
+        m_summaryGrid.neighborhoods,
+        m_summaryGrid.neighborhoodSums );
+
+    MPI_Barrier(MPI_COMM_WORLD);
+    std::cout << "done " << std::endl;   
 }
 
 void XGCAggregator::setGrid(
