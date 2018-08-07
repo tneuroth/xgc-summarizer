@@ -1,5 +1,3 @@
-
-#include "XGCParticleReader.hpp"
 #include "XGCMeshReader.hpp"
 #include "XGCConstantReader.hpp"
 #include "XGCAggregator.hpp"

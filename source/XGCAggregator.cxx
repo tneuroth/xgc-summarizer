@@ -3,7 +3,7 @@
 #include "Summary.hpp"
 #include "SummaryWriter.hpp"
 #include "XGCMeshReader.hpp"
-#include "XGCParticleReader.hpp"
+#include "XGCParticleReaderAdios2.hpp"
 #include "XGCConstantReader.hpp"
 
 #include <mpi.h>

@@ -26,16 +26,13 @@ set(CMAKE_BUILD_TYPE Release)
 set(VTKm_DIR "${DEV}vtkm-build/lib/cmake/vtkm-1.2")
 
 include_directories(PUBLIC /usr/include /usr/include/glib-2.0 /usr/lib/glib-2.0/include/ ${DEV}/vtkm-kdtree-generic/ ${SRC_DIR} ${DEV}/vtkm-build/include/ ${DEV}/adios-build/include/ ${DEV}/vtkm-kdtree-generic/)
-
 link_directories(/usr/lib/x86_64-linux-gnu /usr/lib /usr/lib64 ${DEV}/adios-build/lib)
 
 find_package(VTKm  REQUIRED)
 
 add_library(kdtree ${SRC_DIR}/XGCAggregator.cxx)
-
-target_link_libraries(kdtree vtkm_cont)
+target_link_libraries(kdtree adios2 pthread mpi vtkm_cont)
 
 add_executable(summarizer ${SRC_DIR}/Main.cpp)
-
-target_link_libraries(summarizer vtkm_cont adios -lz -lbz2 gmp kdtree)
+target_link_libraries(summarizer vtkm_cont adios2 pthread mpi adios z bz2 gmp kdtree)
 

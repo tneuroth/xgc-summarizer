@@ -32,6 +32,20 @@ struct SummaryGrid
     std::vector< int64_t > neighborhoodSums;
 };
 
+/* Temporally Static */
+struct SummaryGrid2
+{
+    /* Per Probe/Voronoi Cell Summary Fields */
+    std::map< std::string, std::vector< float > > variables; 
+    
+    // delaunay triangulation dual to the voronoi decomposition
+    std::vector< Triangle > probeTriangulation;
+
+    // neighborhood
+    std::vector< int64_t > neighborhoods;
+    std::vector< int64_t > neighborhoodSums;
+};
+
 /* time varying */
 struct SummaryStep
 {
