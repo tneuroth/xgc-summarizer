@@ -1,30 +1,25 @@
-#include "XGCMeshReader.hpp"
-#include "XGCConstantReader.hpp"
+
 #include "XGCAggregator.hpp"
 #include "Summary.hpp"
-#include "SummaryWriter.hpp"
-#include "Types/Vec.hpp"
+#include "SummaryWriterAdios2.hpp"
 
 #include <adios_read.h>
 #include <mpi.h>
 
-#include <fstream>
 #include <iostream>
-#include <vector>
-#include <map>
-#include <cmath>
 #include <chrono>
-#include <algorithm>
 
 using namespace std;
 using namespace TN;
 using namespace chrono;
 
+typedef float ValueType;
+
 int main( int argc, char** argv )
 {
     if( argc < 6 )
     {
-        cerr << "expected: <executable> <mesh path> <bfield path> <particle data base path> <units.m path> <optional|reduced mesh>  <outpath>\n";
+        cerr << "expected: <executable> <mesh path> <bfield path> <particle data base path> <units.m path> <optional|reduced mesh> <outpath>\n";
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -36,7 +31,6 @@ int main( int argc, char** argv )
 
     int err  = adios_read_init_method ( ADIOS_READ_METHOD_BP, MPI_COMM_WORLD, "verbose=3" );
 
-    // cout << "rank:\t" << rank << "\n";
     if( rank == 0 )
     {
         cout << "nRanks:\t" << nRanks << endl;
@@ -50,7 +44,7 @@ int main( int argc, char** argv )
     const string units_path              = argv[ 4 ];
     const string outpath                 = argv[ 5 ];
 
-    TN::XGCAggregator aggregator( 
+    TN::XGCAggregator< ValueType > aggregator( 
         meshpath,
         bfieldpath,
         particle_data_base_path,
@@ -78,10 +72,13 @@ int main( int argc, char** argv )
     int64_t outputStep     = 0;
 
     std::vector< int64_t > steps = { 200, 400, 4000, 4200 };
+    
+    SummaryStep2< ValueType > summaryStep;
 
-    SummaryStep summaryStep;
     for( auto tstep : steps )
     {
+        summaryStep.setStep( outputStep, tstep, outputStep );
+
         high_resolution_clock::time_point st1 = high_resolution_clock::now();
 
         aggregator.computeSummaryStep(
@@ -101,101 +98,107 @@ int main( int argc, char** argv )
 
         st1 = high_resolution_clock::now();
 
-        MPI_Reduce(
-            rank == 0 ? MPI_IN_PLACE : summaryStep.velocityDistribution.data(),
-            summaryStep.velocityDistribution.data(),
-            summaryStep.velocityDistribution.size(),
-            MPI_FLOAT,
-            MPI_SUM,
-            0,
-            MPI_COMM_WORLD );
+        for( auto & hist : summaryStep.histograms )
+        {
+            MPI_Reduce(
+                rank == 0 ? MPI_IN_PLACE : hist.second.values.data(),
+                hist.second.values.data(),
+                hist.second.values.size(),
+                sizeof( ValueType ) == 4 ? MPI_FLOAT : MPI_DOUBLE,
+                MPI_SUM,
+                0,
+                MPI_COMM_WORLD );
+        }
 
-        MPI_Reduce(
-            rank == 0 ? MPI_IN_PLACE : summaryStep.w0w1_mean.data(),
-            summaryStep.w0w1_mean.data(),
-            summaryStep.w0w1_mean.size(),
-            MPI_FLOAT,
-            MPI_SUM,
-            0,
-            MPI_COMM_WORLD );
+        // MPI_Reduce(
+        //     rank == 0 ? MPI_IN_PLACE : summaryStep.w0w1_mean.data(),
+        //     summaryStep.w0w1_mean.data(),
+        //     summaryStep.w0w1_mean.size(),
+        //     MPI_FLOAT,
+        //     MPI_SUM,
+        //     0,
+        //     MPI_COMM_WORLD );
 
-        MPI_Reduce(
-            rank == 0 ? MPI_IN_PLACE : summaryStep.w0w1_rms.data(),
-            summaryStep.w0w1_rms.data(),
-            summaryStep.w0w1_rms.size(),
-            MPI_FLOAT,
-            MPI_SUM,
-            0,
-            MPI_COMM_WORLD );
+        // MPI_Reduce(
+        //     rank == 0 ? MPI_IN_PLACE : summaryStep.w0w1_rms.data(),
+        //     summaryStep.w0w1_rms.data(),
+        //     summaryStep.w0w1_rms.size(),
+        //     MPI_FLOAT,
+        //     MPI_SUM,
+        //     0,
+        //     MPI_COMM_WORLD );
 
-        MPI_Reduce(
-            rank == 0 ? MPI_IN_PLACE : summaryStep.w0w1_min.data(),
-            summaryStep.w0w1_min.data(),
-            summaryStep.w0w1_min.size(),
-            MPI_FLOAT,
-            MPI_MIN,
-            0,
-            MPI_COMM_WORLD );
+        // MPI_Reduce(
+        //     rank == 0 ? MPI_IN_PLACE : summaryStep.w0w1_min.data(),
+        //     summaryStep.w0w1_min.data(),
+        //     summaryStep.w0w1_min.size(),
+        //     MPI_FLOAT,
+        //     MPI_MIN,
+        //     0,
+        //     MPI_COMM_WORLD );
 
-        MPI_Reduce(
-            rank == 0 ? MPI_IN_PLACE : summaryStep.w0w1_max.data(),
-            summaryStep.w0w1_max.data(),
-            summaryStep.w0w1_max.size(),
-            MPI_FLOAT,
-            MPI_MAX,
-            0,
-            MPI_COMM_WORLD );
+        // MPI_Reduce(
+        //     rank == 0 ? MPI_IN_PLACE : summaryStep.w0w1_max.data(),
+        //     summaryStep.w0w1_max.data(),
+        //     summaryStep.w0w1_max.size(),
+        //     MPI_FLOAT,
+        //     MPI_MAX,
+        //     0,
+        //     MPI_COMM_WORLD );
 
-        MPI_Reduce(
-            rank == 0 ? MPI_IN_PLACE : summaryStep.num_particles.data(),
-            summaryStep.num_particles.data(),
-            summaryStep.num_particles.size(),
-            MPI_FLOAT,
-            MPI_SUM,
-            0,
-            MPI_COMM_WORLD );
+        // MPI_Reduce(
+        //     rank == 0 ? MPI_IN_PLACE : summaryStep.num_particles.data(),
+        //     summaryStep.num_particles.data(),
+        //     summaryStep.num_particles.size(),
+        //     MPI_FLOAT,
+        //     MPI_SUM,
+        //     0,
+        //     MPI_COMM_WORLD );
 
-        MPI_Reduce(
-            rank == 0 ? MPI_IN_PLACE : summaryStep.w0w1_variance.data(),
-            summaryStep.w0w1_variance.data(),
-            summaryStep.w0w1_variance.size(),
-            MPI_FLOAT,
-            MPI_SUM,
-            0,
-            MPI_COMM_WORLD );
+        // MPI_Reduce(
+        //     rank == 0 ? MPI_IN_PLACE : summaryStep.w0w1_variance.data(),
+        //     summaryStep.w0w1_variance.data(),
+        //     summaryStep.w0w1_variance.size(),
+        //     MPI_FLOAT,
+        //     MPI_SUM,
+        //     0,
+        //     MPI_COMM_WORLD );
 
-        MPI_Barrier(MPI_COMM_WORLD);
+        // MPI_Barrier(MPI_COMM_WORLD);
 
-        st2 = high_resolution_clock::now();
+        // st2 = high_resolution_clock::now();
 
-        /////////////////////////////////////////////////////////////////////////
+        // /////////////////////////////////////////////////////////////////////////
 
         if( rank == 0 )
         {
-            std::cout << "mpi reduction took " << duration_cast<milliseconds>( st2 - st1 ).count() << " milliseconds" << std::endl;
-            std::cout << "normalizing " << std::endl;
+        //     std::cout << "mpi reduction took " << duration_cast<milliseconds>( st2 - st1 ).count() << " milliseconds" << std::endl;
+        //     std::cout << "normalizing " << std::endl;
 
-            const size_t NUM_CELLS = summaryStep.w0w1_mean.size();
-            #pragma omp parallel for simd
-            for( size_t i = 0; i < NUM_CELLS; ++i )
-            {
-                if( summaryStep.num_particles[ i ] > 0 )
-                {
-                    summaryStep.w0w1_mean[ i ] /= summaryStep.num_particles[ i ];
-                    summaryStep.w0w1_rms[  i ]  = sqrt( summaryStep.w0w1_rms[ i ] ) / summaryStep.num_particles[ i ];
-                    summaryStep.w0w1_variance[  i ] = sqrt( summaryStep.w0w1_variance[ i ] ) / summaryStep.num_particles[ i ];                    
-                }
-                else
-                {
-                    summaryStep.w0w1_mean[ i ] = 0;
-                    summaryStep.w0w1_rms[  i ] = 0;
-                    summaryStep.w0w1_variance[ i ] = 0;
-                    summaryStep.w0w1_min[  i ] = 0;
-                    summaryStep.w0w1_max[  i ] = 0;
-                }
-            }
-            double realtime = ( double ) tstep / 2.0;
-            writeSummaryStep( summaryStep, "ions", tstep, realtime, outputStep++, outpath, tstep != steps.front() );
+        //     const size_t NUM_CELLS = summaryStep.w0w1_mean.size();
+
+        //     #pragma omp parallel for simd
+        //     for( size_t i = 0; i < NUM_CELLS; ++i )
+        //     {
+        //         if( summaryStep.num_particles[ i ] > 0 )
+        //         {
+        //             summaryStep.w0w1_mean[ i ] /= summaryStep.num_particles[ i ];
+        //             summaryStep.w0w1_rms[  i ]  = sqrt( summaryStep.w0w1_rms[ i ] ) / summaryStep.num_particles[ i ];
+        //             summaryStep.w0w1_variance[  i ] = sqrt( summaryStep.w0w1_variance[ i ] ) / summaryStep.num_particles[ i ];                    
+        //         }
+        //         else
+        //         {
+        //             summaryStep.w0w1_mean[ i ] = 0;
+        //             summaryStep.w0w1_rms[  i ] = 0;
+        //             summaryStep.w0w1_variance[ i ] = 0;
+        //             summaryStep.w0w1_min[  i ] = 0;
+        //             summaryStep.w0w1_max[  i ] = 0;
+        //         }
+        //     }
+
+        //     double realtime = ( double ) tstep / 2.0;
+            
+            writeSummaryStepBP( summaryStep, outpath );
         }
         MPI_Barrier(MPI_COMM_WORLD);
     }

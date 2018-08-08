@@ -26,9 +26,9 @@ const std::map< std::string, int > XGC_PHASE_INDEX_MAP =
     { "f0",           8 }    // Grid distribution function (?)
 };
 
+template < typename ValueType >
 class XGCAggregator
 {
-
     std::string m_meshFilePath;
     std::string m_bFieldFilePath;
     std::string m_restartDirectory;
@@ -38,13 +38,13 @@ class XGCAggregator
     int m_rank; 
     int m_nranks;
 
-    std::vector< float > m_phase;
-    std::vector< float > m_B;
+    std::vector< ValueType > m_phase;
+    std::vector< ValueType > m_B;
 
 public:
 
 	void computeSummaryStep(
-	    TN::SummaryStep & summaryStep,
+	    TN::SummaryStep2< ValueType > & summaryStep,
         const std::string & ptype,
 	    int64_t st );
 
@@ -64,17 +64,17 @@ public:
 
 private:
 
-    TN::SummaryGrid m_summaryGrid;
+    TN::SummaryGrid2< ValueType > m_summaryGrid;
 
     vtkm::worklet::KdTree< 2 > m_kdTree;
     TN::VTKmInterpolator2D m_interpolator;
     TN::VTKmAggregator m_aggregator;
 
-    vtkm::cont::ArrayHandle< vtkm::Vec< vtkm::Float32, 2 > > m_gridHandle;
-    std::vector< vtkm::Vec< vtkm::Float32, 2 > > m_gridPoints;
+    vtkm::cont::ArrayHandle< vtkm::Vec< ValueType, 2 > > m_gridHandle;
+    std::vector< vtkm::Vec< ValueType, 2 > > m_gridPoints;
 
-    vtkm::cont::ArrayHandle< vtkm::Float32 > m_gridScalarHandle;
-    std::vector< vtkm::Float32 > m_gridScalars;
+    vtkm::cont::ArrayHandle< ValueType > m_gridScalarHandle;
+    std::vector< ValueType > m_gridScalars;
 
     vtkm::cont::ArrayHandle< vtkm::Int64 > m_gridNeighborhoodsHandle;
     std::vector< vtkm::Int64 > m_gridNeighborhoods;
@@ -85,25 +85,25 @@ private:
     std::map< std::string, double > m_constants;
 
     void setGrid(
-        const std::vector< float >   & r,
-        const std::vector< float >   & z,
-        const std::vector< float > & scalar,
-        const std::vector< int64_t > & gridNeighborhoods,
-        const std::vector< int64_t > & gridNeighborhoodSums
+        const std::vector< ValueType > & r,
+        const std::vector< ValueType > & z,
+        const std::vector< ValueType > & scalar,
+        const std::vector< int64_t >   & gridNeighborhoods,
+        const std::vector< int64_t >   & gridNeighborhoodSums
     );
 
     void compute(
         std::vector< int64_t > & neighbors,
-        std::vector< float   > & field,
-        const std::vector< float > & r,
-        const std::vector< float > & z );
+        std::vector< ValueType > & field,
+        const std::vector< ValueType > & r,
+        const std::vector< ValueType > & z );
 
     void aggregate(
-        const SummaryGrid & summaryGrid,
-        SummaryStep & summary,
-        const std::vector< float > & vX,
-        const std::vector< float > & vY,
-        const std::vector< float > & w,
+        const SummaryGrid2< ValueType > & summaryGrid,
+        SummaryStep2< ValueType > & summary,
+        const std::vector< ValueType > & vX,
+        const std::vector< ValueType > & vY,
+        const std::vector< ValueType > & w,
         const std::vector< int64_t > & gIDs,
         const int64_t N_CELLS );
 

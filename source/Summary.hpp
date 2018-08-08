@@ -4,85 +4,214 @@
 #include "Types/Vec.hpp"
 
 #include <vector>
-#include <list>
+#include <set>
 #include <cstdint>
+#include <map>
 
 namespace TN
 {
 
 /* Temporally Static */
-struct SummaryGrid
-{
-    /* Per Probe/Voronoi Cell Summary Fields */
-    struct
-    {
-        std::vector< float > volume;
-        std::vector< float > r;
-        std::vector< float > z;
-        std::vector< float > psin;
-        std::vector< float > poloidalAngle;
-        std::vector< float > B;
-    } probes;
-
-    // delaunay triangulation dual to the voronoi decomposition
-    std::vector< Triangle > probeTriangulation;
-
-    // neighborhood
-    std::vector< int64_t > neighborhoods;
-    std::vector< int64_t > neighborhoodSums;
-};
-
-/* Temporally Static */
+template< typename ValueType >
 struct SummaryGrid2
 {
-    /* Per Probe/Voronoi Cell Summary Fields */
-    std::map< std::string, std::vector< float > > variables; 
+    /* Temporally Static, Spatially Varying Per Voronoi Cell Fields */
+    std::map< std::string, std::vector< ValueType > > variables; 
     
     // delaunay triangulation dual to the voronoi decomposition
-    std::vector< Triangle > probeTriangulation;
+    std::vector< Triangle > triangulation;
 
     // neighborhood
     std::vector< int64_t > neighborhoods;
     std::vector< int64_t > neighborhoodSums;
 };
 
-/* time varying */
-struct SummaryStep
+template < typename ValueType >
+struct ScalarVariableStatistics
 {
-    static const int NC = 33;
-    static const int NR = 17;
-    static constexpr double DELTA_V = 3378743.0 / 2.0;
-
-    /* Per Probe Voronoi Cell Summary Fields */
-
-    std::vector< float > velocityDistribution;
-    std::vector< float > w0w1_mean;
-    std::vector< float > w0w1_rms;
-    std::vector< float > w0w1_variance;
-    std::vector< float > w0w1_min;
-    std::vector< float > w0w1_max;
-    std::vector< float > num_particles;
-
-    void resize( std::size_t sz )
+    enum Statistic
     {
-        velocityDistribution.resize( sz*NR*NC );
-        w0w1_mean.resize( sz );
-        w0w1_rms.resize( sz );
-        w0w1_min.resize( sz );
-        w0w1_max.resize( sz );
-        num_particles.resize( sz );
-        w0w1_variance.resize( sz );
+        Count,
+        Mean,
+        Median,
+        Variance,
+        Skewness,
+        kurtosis,
+        RMS,
+        MeanAbsoluteValue,
+        MeanAbsoluteMedianDeviation,
+        MeanAbsoluteMeanDeviation,        
+        InterquartileRange,
+        Min,
+        Max,
+        ShannonEntropy
+    };
+
+    static const char* StatisticString( Statistic stat ) {
+        switch ( stat ) 
+        {
+            case Count                       : return "Count";
+            case Mean                        : return "Mean";
+            case Median                      : return "Median";
+            case Variance                    : return "Variance";
+            case Skewness                    : return "Skewness";
+            case kurtosis                    : return "kurtosis";
+            case MeanAbsoluteValue           : return "MeanAbsoluteValue";
+            case MeanAbsoluteMedianDeviation : return "MeanAbsoluteMedianDeviation";
+            case MeanAbsoluteMeanDeviation   : return "MeanAbsoluteMeanDeviation";
+            case InterquartileRange          : return "InterquartileRange";
+            case Min                         : return "Min";
+            case Max                         : return "Max";
+            case ShannonEntropy              : return "ShannonEntropy";                       
+        }
+    }
+
+    std::string variableIdentifier;
+
+    /* Enabled Per Scalar Variable Statistics */
+    std::map< Statistic, std::vector< ValueType > > statistics;
+
+    ScalarVariableStatistics( 
+        const std::set< Statistic > & enabled, size_t size = 0 )
+    {
+        for( auto & stat : enabled )
+        {
+            statistics.insert( { 
+                stat,
+                std::vector< ValueType >( size ) } );
+        }
+    }
+
+    void resize( size_t size )
+    {
+        for( auto & stat : statistics )
+        {
+            stat.second.resize( size );
+        }
     }
 
     void clear()
     {
-        velocityDistribution.clear();
-        w0w1_mean.clear();
-        w0w1_rms.clear();
-        w0w1_min.clear();
-        w0w1_max.clear();
-        num_particles.clear();
-        w0w1_variance.clear();
+        for( auto & stat : statistics )
+        {
+            stat.second.clear();
+        }   
+    }
+};
+
+template < typename ValueType >
+struct HistogramDefinition
+{
+
+private:
+
+    void assign( const HistogramDefinition< ValueType > & other  )
+    {
+        identifier = other.identifier;
+        axis = other.axis;
+        dims = other.dims;
+        weight = other.weight;
+        edges = other.edges;       
+    }
+
+public:
+
+    std::string identifier;
+    std::vector< std::string > axis;
+    std::vector< int > dims;
+    std::string weight;
+    std::vector< std::vector< ValueType > > edges;
+
+    HistogramDefinition( const HistogramDefinition< ValueType > & other )
+    {
+        assign( other );
+    }
+
+    HistogramDefinition & operator=( const HistogramDefinition< ValueType > & other )
+    {
+        if( this !=  &other )
+        {
+            assign( other );
+        }
+
+        return *this;
+    }
+
+    size_t size() const
+    {
+        size_t sz = 1;
+        for( auto d : dims )
+        {
+            sz *= d;
+        }
+
+        return sz;
+    }
+};
+
+template < typename ValueType >
+struct CellHistograms
+{
+    HistogramDefinition< ValueType > definition;
+    std::vector< ValueType > values;
+
+    CellHistograms( const HistogramDefinition< ValueType > & def ) 
+        : definition( def ) {}
+
+    void resize( size_t size )
+    {
+        values.resize( size * definition.size() );
+    } 
+    void clear()
+    {
+        values.clear();
+    }
+};
+
+template < typename ValueType >
+struct SummaryStep2
+{
+    // Scalar Statistics
+    std::map< std::string, ScalarVariableStatistics< ValueType > > variableStatistics;     
+    std::map< std::string, CellHistograms< ValueType > > histograms;    
+
+    std::string objectIdentifier;
+
+    int64_t outStep;
+    int64_t simStep;
+    double realTime;
+
+    void setStep( int64_t _outStep, int64_t _simStep, double _realTime ) 
+    {
+        outStep  = _outStep;
+        simStep  = _simStep; 
+        realTime = _realTime;
+    }
+
+    void resize( std::size_t size )
+    {
+        for( auto & s : variableStatistics )
+        {
+            s.resize( size );
+        }
+
+        for( auto & h : histograms )
+        {
+            h.resize( size );
+        }
+    }
+
+    void clear()
+    {
+        for( auto & s : variableStatistics )
+        {
+            s.clear();
+        }
+
+        for( auto & h : histograms )
+        {
+            clear();
+        }
     }
 };
 

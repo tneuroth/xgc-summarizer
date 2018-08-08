@@ -1,11 +1,12 @@
 
 #include "XGCAggregator.hpp"
 #include "Summary.hpp"
-#include "SummaryWriter.hpp"
-#include "XGCMeshReader.hpp"
+#include "SummaryWriterAdios2.hpp"
+#include "XGCMeshReaderAdios1.hpp"
 #include "XGCParticleReaderAdios2.hpp"
 #include "XGCConstantReader.hpp"
 
+#include <adios2.h>
 #include <mpi.h>
 
 #include <vtkm/cont/DeviceAdapterAlgorithm.h>
@@ -25,7 +26,8 @@ void checkDevice(DeviceAdapter)
 namespace TN
 {
 
-XGCAggregator::XGCAggregator(
+template< typename ValueType >
+XGCAggregator< ValueType >::XGCAggregator(
     const std::string & meshFilePath,
     const std::string & bfieldFilePath,
     const std::string & restartDirectory,
@@ -52,9 +54,9 @@ XGCAggregator::XGCAggregator(
         m_bFieldFilePath ); 
     
     setGrid(
-        m_summaryGrid.probes.r,
-        m_summaryGrid.probes.z,
-        m_summaryGrid.probes.B,
+        m_summaryGrid.variables.at( "r" ),
+        m_summaryGrid.variables.at( "z" ),
+        m_summaryGrid.variables.at( "B" ),
         m_summaryGrid.neighborhoods,
         m_summaryGrid.neighborhoodSums );
 
@@ -64,7 +66,8 @@ XGCAggregator::XGCAggregator(
     }
 }
 
-void XGCAggregator::writeMesh()
+template< typename ValueType >
+void XGCAggregator< ValueType >::writeMesh()
 {
     if( m_rank == 0 )
     {
@@ -72,7 +75,8 @@ void XGCAggregator::writeMesh()
     }
 }
 
-void XGCAggregator::reduceMesh( 
+template< typename ValueType >
+void XGCAggregator< ValueType >::reduceMesh( 
     const std::string & reducedMeshFilePath )
 {
     std::ifstream meshFile( reducedMeshFilePath );
@@ -84,7 +88,7 @@ void XGCAggregator::reduceMesh(
         exit( 1 );
     }
 
-    SummaryGrid newGrid;
+    SummaryGrid2< ValueType > newGrid;
 
     while( std::getline( meshFile, line ) )
     {
@@ -98,17 +102,17 @@ void XGCAggregator::reduceMesh(
             {
                 float x, y, z;
                 sstr >> x >> y >> z;
-                newGrid.probes.r.push_back( x );
-                newGrid.probes.z.push_back( y );
+                newGrid.variables.at( "r" ).push_back( x );
+                newGrid.variables.at( "z" ).push_back( y );
 
                 //just for now until voronoi cell face area can be calculated.
-                newGrid.probes.volume.push_back( 1.f );
+                newGrid.variables.at( "volume" ).push_back( 1.f );
             }
             else if( v == "f" )
             {
                 unsigned int i1, i2, i3;
                 sstr >> i1 >> i2 >> i3;
-                newGrid.probeTriangulation.push_back( { 
+                newGrid.triangulation.push_back( { 
                     i1 - 1,
                     i2 - 1,
                     i3 - 1 } );
@@ -120,25 +124,28 @@ void XGCAggregator::reduceMesh(
     std::cout << "getting neighborhoods " << std::endl;
     TN::getNeighborhoods( newGrid );
 
-    std::cout << "Copying over values from old mesh " << newGrid.probes.r.size() << "/" << m_summaryGrid.probes.r.size() << std::endl; 
+    std::cout << "Copying over values from old mesh " 
+              << newGrid.variables.at( "r" ).size() 
+              << "/" << m_summaryGrid.variables.at( "r" ).size() 
+              << std::endl; 
     
-    newGrid.probes.B.resize( newGrid.probes.r.size() );
-    newGrid.probes.psin.resize( newGrid.probes.r.size() );
-    newGrid.probes.poloidalAngle.resize( newGrid.probes.r.size() );
+    newGrid.variables.at( "B" ).resize( newGrid.variables.at( "r" ).size() );
+    newGrid.variables.at( "psin" ).resize( newGrid.variables.at( "r" ).size() );
+    newGrid.variables.at( "poloidal_angle" ).resize( newGrid.variables.at( "r" ).size() );
 
-    for( int64_t i = 0; i < newGrid.probes.r.size(); ++i )
+    for( int64_t i = 0; i < newGrid.variables.at( "r" ).size(); ++i )
     {
-        newGrid.probes.B[ i ] = m_summaryGrid.probes.B[ i*2 ];
-        newGrid.probes.psin[ i ] = m_summaryGrid.probes.psin[ i*2 ];       
-        newGrid.probes.poloidalAngle[ i ] = m_summaryGrid.probes.poloidalAngle[ i*2 ];                
+        newGrid.variables.at( "B" )[ i ] = m_summaryGrid.variables.at( "B" )[ i*2 ];
+        newGrid.variables.at( "psin" )[ i ] = m_summaryGrid.variables.at( "psin" )[ i*2 ];       
+        newGrid.variables.at( "poloidal_angle" )[ i ] = m_summaryGrid.variables.at( "poloidal_angle" )[ i*2 ];                
     }
 
-    // const int64_t SZ = newGrid.probes.r.size();
+    // const int64_t SZ = newGrid.variables.at( "r.size();
     // std::vector< vtkm::Vec< vtkm::Float32, 2 > > pos( SZ );
     // #pragma omp parallel for simd
     // for( int64_t i = 0; i < SZ; ++i )
     // {
-    //     pos[ i ] = vtkm::Vec< vtkm::Float32, 2 >( newGrid.probes.r[ i ], newGrid.probes.z[ i ] );
+    //     pos[ i ] = vtkm::Vec< vtkm::Float32, 2 >( newGrid.variables.at( "r[ i ], newGrid.variables.at( "z[ i ] );
     // }
 
     // auto posHandle = vtkm::cont::make_ArrayHandle( pos );
@@ -173,7 +180,7 @@ void XGCAggregator::reduceMesh(
     // MPI_Barrier(MPI_COMM_WORLD);
     // std::cout << "interpolating psi " << std::endl;
 
-    // auto psinHandle = vtkm::cont::make_ArrayHandle( m_summaryGrid.probes.psin );
+    // auto psinHandle = vtkm::cont::make_ArrayHandle( m_summaryGrid.variables.at( "psin );
     // m_interpolator.run(
     //     posHandle,
     //     idHandle,
@@ -190,11 +197,11 @@ void XGCAggregator::reduceMesh(
     //     exit( 1 );
     // }
 
-    // newGrid.probes.psin.resize( SZ );
+    // newGrid.variables.at( "psin.resize( SZ );
     // #pragma omp parallel for simd
     // for( int64_t i = 0; i < SZ; ++i )
     // {
-    //     newGrid.probes.psin[ i ] = fieldResultHandle.GetPortalControl().Get( i );
+    //     newGrid.variables.at( "psin[ i ] = fieldResultHandle.GetPortalControl().Get( i );
     // }
 
     // // B
@@ -202,7 +209,7 @@ void XGCAggregator::reduceMesh(
     // MPI_Barrier(MPI_COMM_WORLD);
     // std::cout << "interpolating B " << std::endl;   
 
-    // auto bHandle = vtkm::cont::make_ArrayHandle( m_summaryGrid.probes.B );
+    // auto bHandle = vtkm::cont::make_ArrayHandle( m_summaryGrid.variables.at( "B );
     // m_interpolator.run(
     //     posHandle,
     //     idHandle,
@@ -219,11 +226,11 @@ void XGCAggregator::reduceMesh(
     //     exit( 1 );
     // }
 
-    // newGrid.probes.B.resize( SZ );
+    // newGrid.variables.at( "B.resize( SZ );
     // #pragma omp parallel for simd
     // for( int64_t i = 0; i < SZ; ++i )
     // {
-    //     newGrid.probes.B[ i ] = fieldResultHandle.GetPortalControl().Get( i );
+    //     newGrid.variables.at( "B[ i ] = fieldResultHandle.GetPortalControl().Get( i );
     // }
 
     // // Poloidal Angle
@@ -231,13 +238,13 @@ void XGCAggregator::reduceMesh(
     // MPI_Barrier(MPI_COMM_WORLD);
     // std::cout << "calculating angles " << std::endl;
 
-    // newGrid.probes.poloidalAngle.resize( SZ );
+    // newGrid.variables.at( "poloidalAngle.resize( SZ );
     // const TN::Vec2< float > poloidal_center = { m_constants.at( "eq_axis_r" ), m_constants.at( "eq_axis_z" ) };
     // #pragma omp parallel for simd
     // for( int64_t i = 0; i < SZ; ++i )
     // {
-    //     newGrid.probes.poloidalAngle[ i ] =
-    //         ( TN::Vec2< float >( newGrid.probes.r[ i ], newGrid.probes.z[ i ] )
+    //     newGrid.variables.at( "poloidalAngle[ i ] =
+    //         ( TN::Vec2< float >( newGrid.variables.at( "r[ i ], newGrid.variables.at( "z[ i ] )
     //           - poloidal_center ).angle( TN::Vec2< float >( 1.0, 0.0 ) );
     // }
 
@@ -247,9 +254,9 @@ void XGCAggregator::reduceMesh(
     std::cout << "setting static handles " << std::endl;
 
     setGrid(
-        m_summaryGrid.probes.r,
-        m_summaryGrid.probes.z,
-        m_summaryGrid.probes.B,
+        m_summaryGrid.variables.at( "r" ),
+        m_summaryGrid.variables.at( "z" ),
+        m_summaryGrid.variables.at( "B" ),
         m_summaryGrid.neighborhoods,
         m_summaryGrid.neighborhoodSums );
 
@@ -257,10 +264,11 @@ void XGCAggregator::reduceMesh(
     std::cout << "done " << std::endl;   
 }
 
-void XGCAggregator::setGrid(
-    const std::vector< float > & r,
-    const std::vector< float > & z,
-    const std::vector< float > & scalar,
+template< typename ValueType >
+void XGCAggregator< ValueType >::setGrid(
+    const std::vector< ValueType > & r,
+    const std::vector< ValueType > & z,
+    const std::vector< ValueType > & scalar,
     const std::vector< int64_t > & gridNeighborhoods,
     const std::vector< int64_t > & gridNeighborhoodSums )
 {
@@ -270,7 +278,7 @@ void XGCAggregator::setGrid(
     #pragma omp parallel for simd
     for( int64_t i = 0; i < N_CELLS; ++i )
     {
-        m_gridPoints[ i ] = vtkm::Vec< vtkm::Float32, 2 >( r[ i ], z[ i ] );
+        m_gridPoints[ i ] = vtkm::Vec< ValueType, 2 >( r[ i ], z[ i ] );
     }
     m_gridHandle = vtkm::cont::make_ArrayHandle( m_gridPoints );
 
@@ -280,17 +288,18 @@ void XGCAggregator::setGrid(
     m_gridNeighborhoodSums = std::vector< vtkm::Int64 >( gridNeighborhoodSums.begin(), gridNeighborhoodSums.end() );
     m_gridNeighborhoodSumsHandle = vtkm::cont::make_ArrayHandle( m_gridNeighborhoodSums );
 
-    m_gridScalars = std::vector< vtkm::Float32 >( scalar.begin(), scalar.end() );
+    m_gridScalars = std::vector< ValueType >( scalar.begin(), scalar.end() );
     m_gridScalarHandle = vtkm::cont::make_ArrayHandle( m_gridScalars );
 
     m_kdTree.Build( m_gridHandle, VTKM_DEFAULT_DEVICE_ADAPTER_TAG() );
 }
 
-void XGCAggregator::compute(
+template< typename ValueType >
+void XGCAggregator< ValueType >::compute(
     std::vector< int64_t >     & result,
-    std::vector< float >       & field,
-    const std::vector< float > & r,
-    const std::vector< float > & z )
+    std::vector< ValueType >       & field,
+    const std::vector< ValueType > & r,
+    const std::vector< ValueType > & z )
 {
     if( r.size() != z.size() )
     {
@@ -298,17 +307,17 @@ void XGCAggregator::compute(
     }
 
     const int64_t SZ = r.size();
-    std::vector< vtkm::Vec< vtkm::Float32, 2 > > ptclPos( SZ );
+    std::vector< vtkm::Vec< ValueType, 2 > > ptclPos( SZ );
 
     #pragma omp parallel for simd
     for( int64_t i = 0; i < SZ; ++i )
     {
-        ptclPos[ i ] = vtkm::Vec< vtkm::Float32, 2 >( r[ i ], z[ i ] );
+        ptclPos[ i ] = vtkm::Vec< ValueType, 2 >( r[ i ], z[ i ] );
     }
 
     auto ptclHandle = vtkm::cont::make_ArrayHandle( ptclPos );
     vtkm::cont::ArrayHandle<vtkm::Id> idHandle;
-    vtkm::cont::ArrayHandle<vtkm::Float32> distHandle;
+    vtkm::cont::ArrayHandle< ValueType > distHandle;
 
     std::cout << "Running kdtree neighbor mapper" << std::endl;
 
@@ -370,112 +379,115 @@ void XGCAggregator::compute(
     // std::cout << "copied " << std::endl;
 }
 
-void XGCAggregator::aggregate(
-    const SummaryGrid & summaryGrid,
-    SummaryStep       & summaryStep,
-    const std::vector< float > & vX,
-    const std::vector< float > & vY,
-    const std::vector< float > & w,
-    const std::vector< int64_t > & gIDs,
+template< typename ValueType >
+void XGCAggregator< ValueType >::aggregate(
+    const SummaryGrid2< ValueType > & summaryGrid,
+    SummaryStep2< ValueType >       & summaryStep,
+    const std::vector< ValueType >  & vX,
+    const std::vector< ValueType >  & vY,
+    const std::vector< ValueType >  & w,
+    const std::vector< int64_t >    & gIDs,
     const int64_t N_CELLS )
 {
-    const int64_t BINS_PER_CELL = SummaryStep::NR*SummaryStep::NC;
+    // const int64_t BINS_PER_CELL = SummaryStep::NR*SummaryStep::NC;
 
-    auto vxHdl = vtkm::cont::make_ArrayHandle( vX );
-    auto vyHdl = vtkm::cont::make_ArrayHandle( vY );
-    auto wHdl  = vtkm::cont::make_ArrayHandle(  w );
-    auto gHdl  = vtkm::cont::make_ArrayHandle(  gIDs );
-    vtkm::worklet::Keys < int64_t > keys( gHdl, VTKM_DEFAULT_DEVICE_ADAPTER_TAG() );
+    // auto vxHdl = vtkm::cont::make_ArrayHandle( vX );
+    // auto vyHdl = vtkm::cont::make_ArrayHandle( vY );
+    // auto wHdl  = vtkm::cont::make_ArrayHandle(  w );
+    // auto gHdl  = vtkm::cont::make_ArrayHandle(  gIDs );
+    // vtkm::worklet::Keys < int64_t > keys( gHdl, VTKM_DEFAULT_DEVICE_ADAPTER_TAG() );
 
-    vtkm::cont::ArrayHandle<vtkm::Float32> meanHdl;
-    vtkm::cont::ArrayHandle<vtkm::Float32> rmsHdl;
-    vtkm::cont::ArrayHandle<vtkm::Float32> varHdl;
-    vtkm::cont::ArrayHandle<vtkm::Float32> minHdl;
-    vtkm::cont::ArrayHandle<vtkm::Float32> maxHdl;
-    vtkm::cont::ArrayHandle<vtkm::Float32> cntHdl;
-    vtkm::cont::ArrayHandle< vtkm::Vec< vtkm::Float32, BINS_PER_CELL > > histHndl;
+    // vtkm::cont::ArrayHandle< ValueType > meanHdl;
+    // vtkm::cont::ArrayHandle< ValueType > rmsHdl;
+    // vtkm::cont::ArrayHandle< ValueType > varHdl;
+    // vtkm::cont::ArrayHandle< ValueType > minHdl;
+    // vtkm::cont::ArrayHandle< ValueType > maxHdl;
+    // vtkm::cont::ArrayHandle< ValueType > cntHdl;
+    // vtkm::cont::ArrayHandle< vtkm::Vec< ValueType, BINS_PER_CELL > > histHndl;
 
-    const vtkm::Vec< vtkm::Int32,    2 >  histDims = { SummaryStep::NR,       SummaryStep::NC      };
-    const vtkm::Vec< vtkm::Float32,  2 >  xRange   = { -SummaryStep::DELTA_V, SummaryStep::DELTA_V };
-    const vtkm::Vec< vtkm::Float32,  2 >  yRange   = { 0,                     SummaryStep::DELTA_V };
+    // const vtkm::Vec< vtkm::Int32,    2 >  histDims = { SummaryStep::NR,       SummaryStep::NC      };
+    // const vtkm::Vec< ValueType,  2 >  xRange   = { -SummaryStep::DELTA_V, SummaryStep::DELTA_V };
+    // const vtkm::Vec< ValueType,  2 >  yRange   = { 0,                     SummaryStep::DELTA_V };
 
-    std::cout << "running aggregate" << std::endl;
+    // std::cout << "running aggregate" << std::endl;
 
-    m_aggregator.Run(
-        N_CELLS,
-        histDims,
-        xRange,
-        yRange,
-        vxHdl,
-        vyHdl,
-        wHdl,
-        keys,
-        meanHdl,
-        rmsHdl,
-        varHdl,
-        minHdl,
-        maxHdl,
-        cntHdl,
-        histHndl,
-        VTKM_DEFAULT_DEVICE_ADAPTER_TAG() );
+    // m_aggregator.Run(
+    //     N_CELLS,
+    //     histDims,
+    //     xRange,
+    //     yRange,
+    //     vxHdl,
+    //     vyHdl,
+    //     wHdl,
+    //     keys,
+    //     meanHdl,
+    //     rmsHdl,
+    //     varHdl,
+    //     minHdl,
+    //     maxHdl,
+    //     cntHdl,
+    //     histHndl,
+    //     VTKM_DEFAULT_DEVICE_ADAPTER_TAG() );
 
-    std::cout << "done aggregating" << std::endl;
+    // std::cout << "done aggregating" << std::endl;
 
-    summaryStep.w0w1_mean            = std::vector< float >( N_CELLS, 0.f );
-    summaryStep.w0w1_rms             = std::vector< float >( N_CELLS, 0.f );
-    summaryStep.w0w1_variance        = std::vector< float >( N_CELLS, 0.f );
-    summaryStep.w0w1_min             = std::vector< float >( N_CELLS,  std::numeric_limits< float >::max() );
-    summaryStep.w0w1_max             = std::vector< float >( N_CELLS, -std::numeric_limits< float >::max() );
-    summaryStep.num_particles        = std::vector< float >( N_CELLS, 0.f );
-    summaryStep.velocityDistribution = std::vector< float >( N_CELLS*SummaryStep::NR*SummaryStep::NC, 0.f );
+    // summaryStep.w0w1_mean            = std::vector< ValueType >( N_CELLS, 0.f );
+    // summaryStep.w0w1_rms             = std::vector< ValueType >( N_CELLS, 0.f );
+    // summaryStep.w0w1_variance        = std::vector< ValueType >( N_CELLS, 0.f );
+    // summaryStep.w0w1_min             = std::vector< ValueType >( N_CELLS,  std::numeric_limits< ValueType >::max() );
+    // summaryStep.w0w1_max             = std::vector< ValueType >( N_CELLS, -std::numeric_limits< ValueType >::max() );
+    // summaryStep.num_particles        = std::vector< ValueType >( N_CELLS, 0.f );
+    // summaryStep.velocityDistribution = std::vector< ValueType >( N_CELLS*SummaryStep::NR*SummaryStep::NC, 0.f );
 
-    auto uniqueKeys = keys.GetUniqueKeys();
-    const int64_t N_UK = uniqueKeys.GetNumberOfValues();
+    // auto uniqueKeys = keys.GetUniqueKeys();
+    // const int64_t N_UK = uniqueKeys.GetNumberOfValues();
 
-    std::cout << histHndl.GetNumberOfValues() << " values ";
-    std::cout << sizeof( histHndl.GetPortalControl().Get( 0 ) ) << " is size of each" << std::endl;
-    std::cout << summaryStep.velocityDistribution.size() << " is summary size of each" << std::endl;
+    // std::cout << histHndl.GetNumberOfValues() << " values ";
+    // std::cout << sizeof( histHndl.GetPortalControl().Get( 0 ) ) << " is size of each" << std::endl;
+    // std::cout << summaryStep.velocityDistribution.size() << " is summary size of each" << std::endl;
 
-    std::cout << "copying aggregation results" << std::endl;
+    // std::cout << "copying aggregation results" << std::endl;
 
-    // #pragma omp parallel for simd
-    for( int64_t i = 0; i < N_UK; ++i )
-    {
-        int64_t key = static_cast< int64_t >( uniqueKeys.GetPortalControl().Get( i ) );
+    // // #pragma omp parallel for simd
+    // for( int64_t i = 0; i < N_UK; ++i )
+    // {
+    //     int64_t key = static_cast< int64_t >( uniqueKeys.GetPortalControl().Get( i ) );
 
-        summaryStep.w0w1_mean[     key ] = meanHdl.GetPortalControl().Get( i );
-        summaryStep.w0w1_rms[      key ] = rmsHdl.GetPortalControl().Get( i );
-        summaryStep.w0w1_variance[ key ] = varHdl.GetPortalControl().Get( i );
-        summaryStep.w0w1_min[      key ] = minHdl.GetPortalControl().Get( i );
-        summaryStep.w0w1_max[      key ] = maxHdl.GetPortalControl().Get( i );
-        summaryStep.num_particles[ key ] = cntHdl.GetPortalControl().Get( i );
+    //     summaryStep.w0w1_mean[     key ] = meanHdl.GetPortalControl().Get( i );
+    //     summaryStep.w0w1_rms[      key ] = rmsHdl.GetPortalControl().Get( i );
+    //     summaryStep.w0w1_variance[ key ] = varHdl.GetPortalControl().Get( i );
+    //     summaryStep.w0w1_min[      key ] = minHdl.GetPortalControl().Get( i );
+    //     summaryStep.w0w1_max[      key ] = maxHdl.GetPortalControl().Get( i );
+    //     summaryStep.num_particles[ key ] = cntHdl.GetPortalControl().Get( i );
 
-        for( int64_t j = 0; j < BINS_PER_CELL; ++j )
-        {
-            if( key * BINS_PER_CELL + j >= N_CELLS * BINS_PER_CELL )
-            {
-                std::cout << "error " << key * BINS_PER_CELL + j << " / " << N_CELLS * BINS_PER_CELL << std::endl;
-                exit( 1 );
-            }
-            if( key >= N_CELLS  )
-            {
-                std::cout << "error " << key << " / " << N_CELLS << std::endl;
-                exit( 1 );
-            }
+    //     for( int64_t j = 0; j < BINS_PER_CELL; ++j )
+    //     {
+    //         if( key * BINS_PER_CELL + j >= N_CELLS * BINS_PER_CELL )
+    //         {
+    //             std::cout << "error " << key * BINS_PER_CELL + j << " / " << N_CELLS * BINS_PER_CELL << std::endl;
+    //             exit( 1 );
+    //         }
+    //         if( key >= N_CELLS  )
+    //         {
+    //             std::cout << "error " << key << " / " << N_CELLS << std::endl;
+    //             exit( 1 );
+    //         }
 
-            summaryStep.velocityDistribution[ key * BINS_PER_CELL + j ]
-                = histHndl.GetPortalControl().Get( i )[ j ];
-        }
-    }
+    //         summaryStep.velocityDistribution[ key * BINS_PER_CELL + j ]
+    //             = histHndl.GetPortalControl().Get( i )[ j ];
+    //     }
+    // }
 }
 
-void XGCAggregator::writeGrid( const std::string & path )
+template< typename ValueType >
+void XGCAggregator< ValueType >::writeGrid( const std::string & path )
 {
-    TN::writeSummaryGrid( m_summaryGrid, path );
+    TN::writeSummaryGridBP( m_summaryGrid, path );
 }
 
-void XGCAggregator::computeSummaryStep(
-    TN::SummaryStep & summaryStep, 
+template< typename ValueType >
+void XGCAggregator< ValueType >::computeSummaryStep(
+    TN::SummaryStep2< ValueType > & summaryStep, 
     const std::string & ptype,
     int64_t st )
 {
@@ -511,8 +523,8 @@ void XGCAggregator::computeSummaryStep(
     std::vector< int64_t > gridMap;
     std::chrono::high_resolution_clock::time_point kdt1 = std::chrono::high_resolution_clock::now();
 
-    std::vector< float > r( SZ );
-    std::vector< float > z( SZ );
+    std::vector< ValueType > r( SZ );
+    std::vector< ValueType > z( SZ );
 
     std::cout << "end is " << R_POS + SZ << std::endl;
 
@@ -536,7 +548,7 @@ void XGCAggregator::computeSummaryStep(
     {
         for( auto gID : gridMap )
         {
-            if( gID < 0 || gID >= m_summaryGrid.probes.volume.size() )
+            if( gID < 0 || gID >= m_summaryGrid.variables.at( "volume" ).size() )
             {
                 std::cout << "gID invalid " << gID << std::endl;
             }
@@ -544,9 +556,9 @@ void XGCAggregator::computeSummaryStep(
     }
 
     // compute velocity and weight
-    std::vector< float > vpara( SZ );
-    std::vector< float > vperp( SZ );
-    std::vector< float >  w0w1( SZ );
+    std::vector< ValueType > vpara( SZ );
+    std::vector< ValueType > vperp( SZ );
+    std::vector< ValueType >  w0w1( SZ );
 
     #pragma omp parallel for simd
     for( size_t i = 0; i < SZ; ++i )
@@ -593,74 +605,76 @@ void XGCAggregator::computeSummaryStep(
     //     vperp,
     //     w0w1,
     //     gridMap,
-    //     m_summaryGrid.probes.volume.size() );
+    //     m_summaryGrid.variables.at( "volume.size() );
 
     // Without VTKM
 
-    const int NR = SummaryStep::NR;
-    const int NC = SummaryStep::NC;
-    const int64_t DIST_STRIDE = NR*NC;
+    // const int NR = SummaryStep::NR;
+    // const int NC = SummaryStep::NC;
+    // const int64_t DIST_STRIDE = NR*NC;
 
-    const size_t N_CELLS = m_summaryGrid.probes.volume.size();
+    // const size_t N_CELLS = m_summaryGrid.variables.at( "volume" ).size();
 
-    summaryStep.w0w1_mean            = std::vector< float >( N_CELLS, 0.f );
-    summaryStep.w0w1_rms             = std::vector< float >( N_CELLS, 0.f );
-    summaryStep.w0w1_min             = std::vector< float >( N_CELLS,  std::numeric_limits< float >::max() );
-    summaryStep.w0w1_max             = std::vector< float >( N_CELLS, -std::numeric_limits< float >::max() );
-    summaryStep.num_particles        = std::vector< float >( N_CELLS, 0.f );
-    summaryStep.w0w1_variance        = std::vector< float >( N_CELLS, 0.f );
-    summaryStep.velocityDistribution = std::vector< float >( N_CELLS*NR*NC, 0.f );
+    // summaryStep.w0w1_mean            = std::vector< ValueType >( N_CELLS, 0.f );
+    // summaryStep.w0w1_rms             = std::vector< ValueType >( N_CELLS, 0.f );
+    // summaryStep.w0w1_min             = std::vector< ValueType >( N_CELLS,  std::numeric_limits< float >::max() );
+    // summaryStep.w0w1_max             = std::vector< ValueType >( N_CELLS, -std::numeric_limits< float >::max() );
+    // summaryStep.num_particles        = std::vector< ValueType >( N_CELLS, 0.f );
+    // summaryStep.w0w1_variance        = std::vector< ValueType >( N_CELLS, 0.f );
+    // summaryStep.velocityDistribution = std::vector< ValueType >( N_CELLS*NR*NC, 0.f );
 
-    std::cout << "computing histograms " << std::endl;
+    // std::cout << "computing histograms " << std::endl;
 
-    #pragma omp simd
-    for( size_t i = 0; i < SZ; ++i )
-    {
-        int64_t index = gridMap[ i ];
+    // #pragma omp simd
+    // for( size_t i = 0; i < SZ; ++i )
+    // {
+    //     int64_t index = gridMap[ i ];
 
-        summaryStep.w0w1_mean[ index ] += w0w1[ i ];
-        summaryStep.w0w1_rms[  index ] += w0w1[ i ] * w0w1[ i ];
-        summaryStep.w0w1_min[  index ] = std::min( w0w1[ i ], summaryStep.w0w1_min[ index ] );
-        summaryStep.w0w1_max[  index ] = std::max( w0w1[ i ], summaryStep.w0w1_max[ index ] );
-        summaryStep.num_particles[ index ] += 1.0;
+    //     summaryStep.w0w1_mean[ index ] += w0w1[ i ];
+    //     summaryStep.w0w1_rms[  index ] += w0w1[ i ] * w0w1[ i ];
+    //     summaryStep.w0w1_min[  index ] = std::min( w0w1[ i ], summaryStep.w0w1_min[ index ] );
+    //     summaryStep.w0w1_max[  index ] = std::max( w0w1[ i ], summaryStep.w0w1_max[ index ] );
+    //     summaryStep.num_particles[ index ] += 1.0;
 
-        // map to velocity distribution bin
+    //     // map to velocity distribution bin
 
-        const  float VPARA_MIN = -SummaryStep::DELTA_V;
-        const  float VPARA_MAX =  SummaryStep::DELTA_V;
+    //     const  ValueType VPARA_MIN = -SummaryStep::DELTA_V;
+    //     const  ValueType VPARA_MAX =  SummaryStep::DELTA_V;
 
-        const  float VPERP_MIN = 0;
-        const  float VPERP_MAX = SummaryStep::DELTA_V - VPERP_MIN;
+    //     const  ValueType VPERP_MIN = 0;
+    //     const  ValueType VPERP_MAX = SummaryStep::DELTA_V - VPERP_MIN;
 
-        const float R_WIDTH = VPERP_MAX;
-        const float C_WIDTH = VPARA_MAX - VPARA_MIN;
+    //     const ValueType R_WIDTH = VPERP_MAX;
+    //     const ValueType C_WIDTH = VPARA_MAX - VPARA_MIN;
 
-        int row = std::floor( ( ( vperp[ i ] - VPERP_MIN ) / R_WIDTH ) * NR );
-        int col = std::floor( ( ( vpara[ i ] - VPARA_MIN ) / C_WIDTH ) * NC );
+    //     int row = std::floor( ( ( vperp[ i ] - VPERP_MIN ) / R_WIDTH ) * NR );
+    //     int col = std::floor( ( ( vpara[ i ] - VPARA_MIN ) / C_WIDTH ) * NC );
 
-        row = std::max( std::min( row, NR - 1 ), 0 );
-        col = std::max( std::min( col, NC - 1 ), 0 );
+    //     row = std::max( std::min( row, NR - 1 ), 0 );
+    //     col = std::max( std::min( col, NC - 1 ), 0 );
 
-        // summaryStep.num_mapped[ index ] += 1.0;
-        summaryStep.velocityDistribution[ index * DIST_STRIDE + row * NC + col ] += w0w1[ i ];
-    }
+    //     // summaryStep.num_mapped[ index ] += 1.0;
+    //     summaryStep.velocityDistribution[ index * DIST_STRIDE + row * NC + col ] += w0w1[ i ];
+    // }
 
-    std::cout << "done computing histograms " << std::endl;
+    // std::cout << "done computing histograms " << std::endl;
 
-    #pragma omp simd
-    for( size_t i = 0; i < SZ; ++i )
-    {
-        int64_t index = gridMap[ i ];
-        const double v = w0w1[ i ] - summaryStep.w0w1_mean[ index ] / summaryStep.num_particles[ index ];
-        summaryStep.w0w1_variance[ index ] += v*v;
-    }
+    // #pragma omp simd
+    // for( size_t i = 0; i < SZ; ++i )
+    // {
+    //     int64_t index = gridMap[ i ];
+    //     const double v = w0w1[ i ] - summaryStep.w0w1_mean[ index ] / summaryStep.num_particles[ index ];
+    //     summaryStep.w0w1_variance[ index ] += v*v;
+    // }
 
-    std::chrono::high_resolution_clock::time_point st2 = std::chrono::high_resolution_clock::now();
-    std::cout << "RANK: "  << m_rank 
-              << ", MPI summarization processing CHUNK took " 
-              << std::chrono::duration_cast<std::chrono::milliseconds>( st2 - st1 ).count() << " milliseconds " 
-              << " for " << r.size() << " particles" << std::endl;
+    // std::chrono::high_resolution_clock::time_point st2 = std::chrono::high_resolution_clock::now();
+    // std::cout << "RANK: "  << m_rank 
+    //           << ", MPI summarization processing CHUNK took " 
+    //           << std::chrono::duration_cast<std::chrono::milliseconds>( st2 - st1 ).count() << " milliseconds " 
+    //           << " for " << r.size() << " particles" << std::endl;
 }
 
+template class XGCAggregator<float>;
+template class XGCAggregator<double>;
 
 }

@@ -11,7 +11,7 @@ set(SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/source/)
 set(CMAKE_CXX_COMPILER mpicxx)
 
 set (CMAKE_CXX_STANDARD 11)
-set(CMAKE_CXX_FLAGS "-fopenmp -frounding-math -DZLIB -DBZIP2")
+set(CMAKE_CXX_FLAGS "-w -fopenmp -frounding-math -DZLIB -DBZIP2")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 set(CMAKE_C_FLAGS "-lm")
 set(CMAKE_CUDA_COMPILER nvcc)
