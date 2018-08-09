@@ -301,11 +301,6 @@ void XGCAggregator< ValueType >::compute(
     const std::vector< ValueType > & r,
     const std::vector< ValueType > & z )
 {
-    if( r.size() != z.size() )
-    {
-        std::cout << "r and z are different sizes in aggregator compute" << std::endl;
-    }
-
     const int64_t SZ = r.size();
     std::vector< vtkm::Vec< ValueType, 2 > > ptclPos( SZ );
 
@@ -319,68 +314,177 @@ void XGCAggregator< ValueType >::compute(
     vtkm::cont::ArrayHandle<vtkm::Id> idHandle;
     vtkm::cont::ArrayHandle< ValueType > distHandle;
 
-    std::cout << "Running kdtree neighbor mapper" << std::endl;
-
     m_kdTree.Run( m_gridHandle, ptclHandle, idHandle, distHandle, VTKM_DEFAULT_DEVICE_ADAPTER_TAG() );
 
-    if( idHandle.GetPortalControl().GetNumberOfValues() != SZ )
-    {
-        std::cout << "kdtree returned wrong number of values" << std::endl;
-    }
-
     result.resize( SZ );
-    field.resize( SZ );
     #pragma omp parallel for simd
     for( int64_t i = 0; i < SZ; ++i )
     {
         result[ i ] = idHandle.GetPortalControl().Get( i );
-        field[  i ] = m_gridScalars[ result[ i ] ];
     }
 
-    // vtkm::cont::ArrayHandle<vtkm::Float32> fieldResultHandle;
+    vtkm::cont::ArrayHandle<vtkm::Float32> fieldResultHandle;
 
-    // if( m_gridNeighborhoodSumsHandle.GetNumberOfValues() != m_gridHandle.GetNumberOfValues() )
-    // {
-    //     std::cout << "grid neighborhoods has wrong number of values" << std::endl;
-    // }
+    m_interpolator.run(
+        ptclHandle,
+        idHandle,
+        m_gridHandle,
+        m_gridScalarHandle,
+        m_gridNeighborhoodsHandle,
+        m_gridNeighborhoodSumsHandle,
+        fieldResultHandle,
+        VTKM_DEFAULT_DEVICE_ADAPTER_TAG() );
 
-    // if( m_gridNeighborhoodSumsHandle.GetPortalControl().Get( m_gridNeighborhoodSumsHandle.GetNumberOfValues() - 1 ) 
-    //     != m_gridNeighborhoodsHandle.GetNumberOfValues() )
-    // {
-    //     std::cout << "wrong number of neighbors" << std::endl;
-    // }
-
-    // std::cout << "running interpolator" << std::endl;
-
-    // m_interpolator.run(
-    //     ptclHandle,
-    //     idHandle,
-    //     m_gridHandle,
-    //     m_gridScalarHandle,
-    //     m_gridNeighborhoodsHandle,
-    //     m_gridNeighborhoodSumsHandle,
-    //     fieldResultHandle,
-    //     VTKM_DEFAULT_DEVICE_ADAPTER_TAG() );
-
-    // std::cout << "DONE" << std::endl;
-
-    // if( fieldResultHandle.GetNumberOfValues() != SZ )
-    // {
-    //     std::cout << "field result has wrong number of values" << std::endl;
-    // }
-
-    // field.resize( SZ );
-    // #pragma omp parallel for simd
-    // for( int64_t i = 0; i < SZ; ++i )
-    // {
-    //     field[ i ] = fieldResultHandle.GetPortalControl().Get( i );
-    // }
-
-    // std::cout << "copied " << std::endl;
+    field.resize( SZ );
+    #pragma omp parallel for simd
+    for( int64_t i = 0; i < SZ; ++i )
+    {
+        field[ i ] = fieldResultHandle.GetPortalControl().Get( i );
+    }
 }
 
 template< typename ValueType >
-void XGCAggregator< ValueType >::aggregate(
+void XGCAggregator< ValueType >::aggregateOMP(
+    const SummaryGrid2< ValueType > & summaryGrid,
+    SummaryStep2< ValueType >       & summaryStep,
+    const std::vector< ValueType >  & vX,
+    const std::vector< ValueType >  & vY,
+    const std::vector< ValueType >  & w0,
+    const std::vector< ValueType >  & w1,
+    const std::vector< int64_t >    & gIDs,
+    const int64_t N_CELLS )
+{
+    /**********************
+        Prepare and Size
+    **********************/
+
+    // velocity histograms
+
+    HistogramDefinition< ValueType > def1;
+    def1.identifier = "vpara-vperp-w1";
+    def1.axis = { "vpara", "vperp" };
+    def1.dims = { 33, 17 };
+    def1.weight = "w1";
+    ValueType PartDV = 3378743.0 / 2.0;
+    def1.edges = { { -PartDV, PartDV }, { 0, PartDV } };
+
+    HistogramDefinition< ValueType > def2;
+    def2.identifier = "vpara-vperp-w0w1";
+    def2.axis = { "vpara", "vperp" };
+    def2.dims = { 33, 17 };
+    def2.weight = "w0w1";
+    def2.edges = { { -PartDV, PartDV }, { 0, PartDV } };
+
+    summaryStep.histograms.insert( { def1.identifier, CellHistograms< ValueType >( def1 ) } );
+    summaryStep.histograms.insert( { def2.identifier, CellHistograms< ValueType >( def2 ) } );
+
+    // summary statistics
+    
+
+    // For some reason this wont compile if template ValueType is used.
+    std::set< ScalarVariableStatistics< float >::Statistic > stats =
+    {
+        ScalarVariableStatistics< float >::Statistic::Count,
+        ScalarVariableStatistics< float >::Statistic::Mean,
+        ScalarVariableStatistics< float >::Statistic::Variance,  
+        ScalarVariableStatistics< float >::Statistic::RMS,  
+        ScalarVariableStatistics< float >::Statistic::Min,    
+        ScalarVariableStatistics< float >::Statistic::Max                                
+    };
+
+    std::vector< std::string > vars    = { "w0", "w1", "w0w1" };
+    std::vector< std::vector< const ValueType * > > varVals = { 
+        std::vector< const ValueType * >( { w0.data() } ),
+        std::vector< const ValueType * >( { w1.data() } ),
+        std::vector< const ValueType * >( { w0.data(), w1.data() } )
+    }; 
+
+    const int N_VARS = varVals.size();
+
+    for( auto var : vars )
+    {
+        summaryStep.variableStatistics.insert( { "w0",   ScalarVariableStatistics< ValueType >(   "w0", stats ) } );
+        summaryStep.variableStatistics.insert( { "w1",   ScalarVariableStatistics< ValueType >(   "w1", stats ) } );
+        summaryStep.variableStatistics.insert( { "w0w1", ScalarVariableStatistics< ValueType >( "w0w1", stats ) } );
+    }
+
+    summaryStep.resize( N_CELLS );
+
+    /**********************
+             Compute
+    **********************/
+  
+    const int ROWS = def1.dims[ 1 ];
+    const int COLS = def1.dims[ 0 ];
+
+    const size_t N_BINS = ROWS * COLS;
+    const size_t SZ = vX.size();
+    
+    const Vec2< ValueType > xRange = { def1.edges[ 0 ][ 0 ], def1.edges[ 0 ][  1 ] };
+    const Vec2< ValueType > yRange = { def1.edges[ 1 ][ 0 ], def1.edges[ 1 ][  1 ] };
+
+    const ValueType X_WIDTH = xRange.b() - xRange.a();
+    const ValueType Y_WIDTH = yRange.b() - yRange.a();
+
+    auto & hist1 = summaryStep.histograms.at( def1.identifier ).values;
+    auto & hist2 = summaryStep.histograms.at( def1.identifier ).values;
+
+    auto & vs = summaryStep.variableStatistics;
+
+    #pragma omp simd
+    for( size_t i = 0; i < SZ; ++i )
+    {
+        const int64_t index = gIDs[ i ];
+
+        int row = std::round( ( ( vY[ i ] - yRange.a() ) / Y_WIDTH ) * ROWS );
+        int col = std::round( ( ( vX[ i ] - xRange.a() ) / X_WIDTH ) * COLS );
+
+        if( row < ROWS && col < COLS )
+        {
+            hist1[ index * N_BINS + row * COLS + col ] += w1[ i ];
+            hist2[ index * N_BINS + row * COLS + col ] += w0[ i ] * w1[ i ];            
+        }
+
+        for( int v = 0; v < N_VARS; ++v )
+        {
+            auto & var = vars[ v ];
+
+            auto & count = vs.at( var ).values.at( ScalarVariableStatistics< ValueType >::Statistic::Count );
+            auto & mean  = vs.at( var ).values.at( ScalarVariableStatistics< ValueType >::Statistic::Mean  );
+            auto & rms   = vs.at( var ).values.at( ScalarVariableStatistics< ValueType >::Statistic::RMS   );
+            auto & mn    = vs.at( var ).values.at( ScalarVariableStatistics< ValueType >::Statistic::Min   );
+            auto & mx    = vs.at( var ).values.at( ScalarVariableStatistics< ValueType >::Statistic::Max   );
+
+            ValueType val = varVals[ v ].size() > 1 ? varVals[ v ][ 0 ][ i ] * varVals[ v ][ 1 ][ i ]  : varVals[ v ][ 0 ][ i ];
+
+            mn[    index ] = std::min( mn[ index ], val );
+            mx[    index ] = std::max( mx[ index ], val );            
+            mean[  index ] += val;
+            rms[   index ] += val*val;
+            count[ index ] += 1;            
+        }
+    }
+
+    #pragma omp simd
+    for( size_t i = 0; i < SZ; ++i )
+    {
+        const int64_t index = gIDs[ i ];
+
+        for( int v = 0; v < N_VARS; ++v )
+        {
+            auto & var = vars[ v ];
+            auto & variance = vs.at( var ).values.at( ScalarVariableStatistics< ValueType >::Statistic::Variance );
+            auto & mean = vs.at( var ).values.at( ScalarVariableStatistics< ValueType >::Statistic::Mean );
+
+            ValueType val = varVals[ v ].size() > 1 ? varVals[ v ][ 0 ][ i ] * varVals[ v ][ 1 ][ i ] : varVals[ v ][ 0 ][ i ];
+            val = ( val - mean[ index ] );
+            variance[ index ] += val*val;        
+        }
+    }
+}
+
+template< typename ValueType >
+void XGCAggregator< ValueType >::aggregateVTKM(
     const SummaryGrid2< ValueType > & summaryGrid,
     SummaryStep2< ValueType >       & summaryStep,
     const std::vector< ValueType >  & vX,
@@ -405,7 +509,7 @@ void XGCAggregator< ValueType >::aggregate(
     // vtkm::cont::ArrayHandle< ValueType > cntHdl;
     // vtkm::cont::ArrayHandle< vtkm::Vec< ValueType, BINS_PER_CELL > > histHndl;
 
-    // const vtkm::Vec< vtkm::Int32,    2 >  histDims = { SummaryStep::NR,       SummaryStep::NC      };
+    // const vtkm::Vec< vtkm::Int32,    2 >  histDims = { SummaryStep::NR,   SummaryStep::NC      };
     // const vtkm::Vec< ValueType,  2 >  xRange   = { -SummaryStep::DELTA_V, SummaryStep::DELTA_V };
     // const vtkm::Vec< ValueType,  2 >  yRange   = { 0,                     SummaryStep::DELTA_V };
 
@@ -498,12 +602,14 @@ void XGCAggregator< ValueType >::computeSummaryStep(
 
     std::cout << "reading particle step " << std::endl;
     std::chrono::high_resolution_clock::time_point readStartTime = std::chrono::high_resolution_clock::now();
+    
     readBPParticleDataStep(
         m_phase,
         ptype,
         m_restartDirectory + "xgc.restart." + std::string( 5 - tstep.size(), '0' ) + tstep +  ".bp",
         m_rank,
         m_nranks );
+
     std::chrono::high_resolution_clock::time_point readStartEnd = std::chrono::high_resolution_clock::now();
     std::cout << "RANK: " << m_rank
          << ", adios Read time took "
@@ -519,14 +625,12 @@ void XGCAggregator< ValueType >::computeSummaryStep(
     const size_t MU_POS  = XGC_PHASE_INDEX_MAP.at( "mu" ) * SZ;
 
     // for VTKM nearest neighbors and B field Interpolation //////////////////////
-
-    std::vector< int64_t > gridMap;
+    
     std::chrono::high_resolution_clock::time_point kdt1 = std::chrono::high_resolution_clock::now();
-
+    
+    std::vector< int64_t > gridMap;
     std::vector< ValueType > r( SZ );
     std::vector< ValueType > z( SZ );
-
-    std::cout << "end is " << R_POS + SZ << std::endl;
 
     for( size_t i = 0; i < SZ; ++i )
     {
@@ -545,25 +649,17 @@ void XGCAggregator< ValueType >::computeSummaryStep(
          << std::chrono::duration_cast<std::chrono::milliseconds>( kdt2 - kdt1 ).count()
          << " milliseconds " << " for " << r.size() << " particles" << std::endl;
 
-    {
-        for( auto gID : gridMap )
-        {
-            if( gID < 0 || gID >= m_summaryGrid.variables.at( "volume" ).size() )
-            {
-                std::cout << "gID invalid " << gID << std::endl;
-            }
-        }
-    }
-
     // compute velocity and weight
     std::vector< ValueType > vpara( SZ );
     std::vector< ValueType > vperp( SZ );
-    std::vector< ValueType >  w0w1( SZ );
+    std::vector< ValueType >    w0( SZ );
+    std::vector< ValueType >    w1( SZ );
 
     #pragma omp parallel for simd
     for( size_t i = 0; i < SZ; ++i )
     {
-        w0w1[  i ] = m_phase[ W0_POS + i ] * m_phase[ W1_POS + i ];
+        w0[  i ] = m_phase[ W0_POS + i ];
+        w1[  i ] = m_phase[ W1_POS + i ];        
     }
 
     const double mass_ratio = 1000.0;
@@ -596,9 +692,7 @@ void XGCAggregator< ValueType >::computeSummaryStep(
 
     std::chrono::high_resolution_clock::time_point st1 = std::chrono::high_resolution_clock::now();
 
-    // With VTKM
-
-    // aggregate(
+    // aggregateVTKM(
     //     m_summaryGrid,
     //     summaryStep,
     //     vpara,
@@ -609,72 +703,18 @@ void XGCAggregator< ValueType >::computeSummaryStep(
 
     // Without VTKM
 
-    // const int NR = SummaryStep::NR;
-    // const int NC = SummaryStep::NC;
-    // const int64_t DIST_STRIDE = NR*NC;
-
-    // const size_t N_CELLS = m_summaryGrid.variables.at( "volume" ).size();
-
-    // summaryStep.w0w1_mean            = std::vector< ValueType >( N_CELLS, 0.f );
-    // summaryStep.w0w1_rms             = std::vector< ValueType >( N_CELLS, 0.f );
-    // summaryStep.w0w1_min             = std::vector< ValueType >( N_CELLS,  std::numeric_limits< float >::max() );
-    // summaryStep.w0w1_max             = std::vector< ValueType >( N_CELLS, -std::numeric_limits< float >::max() );
-    // summaryStep.num_particles        = std::vector< ValueType >( N_CELLS, 0.f );
-    // summaryStep.w0w1_variance        = std::vector< ValueType >( N_CELLS, 0.f );
-    // summaryStep.velocityDistribution = std::vector< ValueType >( N_CELLS*NR*NC, 0.f );
-
-    // std::cout << "computing histograms " << std::endl;
-
-    // #pragma omp simd
-    // for( size_t i = 0; i < SZ; ++i )
-    // {
-    //     int64_t index = gridMap[ i ];
-
-    //     summaryStep.w0w1_mean[ index ] += w0w1[ i ];
-    //     summaryStep.w0w1_rms[  index ] += w0w1[ i ] * w0w1[ i ];
-    //     summaryStep.w0w1_min[  index ] = std::min( w0w1[ i ], summaryStep.w0w1_min[ index ] );
-    //     summaryStep.w0w1_max[  index ] = std::max( w0w1[ i ], summaryStep.w0w1_max[ index ] );
-    //     summaryStep.num_particles[ index ] += 1.0;
-
-    //     // map to velocity distribution bin
-
-    //     const  ValueType VPARA_MIN = -SummaryStep::DELTA_V;
-    //     const  ValueType VPARA_MAX =  SummaryStep::DELTA_V;
-
-    //     const  ValueType VPERP_MIN = 0;
-    //     const  ValueType VPERP_MAX = SummaryStep::DELTA_V - VPERP_MIN;
-
-    //     const ValueType R_WIDTH = VPERP_MAX;
-    //     const ValueType C_WIDTH = VPARA_MAX - VPARA_MIN;
-
-    //     int row = std::floor( ( ( vperp[ i ] - VPERP_MIN ) / R_WIDTH ) * NR );
-    //     int col = std::floor( ( ( vpara[ i ] - VPARA_MIN ) / C_WIDTH ) * NC );
-
-    //     row = std::max( std::min( row, NR - 1 ), 0 );
-    //     col = std::max( std::min( col, NC - 1 ), 0 );
-
-    //     // summaryStep.num_mapped[ index ] += 1.0;
-    //     summaryStep.velocityDistribution[ index * DIST_STRIDE + row * NC + col ] += w0w1[ i ];
-    // }
-
-    // std::cout << "done computing histograms " << std::endl;
-
-    // #pragma omp simd
-    // for( size_t i = 0; i < SZ; ++i )
-    // {
-    //     int64_t index = gridMap[ i ];
-    //     const double v = w0w1[ i ] - summaryStep.w0w1_mean[ index ] / summaryStep.num_particles[ index ];
-    //     summaryStep.w0w1_variance[ index ] += v*v;
-    // }
-
-    // std::chrono::high_resolution_clock::time_point st2 = std::chrono::high_resolution_clock::now();
-    // std::cout << "RANK: "  << m_rank 
-    //           << ", MPI summarization processing CHUNK took " 
-    //           << std::chrono::duration_cast<std::chrono::milliseconds>( st2 - st1 ).count() << " milliseconds " 
-    //           << " for " << r.size() << " particles" << std::endl;
+        aggregateOMP(
+            m_summaryGrid,
+            summaryStep,
+            vpara,
+            vperp,
+            w0,
+            w1,
+            gridMap,
+            m_summaryGrid.variables.at( "volume" ).size() );
 }
 
 template class XGCAggregator<float>;
-template class XGCAggregator<double>;
+//template class XGCAggregator<double>;
 
 }

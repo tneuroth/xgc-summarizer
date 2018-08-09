@@ -58,6 +58,7 @@ struct VTKmInterpolator2D
             const ScalarType nearestDistance = vtkm::Magnitude( myPos - meshCoords[ myNearestNeighbor ] );
             myScalarOut = nearestDistance * meshScalars[ myNearestNeighbor ];
             ScalarType distanceSum = nearestDistance;
+            
             for( IndexType i = OFFSET; i < OFFSET + NUM_NEIGHBORS; ++i )
             {
             	const IndexType IDX = meshNeighborhoods[ i ];
@@ -65,6 +66,7 @@ struct VTKmInterpolator2D
                 myScalarOut += dist * meshScalars[ IDX ];
                 distanceSum += dist;
             }
+
             myScalarOut /= distanceSum;
         }
     };
@@ -88,7 +90,6 @@ struct VTKmInterpolator2D
     {
 
         InterpolationWorklet2D interpolationWorklet;
-
         vtkm::worklet::DispatcherMapField< InterpolationWorklet2D, DeviceAdapter >
         interpDispatcher( interpolationWorklet );
 

@@ -2,6 +2,7 @@
 #include "XGCAggregator.hpp"
 #include "Summary.hpp"
 #include "SummaryWriterAdios2.hpp"
+#include "Reduce/Reduce.hpp"
 
 #include <adios_read.h>
 #include <mpi.h>
@@ -71,16 +72,16 @@ int main( int argc, char** argv )
     double summaryStepTime = 0.0;
     int64_t outputStep     = 0;
 
-    std::vector< int64_t > steps = { 200, 400, 4000, 4200 };
+    std::vector< int64_t > steps = { 200, 400 };
     
     SummaryStep2< ValueType > summaryStep;
 
     for( auto tstep : steps )
     {
-        summaryStep.setStep( outputStep, tstep, outputStep );
-
         high_resolution_clock::time_point st1 = high_resolution_clock::now();
 
+        summaryStep.setStep( outputStep, tstep, outputStep );
+        summaryStep.objectIdentifier = "ions";
         aggregator.computeSummaryStep(
             summaryStep,
             "ions",
@@ -89,6 +90,7 @@ int main( int argc, char** argv )
         MPI_Barrier(MPI_COMM_WORLD);
 
         high_resolution_clock::time_point st2 = high_resolution_clock::now();
+
         if( rank == 0 )
         {
             std::cout << "compute summary step took a total of " 
@@ -96,111 +98,71 @@ int main( int argc, char** argv )
                       << " milliseconds" << std::endl;
         }
 
-        st1 = high_resolution_clock::now();
-
         for( auto & hist : summaryStep.histograms )
         {
-            MPI_Reduce(
-                rank == 0 ? MPI_IN_PLACE : hist.second.values.data(),
-                hist.second.values.data(),
-                hist.second.values.size(),
-                sizeof( ValueType ) == 4 ? MPI_FLOAT : MPI_DOUBLE,
-                MPI_SUM,
-                0,
-                MPI_COMM_WORLD );
+            TN::MPI::ReduceOpMPI( rank, hist.second.values, MPI_SUM );
         }
 
-        // MPI_Reduce(
-        //     rank == 0 ? MPI_IN_PLACE : summaryStep.w0w1_mean.data(),
-        //     summaryStep.w0w1_mean.data(),
-        //     summaryStep.w0w1_mean.size(),
-        //     MPI_FLOAT,
-        //     MPI_SUM,
-        //     0,
-        //     MPI_COMM_WORLD );
+        for( auto & var : summaryStep.variableStatistics )
+        {
+            auto & myCounts = var.second.values.at( 
+                ScalarVariableStatistics< ValueType >::Statistic::Count );
 
-        // MPI_Reduce(
-        //     rank == 0 ? MPI_IN_PLACE : summaryStep.w0w1_rms.data(),
-        //     summaryStep.w0w1_rms.data(),
-        //     summaryStep.w0w1_rms.size(),
-        //     MPI_FLOAT,
-        //     MPI_SUM,
-        //     0,
-        //     MPI_COMM_WORLD );
+            TN::MPI::ReduceOpMPI(
+                rank, 
+                myCounts, 
+                MPI_SUM );
 
-        // MPI_Reduce(
-        //     rank == 0 ? MPI_IN_PLACE : summaryStep.w0w1_min.data(),
-        //     summaryStep.w0w1_min.data(),
-        //     summaryStep.w0w1_min.size(),
-        //     MPI_FLOAT,
-        //     MPI_MIN,
-        //     0,
-        //     MPI_COMM_WORLD );
+            if( var.second.values.count( ScalarVariableStatistics< ValueType >::Statistic::Min ) )
+            {
+                TN::MPI::ReduceOpMPI(
+                    rank, 
+                    var.second.values.at( 
+                        ScalarVariableStatistics< ValueType >::Statistic::Min ),
+                    MPI_MIN );
+            }
 
-        // MPI_Reduce(
-        //     rank == 0 ? MPI_IN_PLACE : summaryStep.w0w1_max.data(),
-        //     summaryStep.w0w1_max.data(),
-        //     summaryStep.w0w1_max.size(),
-        //     MPI_FLOAT,
-        //     MPI_MAX,
-        //     0,
-        //     MPI_COMM_WORLD );
+            if( var.second.values.count( ScalarVariableStatistics< ValueType >::Statistic::Max ) )
+            {
+                TN::MPI::ReduceOpMPI(
+                    rank, 
+                    var.second.values.at( 
+                        ScalarVariableStatistics< ValueType >::Statistic::Max ),
+                    MPI_MAX );
+            }
 
-        // MPI_Reduce(
-        //     rank == 0 ? MPI_IN_PLACE : summaryStep.num_particles.data(),
-        //     summaryStep.num_particles.data(),
-        //     summaryStep.num_particles.size(),
-        //     MPI_FLOAT,
-        //     MPI_SUM,
-        //     0,
-        //     MPI_COMM_WORLD );
+            if( var.second.values.count( ScalarVariableStatistics< ValueType >::Statistic::Mean ) )
+            {
+                TN::MPI::ReduceMean( 
+                    rank,
+                    var.second.values.at( 
+                        ScalarVariableStatistics< ValueType >::Statistic::Mean ),
+                    myCounts );
+            }
 
-        // MPI_Reduce(
-        //     rank == 0 ? MPI_IN_PLACE : summaryStep.w0w1_variance.data(),
-        //     summaryStep.w0w1_variance.data(),
-        //     summaryStep.w0w1_variance.size(),
-        //     MPI_FLOAT,
-        //     MPI_SUM,
-        //     0,
-        //     MPI_COMM_WORLD );
+            if( var.second.values.count( ScalarVariableStatistics< ValueType >::Statistic::Variance ) )
+            {
+                TN::MPI::ReduceVariance( 
+                    rank,
+                    var.second.values.at( 
+                        ScalarVariableStatistics< ValueType >::Statistic::Variance ),
+                    myCounts );  
+            }
 
-        // MPI_Barrier(MPI_COMM_WORLD);
-
-        // st2 = high_resolution_clock::now();
-
-        // /////////////////////////////////////////////////////////////////////////
+            if( var.second.values.count( ScalarVariableStatistics< ValueType >::Statistic::RMS ) )
+            {
+                TN::MPI::ReduceRMS( 
+                    rank,
+                    var.second.values.at( 
+                        ScalarVariableStatistics< ValueType >::Statistic::RMS ),
+                    myCounts );    
+            }
+        }
 
         if( rank == 0 )
-        {
-        //     std::cout << "mpi reduction took " << duration_cast<milliseconds>( st2 - st1 ).count() << " milliseconds" << std::endl;
-        //     std::cout << "normalizing " << std::endl;
-
-        //     const size_t NUM_CELLS = summaryStep.w0w1_mean.size();
-
-        //     #pragma omp parallel for simd
-        //     for( size_t i = 0; i < NUM_CELLS; ++i )
-        //     {
-        //         if( summaryStep.num_particles[ i ] > 0 )
-        //         {
-        //             summaryStep.w0w1_mean[ i ] /= summaryStep.num_particles[ i ];
-        //             summaryStep.w0w1_rms[  i ]  = sqrt( summaryStep.w0w1_rms[ i ] ) / summaryStep.num_particles[ i ];
-        //             summaryStep.w0w1_variance[  i ] = sqrt( summaryStep.w0w1_variance[ i ] ) / summaryStep.num_particles[ i ];                    
-        //         }
-        //         else
-        //         {
-        //             summaryStep.w0w1_mean[ i ] = 0;
-        //             summaryStep.w0w1_rms[  i ] = 0;
-        //             summaryStep.w0w1_variance[ i ] = 0;
-        //             summaryStep.w0w1_min[  i ] = 0;
-        //             summaryStep.w0w1_max[  i ] = 0;
-        //         }
-        //     }
-
-        //     double realtime = ( double ) tstep / 2.0;
-            
+        {   
             writeSummaryStepBP( summaryStep, outpath );
         }
-        MPI_Barrier(MPI_COMM_WORLD);
     }
 
     const double N_COMPUTED = steps.size();

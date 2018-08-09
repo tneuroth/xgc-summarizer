@@ -33,14 +33,10 @@ struct ScalarVariableStatistics
     {
         Count,
         Mean,
-        Median,
         Variance,
         Skewness,
         kurtosis,
         RMS,
-        MeanAbsoluteValue,
-        MeanAbsoluteMedianDeviation,
-        MeanAbsoluteMeanDeviation,        
         InterquartileRange,
         Min,
         Max,
@@ -52,13 +48,10 @@ struct ScalarVariableStatistics
         {
             case Count                       : return "Count";
             case Mean                        : return "Mean";
-            case Median                      : return "Median";
             case Variance                    : return "Variance";
             case Skewness                    : return "Skewness";
             case kurtosis                    : return "kurtosis";
-            case MeanAbsoluteValue           : return "MeanAbsoluteValue";
-            case MeanAbsoluteMedianDeviation : return "MeanAbsoluteMedianDeviation";
-            case MeanAbsoluteMeanDeviation   : return "MeanAbsoluteMeanDeviation";
+            case RMS                         : return "RMS";
             case InterquartileRange          : return "InterquartileRange";
             case Min                         : return "Min";
             case Max                         : return "Max";
@@ -69,14 +62,16 @@ struct ScalarVariableStatistics
     std::string variableIdentifier;
 
     /* Enabled Per Scalar Variable Statistics */
-    std::map< Statistic, std::vector< ValueType > > statistics;
+    std::map< Statistic, std::vector< ValueType > > values;
 
     ScalarVariableStatistics( 
-        const std::set< Statistic > & enabled, size_t size = 0 )
+        const std::string & id,
+        const std::set< Statistic > & enabled, 
+        size_t size = 0 ) : variableIdentifier( id )
     {
         for( auto & stat : enabled )
         {
-            statistics.insert( { 
+            values.insert( { 
                 stat,
                 std::vector< ValueType >( size ) } );
         }
@@ -84,7 +79,7 @@ struct ScalarVariableStatistics
 
     void resize( size_t size )
     {
-        for( auto & stat : statistics )
+        for( auto & stat : values )
         {
             stat.second.resize( size );
         }
@@ -92,7 +87,7 @@ struct ScalarVariableStatistics
 
     void clear()
     {
-        for( auto & stat : statistics )
+        for( auto & stat : values )
         {
             stat.second.clear();
         }   
@@ -121,6 +116,8 @@ public:
     std::vector< int > dims;
     std::string weight;
     std::vector< std::vector< ValueType > > edges;
+
+    HistogramDefinition() {}
 
     HistogramDefinition( const HistogramDefinition< ValueType > & other )
     {
@@ -192,12 +189,12 @@ struct SummaryStep2
     {
         for( auto & s : variableStatistics )
         {
-            s.resize( size );
+            s.second.resize( size );
         }
 
         for( auto & h : histograms )
         {
-            h.resize( size );
+            h.second.resize( size );
         }
     }
 
@@ -205,12 +202,12 @@ struct SummaryStep2
     {
         for( auto & s : variableStatistics )
         {
-            s.clear();
+            s.second.clear();
         }
 
         for( auto & h : histograms )
         {
-            clear();
+            h.second.clear();
         }
     }
 };

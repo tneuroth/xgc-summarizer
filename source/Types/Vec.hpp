@@ -763,6 +763,14 @@ struct I2
     {
         return i2;
     }
+    int x() const 
+    {
+        return i1;
+    }
+    int y() const 
+    {
+        return i2;
+    }
 };
 
 struct I3

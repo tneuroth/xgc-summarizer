@@ -98,13 +98,23 @@ private:
         const std::vector< ValueType > & r,
         const std::vector< ValueType > & z );
 
-    void aggregate(
+    void aggregateVTKM(
         const SummaryGrid2< ValueType > & summaryGrid,
         SummaryStep2< ValueType > & summary,
         const std::vector< ValueType > & vX,
         const std::vector< ValueType > & vY,
         const std::vector< ValueType > & w,
         const std::vector< int64_t > & gIDs,
+        const int64_t N_CELLS );
+
+    void aggregateOMP(
+        const SummaryGrid2< ValueType > & summaryGrid,
+        SummaryStep2< ValueType >       & summaryStep,
+        const std::vector< ValueType >  & vX,
+        const std::vector< ValueType >  & vY,
+        const std::vector< ValueType >  & w0,
+        const std::vector< ValueType >  & w1,        
+        const std::vector< int64_t >    & gIDs,
         const int64_t N_CELLS );
 
     void writeGrid( const std::string & path );

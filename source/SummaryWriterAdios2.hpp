@@ -49,14 +49,15 @@ inline void writeSummaryGridBP(
         adios2::ADIOS adios( adios2::DebugOFF );
 
         adios2::IO bpIO = adios.DeclareIO( "XGC-SUMMARY-GRID-IO" );
-        adios2::Engine bpWriter = bpIO.Open( outpath + ".bp", adios2::Mode::Write );
+        adios2::Engine bpWriter = bpIO.Open( outpath + "/summary.mesh.bp", adios2::Mode::Write );
 
         for( auto & var : summaryGrid.variables )
         {
+            std::cout << "writing var size is : " << var.second.size() << std::endl;
             bpWriter.Put<ValueType>(
                 bpIO.DefineVariable<ValueType>( 
                     var.first, 
-                    { 1 }, 
+                    { var.second.size() }, 
                     { 0 }, 
                     { var.second.size() },
                     adios2::ConstantDims ), 
@@ -78,21 +79,21 @@ inline void writeSummaryStepBP(
 
     adios2::Engine bpWriter = bpIO.Open( 
         directory 
-            + "/xgc.summary." 
+            + "summary." 
             + summaryStep.objectIdentifier + "."
-            + std::string( '0', 7 - step.size() ) + ".bp", 
+            + std::string( 7 - step.size(), '0' ) + step + ".bp", 
         adios2::Mode::Write );
 
     for( auto & var : summaryStep.variableStatistics )
     {
-        for( auto & stat : var.second.statistics )
+        for( auto & stat : var.second.values )
         {
             bpWriter.Put<float>(
                 bpIO.DefineVariable<float>( 
-                    "stat." 
+                    "statistics/" 
                         + var.first + "." 
                         + ScalarVariableStatistics< ValueType >::StatisticString( stat.first ), 
-                    { 1 },
+                    { stat.second.size() },
                     { 0 },
                     { stat.second.size() },
                     adios2::ConstantDims ),
@@ -104,8 +105,8 @@ inline void writeSummaryStepBP(
     {
         bpWriter.Put< ValueType >(
             bpIO.DefineVariable< ValueType >( 
-                "hist." + hist.first + ".values",
-                { 1 }, 
+                "histograms/" + hist.first + ".values",
+                { hist.second.values.size() }, 
                 { 0 }, 
                 { hist.second.values.size() }, 
                 adios2::ConstantDims ), 
@@ -113,8 +114,8 @@ inline void writeSummaryStepBP(
 
         bpWriter.Put< std::string >(
             bpIO.DefineVariable< std::string >(
-                "hist." + hist.first + ".params.axis",
-                { 1 }, 
+                "histograms/" + hist.first + ".params.axis",
+                { hist.second.definition.axis.size() }, 
                 { 0 }, 
                 { hist.second.definition.axis.size() }, 
                 adios2::ConstantDims ), 
@@ -122,7 +123,7 @@ inline void writeSummaryStepBP(
 
         bpWriter.Put< std::string >(
             bpIO.DefineVariable< std::string >(
-                "hist." + hist.first + ".params.identifier",
+                "histograms/" + hist.first + ".params.identifier",
                 { 1 }, 
                 { 0 }, 
                 { 1 }, 
@@ -131,7 +132,7 @@ inline void writeSummaryStepBP(
 
         bpWriter.Put< std::string >(
             bpIO.DefineVariable< std::string >(
-                "hist." + hist.first + ".params.weight",
+                "histograms/" + hist.first + ".params.weight",
                 { 1 }, 
                 { 0 }, 
                 { 1 }, 
@@ -140,8 +141,8 @@ inline void writeSummaryStepBP(
 
         bpWriter.Put< int >(
             bpIO.DefineVariable< int >(
-                "hist." + hist.first + ".params.dims",
-                { 1 }, 
+                "histograms/" + hist.first + ".params.dims",
+                { hist.second.definition.dims.size() }, 
                 { 0 }, 
                 { hist.second.definition.dims.size() }, 
                 adios2::ConstantDims ), 
@@ -151,8 +152,8 @@ inline void writeSummaryStepBP(
         {
             bpWriter.Put< ValueType >(
                 bpIO.DefineVariable< ValueType >(
-                    "hist." + hist.first + ".params.edges(" + std::to_string( i ) + ")",
-                    { 1 }, 
+                    "histograms/" + hist.first + ".params.edges(" + std::to_string( i ) + ")",
+                    { hist.second.definition.edges[ i ].size() }, 
                     { 0 },
                     { hist.second.definition.edges[ i ].size() }, 
                     adios2::ConstantDims ), 
