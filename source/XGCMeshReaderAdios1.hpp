@@ -21,12 +21,7 @@ inline void getNeighborhoods( TN::SummaryGrid2< ValueType > & summaryGrid )
 {
     const int64_t N_CELLS = summaryGrid.variables.at( "r" ).size();
     std::vector< std::set< int64_t > > neighborSets( N_CELLS );
-
-    std::cout << "N_CELLS = " << N_CELLS << std::endl;
-
     const int64_t N_TRIANGLES = summaryGrid.triangulation.size();
-
-    std::cout << "N_TRIANGLES = " << N_TRIANGLES << std::endl;
 
     for( int i = 0; i < N_TRIANGLES; ++i )
     {

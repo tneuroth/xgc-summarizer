@@ -98,6 +98,8 @@ int main( int argc, char** argv )
                       << " milliseconds" << std::endl;
         }
 
+        high_resolution_clock::time_point rt1 = high_resolution_clock::now();
+
         for( auto & hist : summaryStep.histograms )
         {
             TN::MPI::ReduceOpMPI( rank, hist.second.values, MPI_SUM );
@@ -159,10 +161,24 @@ int main( int argc, char** argv )
             }
         }
 
+        MPI_Barrier(MPI_COMM_WORLD);
+
         if( rank == 0 )
         {   
+            high_resolution_clock::time_point rt2 = high_resolution_clock::now();
+            std::cout << "reduce step took " << duration_cast<milliseconds>( rt2 - rt1 ).count()
+                      << " milliseconds"  << std::endl;
+
+            high_resolution_clock::time_point wt1 = high_resolution_clock::now();
+            
             writeSummaryStepBP( summaryStep, outpath );
+
+            high_resolution_clock::time_point wt2 = high_resolution_clock::now();        
+            std::cout << "write step took " << duration_cast<milliseconds>( wt2 - wt1 ).count()
+                      << " milliseconds\n"  << std::endl;
         }
+
+        MPI_Barrier(MPI_COMM_WORLD);
     }
 
     const double N_COMPUTED = steps.size();
@@ -171,7 +187,7 @@ int main( int argc, char** argv )
 
     if( rank == 0 )
     {
-        cout << "Summarization step took " << duration / ( N_COMPUTED ) << " milliseconds per step.\n";
+        cout << "Summarization took on average " << duration / ( N_COMPUTED ) << " milliseconds per step.\n";
     }
 
     adios_read_finalize_method ( ADIOS_READ_METHOD_BP );

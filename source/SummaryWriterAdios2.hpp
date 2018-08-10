@@ -53,15 +53,14 @@ inline void writeSummaryGridBP(
 
         for( auto & var : summaryGrid.variables )
         {
-            std::cout << "writing var size is : " << var.second.size() << std::endl;
-            bpWriter.Put<ValueType>(
-                bpIO.DefineVariable<ValueType>( 
+            bpWriter.Put< ValueType >(
+                bpIO.DefineVariable< ValueType >( 
                     var.first, 
                     { var.second.size() }, 
                     { 0 }, 
                     { var.second.size() },
                     adios2::ConstantDims ), 
-                var.second.data() );            
+                    var.second.data() );            
         }
 
         bpWriter.Close();
@@ -82,22 +81,49 @@ inline void writeSummaryStepBP(
             + "summary." 
             + summaryStep.objectIdentifier + "."
             + std::string( 7 - step.size(), '0' ) + step + ".bp", 
-        adios2::Mode::Write );
+            adios2::Mode::Write );
+
+    bpWriter.Put< ValueType >(
+    bpIO.DefineVariable< ValueType >( 
+        "real_time",
+        { 1 },
+        { 0 },
+        { 1 },
+        adios2::ConstantDims ),
+        & summaryStep.realTime );
+
+    bpWriter.Put< int64_t >(
+    bpIO.DefineVariable< int64_t >( 
+        "sim_step",
+        { 1 },
+        { 0 },
+        { 1 },
+        adios2::ConstantDims ),
+        & summaryStep.simStep );
+
+    bpWriter.Put< int64_t >(
+    bpIO.DefineVariable< int64_t >( 
+        summaryStep.objectIdentifier + "/" + "num_particles",
+        { 1 },
+        { 0 },
+        { 1 },
+        adios2::ConstantDims ),
+        & summaryStep.numParticles );
 
     for( auto & var : summaryStep.variableStatistics )
     {
         for( auto & stat : var.second.values )
         {
-            bpWriter.Put<float>(
-                bpIO.DefineVariable<float>( 
-                    "statistics/" 
+            bpWriter.Put< ValueType >(
+                bpIO.DefineVariable< ValueType >( 
+                    summaryStep.objectIdentifier + "/" + "statistics/" 
                         + var.first + "." 
                         + ScalarVariableStatistics< ValueType >::StatisticString( stat.first ), 
                     { stat.second.size() },
                     { 0 },
                     { stat.second.size() },
                     adios2::ConstantDims ),
-                stat.second.data() );
+                    stat.second.data() );
         }        
     }
 
@@ -105,43 +131,43 @@ inline void writeSummaryStepBP(
     {
         bpWriter.Put< ValueType >(
             bpIO.DefineVariable< ValueType >( 
-                "histograms/" + hist.first + ".values",
+                summaryStep.objectIdentifier + "/" + "histograms/" + hist.first + ".values",
                 { hist.second.values.size() }, 
                 { 0 }, 
                 { hist.second.values.size() }, 
                 adios2::ConstantDims ), 
-            hist.second.values.data() );    
+                hist.second.values.data() );    
 
         bpWriter.Put< std::string >(
             bpIO.DefineVariable< std::string >(
-                "histograms/" + hist.first + ".params.axis",
+                summaryStep.objectIdentifier + "/" + "histograms/" + hist.first + ".params.axis",
                 { hist.second.definition.axis.size() }, 
                 { 0 }, 
                 { hist.second.definition.axis.size() }, 
                 adios2::ConstantDims ), 
-            hist.second.definition.axis.data() );   
+                hist.second.definition.axis.data() );   
 
         bpWriter.Put< std::string >(
             bpIO.DefineVariable< std::string >(
-                "histograms/" + hist.first + ".params.identifier",
+                summaryStep.objectIdentifier + "/" + "histograms/" + hist.first + ".params.identifier",
                 { 1 }, 
                 { 0 }, 
                 { 1 }, 
                 adios2::ConstantDims ), 
-            & hist.second.definition.identifier );    
+                & hist.second.definition.identifier );    
 
         bpWriter.Put< std::string >(
             bpIO.DefineVariable< std::string >(
-                "histograms/" + hist.first + ".params.weight",
+                summaryStep.objectIdentifier + "/" + "histograms/" + hist.first + ".params.weight",
                 { 1 }, 
                 { 0 }, 
                 { 1 }, 
                 adios2::ConstantDims ), 
-            & hist.second.definition.weight );    
+                & hist.second.definition.weight );    
 
         bpWriter.Put< int >(
             bpIO.DefineVariable< int >(
-                "histograms/" + hist.first + ".params.dims",
+                summaryStep.objectIdentifier + "/" + "histograms/" + hist.first + ".params.dims",
                 { hist.second.definition.dims.size() }, 
                 { 0 }, 
                 { hist.second.definition.dims.size() }, 
@@ -152,7 +178,7 @@ inline void writeSummaryStepBP(
         {
             bpWriter.Put< ValueType >(
                 bpIO.DefineVariable< ValueType >(
-                    "histograms/" + hist.first + ".params.edges(" + std::to_string( i ) + ")",
+                    summaryStep.objectIdentifier + "/" + "histograms/" + hist.first + ".params.edges(" + std::to_string( i ) + ")",
                     { hist.second.definition.edges[ i ].size() }, 
                     { 0 },
                     { hist.second.definition.edges[ i ].size() }, 

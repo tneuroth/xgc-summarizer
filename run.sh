@@ -1,6 +1,6 @@
 #!/bin/bash
 
-mpirun -np 4\
+mpirun -np 6\
     ./summarizer /media/tn0/data/datasets/CODAR/xgc.mesh.bp \
                  /media/tn0/data/datasets/CODAR/xgc.bfield.bp \
                  /media/tn0/data/datasets/CODAR/ \

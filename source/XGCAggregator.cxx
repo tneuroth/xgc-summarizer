@@ -273,13 +273,14 @@ void XGCAggregator< ValueType >::setGrid(
     const std::vector< int64_t > & gridNeighborhoodSums )
 {
     const int64_t N_CELLS = r.size();
-
     m_gridPoints.resize( N_CELLS );
+
     #pragma omp parallel for simd
     for( int64_t i = 0; i < N_CELLS; ++i )
     {
         m_gridPoints[ i ] = vtkm::Vec< ValueType, 2 >( r[ i ], z[ i ] );
     }
+
     m_gridHandle = vtkm::cont::make_ArrayHandle( m_gridPoints );
 
     m_gridNeighborhoods = std::vector< vtkm::Int64 >( gridNeighborhoods.begin(), gridNeighborhoods.end() );
@@ -311,7 +312,7 @@ void XGCAggregator< ValueType >::compute(
     }
 
     auto ptclHandle = vtkm::cont::make_ArrayHandle( ptclPos );
-    vtkm::cont::ArrayHandle<vtkm::Id> idHandle;
+    vtkm::cont::ArrayHandle< vtkm::Id  > idHandle;
     vtkm::cont::ArrayHandle< ValueType > distHandle;
 
     m_kdTree.Run( m_gridHandle, ptclHandle, idHandle, distHandle, VTKM_DEFAULT_DEVICE_ADAPTER_TAG() );
@@ -597,18 +598,19 @@ void XGCAggregator< ValueType >::computeSummaryStep(
 {
     // need r, z, phi, B, mu, rho_parallel, w0, w1
 
-    std::cout << m_restartDirectory << std::endl;
     std::string tstep = std::to_string( st );
 
-    std::cout << "reading particle step " << std::endl;
+    // std::cout << "reading particle step " << std::endl;
     std::chrono::high_resolution_clock::time_point readStartTime = std::chrono::high_resolution_clock::now();
     
-    readBPParticleDataStep(
+    int64_t totalNumParticles = readBPParticleDataStep(
         m_phase,
         ptype,
         m_restartDirectory + "xgc.restart." + std::string( 5 - tstep.size(), '0' ) + tstep +  ".bp",
         m_rank,
         m_nranks );
+
+    summaryStep.numParticles = totalNumParticles;
 
     std::chrono::high_resolution_clock::time_point readStartEnd = std::chrono::high_resolution_clock::now();
     std::cout << "RANK: " << m_rank
@@ -645,7 +647,7 @@ void XGCAggregator< ValueType >::computeSummaryStep(
 
     std::chrono::high_resolution_clock::time_point kdt2 = std::chrono::high_resolution_clock::now();
     std::cout << "RANK: " << m_rank
-         << ", MPI kdtree mapping CHUNK took "
+         << ", kdtree mapping CHUNK took "
          << std::chrono::duration_cast<std::chrono::milliseconds>( kdt2 - kdt1 ).count()
          << " milliseconds " << " for " << r.size() << " particles" << std::endl;
 
@@ -712,6 +714,12 @@ void XGCAggregator< ValueType >::computeSummaryStep(
             w1,
             gridMap,
             m_summaryGrid.variables.at( "volume" ).size() );
+
+    std::chrono::high_resolution_clock::time_point st2 = std::chrono::high_resolution_clock::now();    
+    std::cout << "RANK: " << m_rank
+         << ", Aggregation step took "
+         << std::chrono::duration_cast<std::chrono::milliseconds>( st2 - st1 ).count()
+         << " milliseconds " << " for " << r.size() << " particles" << std::endl;    
 }
 
 template class XGCAggregator<float>;

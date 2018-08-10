@@ -13,7 +13,7 @@ namespace TN
 {
 
 template< typename FloatType >
-inline void readBPParticleDataStep(
+inline int64_t readBPParticleDataStep(
     std::vector< FloatType > & result,
     const std::string & ptype,
     const std::string & path,
@@ -28,6 +28,8 @@ inline void readBPParticleDataStep(
     adios2::Variable<double> phase = bpIO.InquireVariable< double >(
         ptype == "ions" ? "iphase" : "ephase" );
     
+    int64_t totalNumParticles = 0;
+
     if( phase )
     {
         auto dims = phase.Shape();
@@ -57,6 +59,8 @@ inline void readBPParticleDataStep(
                 result[ vIDX * MY_CHUNK + pIDX ] = tmp[ ( pIDX ) * dims[ 1 ] + vIDX ];
             }
         }
+
+        totalNumParticles = SZ;
     }
     else
     {
@@ -64,6 +68,7 @@ inline void readBPParticleDataStep(
     }
 
     bpReader.Close();
+    return totalNumParticles;
 }
 
 }

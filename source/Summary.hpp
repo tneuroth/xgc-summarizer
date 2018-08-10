@@ -176,7 +176,9 @@ struct SummaryStep2
 
     int64_t outStep;
     int64_t simStep;
-    double realTime;
+    ValueType realTime;
+    int64_t numParticles;
+
 
     void setStep( int64_t _outStep, int64_t _simStep, double _realTime ) 
     {
