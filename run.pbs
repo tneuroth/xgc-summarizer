@@ -2,7 +2,7 @@
 #PBS -A CSC143
 #PBS -N XGC-Summarizer
 #PBS -j oe
-#PBS -l walltime=0:04:00,nodes=4
+#PBS -l walltime=1:00:00,nodes=8
 #PBS -l gres=atlas1%atlas2
 
 DATA_PATH=/lustre/atlas/world-shared/csc143/CODAR_demo/demo_cheetah/campaign-jyc-check-v1/XGC_GENE/run-000/XGC
@@ -11,11 +11,13 @@ PROGRAM_PATH=/lustre/atlas/scratch/tneuroth/csc143/
 
 cd $PROGRAM_PATH
 
-export OMP_NUM_THREADS=16
+export OMP_NUM_THREADS=8
 
-aprun -n 4 -N 1 -d 16 \
-    ./summarizer $DATA_PATH/xgc.mesh.bp \
-                 $DATA_PATH/xgc.bfield.bp \
-                 $DATA_PATH/restart_dir/\
-                 $DATA_PATH/units.m \
-                 $OUTPUT_PATH
+aprun -n 8 -N 1 -d 8 -j 1\
+    $PROGRAM_PATH/summarizer $DATA_PATH/xgc.mesh.bp \
+        $DATA_PATH/xgc.bfield.bp \
+        $DATA_PATH/restart_dir/ \
+        $DATA_PATH/units.m \
+        $OUTPUT_PATH \
+        $PROGRAM_PATH/triangulation.obj
+
