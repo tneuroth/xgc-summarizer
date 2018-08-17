@@ -18,12 +18,11 @@ inline int64_t readBPParticleDataStep(
     const std::string & ptype,
     const std::string & path,
     int rank,
-    int nRanks )
+    int nRanks,
+    int64_t tstep,
+    adios2::IO     & bpIO,
+    adios2::Engine & reader )
 {
-    adios2::ADIOS adios(MPI_COMM_WORLD, adios2::DebugOFF );
-    adios2::IO bpIO = adios.DeclareIO( "IO" );
-    adios2::Engine bpReader = bpIO.Open( path, adios2::Mode::Read );
-
     std::map< std::string, adios2::Params > variableInfo = bpIO.AvailableVariables();
     adios2::Variable<double> phase = bpIO.InquireVariable< double >(
         ptype == "ions" ? "iphase" : "ephase" );
@@ -44,6 +43,8 @@ inline int64_t readBPParticleDataStep(
             { MY_START,         0 },
             { MY_CHUNK, dims[ 1 ] }
         } );
+
+        phase.SetStepSelection( { tstep, 1 } );
 
         std::vector< double > tmp;
         bpReader.Get( phase, tmp, adios2::Mode::Sync );
@@ -66,6 +67,32 @@ inline int64_t readBPParticleDataStep(
     {
         std::cerr << "couldn't find iphase" << std::endl;
     }
+
+    return totalNumParticles;
+}
+template< typename FloatType >
+inline int64_t readBPParticleDataStep(
+    std::vector< FloatType > & result,
+    const std::string & ptype,
+    const std::string & path,
+    int rank,
+    int nRanks,
+    int64_t tstep )
+{
+    adios2::ADIOS adios(MPI_COMM_WORLD, adios2::DebugOFF );
+    adios2::IO bpIO = adios.DeclareIO( "IO" );
+    adios2::Engine bpReader = bpIO.Open( path, adios2::Mode::Read );
+
+    auto totalNumParticles = readBPParticleDataStep(
+        result,
+        ptype,
+        path,
+        rank,
+        nRanks,
+        tstep,
+        bpIO,
+        boReader
+    );
 
     bpReader.Close();
     return totalNumParticles;

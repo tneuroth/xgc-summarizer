@@ -31,9 +31,12 @@ class XGCAggregator
 {
     std::string m_meshFilePath;
     std::string m_bFieldFilePath;
-    std::string m_restartDirectory;
+    std::string m_restartPath;
     std::string m_unitsMFilePath;
     std::string m_outputDirectory;
+
+    bool m_inSitu;
+    bool m_singleParticleFile;
 
     int m_rank; 
     int m_nranks;
@@ -41,12 +44,15 @@ class XGCAggregator
     std::vector< ValueType > m_phase;
     std::vector< ValueType > m_B;
 
+    void computeSummaryStep(
+        std::vector< ValueType > & phase,
+        TN::SummaryStep2< ValueType > & summaryStep,
+        const std::string & ptype,
+        int64_t totalNumParticles,
+        int64_t st );
+
 public:
 
-	void computeSummaryStep(
-	    TN::SummaryStep2< ValueType > & summaryStep,
-        const std::string & ptype,
-	    int64_t st );
 
 	XGCAggregator(
 		const std::string & meshFilePath,
@@ -55,11 +61,16 @@ public:
         const std::string & unitsFilePath,
         const std::string & outputDirectory,
         const std::set< std::string > & particleTypes,
+        bool inSitu,
+        bool singleParticleFile,
         int rank,
         int nranks );
 
-    void reduceMesh( const std::string & reducedMeshFilePath );
+    void runInSitu();
+    void runInPost();
 
+    void run();
+    void reduceMesh( const std::string & reducedMeshFilePath );
     void writeMesh();
 
 private:

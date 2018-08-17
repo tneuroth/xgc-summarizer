@@ -5,6 +5,8 @@
 #include "XGCMeshReaderAdios1.hpp"
 #include "XGCParticleReaderAdios2.hpp"
 #include "XGCConstantReader.hpp"
+#include "Reduce/Reduce.hpp"
+#include "XGCSynchronizer.hpp"
 
 #include <adios2.h>
 #include <mpi.h>
@@ -30,19 +32,23 @@ template< typename ValueType >
 XGCAggregator< ValueType >::XGCAggregator(
     const std::string & meshFilePath,
     const std::string & bfieldFilePath,
-    const std::string & restartDirectory,
+    const std::string & restartPath,
     const std::string & unitsFilePath,
     const std::string & outputDirectory,
     const std::set< std::string > & particleTypes,
-    int rank,
-    int nranks ) : 
+    bool inSitu,
+    bool singleParticleFile,
+    int m_rank,
+    int nm_ranks ) : 
         m_meshFilePath( meshFilePath ),
         m_bFieldFilePath( bfieldFilePath ),
-        m_restartDirectory( restartDirectory ),
+        m_restartPath( restartPath ),
         m_unitsMFilePath( unitsFilePath ),
         m_outputDirectory( outputDirectory ),
-        m_rank( rank ),
-        m_nranks( nranks )
+        m_inSitu( inSitu ),
+        m_singleParticleFile( singleParticleFile ),
+        m_rank( m_rank ),
+        m_nranks( nm_ranks )
 
 {
     TN::loadConstants( m_unitsMFilePath, m_constants );
@@ -262,6 +268,146 @@ void XGCAggregator< ValueType >::reduceMesh(
 
     MPI_Barrier(MPI_COMM_WORLD);
     std::cout << "done " << std::endl;   
+}
+
+template< typename ValueType >
+void XGCAggregator< ValueType >::runInSitu()
+{
+    double summaryStepTime = 0.0;
+    int64_t outputStep     = 0;
+    
+    SummaryStep2< ValueType > summaryStep;
+
+    int64_t step = -1;
+    std::vector< int64_t > steps;
+    auto stepsIter = steps.begin();
+
+    TN::Synchro::waitForFileExistence( m_restartPath );
+
+    adios2::ADIOS adios(MPI_COMM_WORLD, adios2::DebugOFF );
+    adios2::IO bpIO = adios.DeclareIO( "IO" );
+    adios2::Engine bpReader = bpIO.Open( path, adios2::Mode::Read );
+
+    double timeOutSeconds = 10000;
+    while( ( auto status = bpReader.BeginStep( StepMode::NextAvailable, timeOutSeconds ) ) == adios2::StepStatus::OK )
+
+    // while(
+    //     TN::Synchro::getNextStep( 
+    //         step, 
+    //         steps,
+    //         stepsIter,
+    //         m_restartPath, 
+    //         "ions",
+    //         m_inSitu,
+    //         1000000 ) )
+    {
+        int64_t tstep = *stepsIter;
+
+        summaryStep.setStep( outputStep, tstep, outputStep );
+        summaryStep.objectIdentifier = "ions";
+        
+        /////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+        std::string tstepStr = std::to_string( tstep );
+
+        // std::cout << "reading particle step " << std::endl;
+        std::chrono::high_resolution_clock::time_point readStartTime = std::chrono::high_resolution_clock::now();
+        
+        static std::vector< ValueType > phase;
+        int64_t totalNumParticles = readBPParticleDataStep(
+            phase,
+            "ions",
+            m_singleParticleFile ? m_restartPath 
+                : m_restartPath + "xgc.restart." + std::string( 5 - tstepStr.size(), '0' ) + tstepStr +  ".bp",
+            m_rank,
+            m_nranks,
+            m_inSitu ? tstep : 0 ); // whether to select the current time step in the file
+
+        summaryStep.numParticles = totalNumParticles;
+
+        std::chrono::high_resolution_clock::time_point readStartEnd = std::chrono::high_resolution_clock::now();
+
+        std::cout << "RANK: " << m_rank
+             << ", adios Read time took "
+             << std::chrono::duration_cast<std::chrono::milliseconds>( readStartEnd - readStartTime ).count()
+             << " std::chrono::milliseconds " << " for " << m_phase.size()/9 << " particles" << std::endl;
+
+        /////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+        computeSummaryStep(
+            phase,
+            summaryStep,
+            "ions",
+            totalNumParticles,
+            tstep );
+    }
+}
+
+template< typename ValueType >
+void XGCAggregator< ValueType >::runInPost()
+{
+    double summaryStepTime = 0.0;
+    int64_t outputStep     = 0;
+    
+    SummaryStep2< ValueType > summaryStep;
+
+    int64_t step = -1;
+    std::vector< int64_t > steps = { 200, 400 };
+
+    for( auto tstep : steps )
+    {
+
+        summaryStep.setStep( outputStep, tstep, outputStep );
+        summaryStep.objectIdentifier = "ions";
+        
+        /////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+        std::string tstepStr = std::to_string( tstep );
+
+        // std::cout << "reading particle step " << std::endl;
+        std::chrono::high_resolution_clock::time_point readStartTime = std::chrono::high_resolution_clock::now();
+        
+        static std::vector< ValueType > phase;
+        int64_t totalNumParticles = readBPParticleDataStep(
+            phase,
+            "ions",
+            m_singleParticleFile ? m_restartPath 
+                : m_restartPath + "xgc.restart." + std::string( 5 - tstepStr.size(), '0' ) + tstepStr +  ".bp",
+            m_rank,
+            m_nranks,
+            m_inSitu ? tstep : 0 ); // whether to select the current time step in the file
+
+        summaryStep.numParticles = totalNumParticles;
+
+        std::chrono::high_resolution_clock::time_point readStartEnd = std::chrono::high_resolution_clock::now();
+
+        std::cout << "RANK: " << m_rank
+             << ", adios Read time took "
+             << std::chrono::duration_cast<std::chrono::milliseconds>( readStartEnd - readStartTime ).count()
+             << " std::chrono::milliseconds " << " for " << m_phase.size()/9 << " particles" << std::endl;
+
+        /////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+        computeSummaryStep(
+            phase,
+            summaryStep,
+            "ions",
+            totalNumParticles,
+            tstep );
+    }
+}
+
+template< typename ValueType >
+void XGCAggregator< ValueType >::run()
+{
+    if( m_inSitu )
+    {
+        runInSitu();
+    }
+    else
+    {
+        runInPost();
+    }
 }
 
 template< typename ValueType >
@@ -516,7 +662,7 @@ void XGCAggregator< ValueType >::aggregateVTKM(
 
     // std::cout << "running aggregate" << std::endl;
 
-    // m_aggregator.Run(
+    //Run(
     //     N_CELLS,
     //     histDims,
     //     xRange,
@@ -592,33 +738,13 @@ void XGCAggregator< ValueType >::writeGrid( const std::string & path )
 
 template< typename ValueType >
 void XGCAggregator< ValueType >::computeSummaryStep(
+    std::vector< ValueType > & phase,
     TN::SummaryStep2< ValueType > & summaryStep, 
     const std::string & ptype,
+    int64_t totalNumParticles,
     int64_t st )
 {
-    // need r, z, phi, B, mu, rho_parallel, w0, w1
-
-    std::string tstep = std::to_string( st );
-
-    // std::cout << "reading particle step " << std::endl;
-    std::chrono::high_resolution_clock::time_point readStartTime = std::chrono::high_resolution_clock::now();
-    
-    int64_t totalNumParticles = readBPParticleDataStep(
-        m_phase,
-        ptype,
-        m_restartDirectory + "xgc.restart." + std::string( 5 - tstep.size(), '0' ) + tstep +  ".bp",
-        m_rank,
-        m_nranks );
-
-    summaryStep.numParticles = totalNumParticles;
-
-    std::chrono::high_resolution_clock::time_point readStartEnd = std::chrono::high_resolution_clock::now();
-    std::cout << "RANK: " << m_rank
-         << ", adios Read time took "
-         << std::chrono::duration_cast<std::chrono::milliseconds>( readStartEnd - readStartTime ).count()
-         << " milliseconds " << " for " << m_phase.size()/9 << " particles" << std::endl;
-
-    const size_t SZ      = m_phase.size() / 9;
+    const size_t SZ      = phase.size() / 9;
     const size_t R_POS   = XGC_PHASE_INDEX_MAP.at( "r" ) * SZ;
     const size_t Z_POS   = XGC_PHASE_INDEX_MAP.at( "z" ) * SZ;
     const size_t RHO_POS = XGC_PHASE_INDEX_MAP.at( "rho_parallel" ) * SZ;
@@ -636,8 +762,8 @@ void XGCAggregator< ValueType >::computeSummaryStep(
 
     for( size_t i = 0; i < SZ; ++i )
     {
-        r[ i ] = m_phase[ R_POS + i ];
-        z[ i ] = m_phase[ Z_POS + i ];
+        r[ i ] = phase[ R_POS + i ];
+        z[ i ] = phase[ Z_POS + i ];
     }
 
     m_B.resize( SZ );
@@ -649,7 +775,7 @@ void XGCAggregator< ValueType >::computeSummaryStep(
     std::cout << "RANK: " << m_rank
          << ", kdtree mapping CHUNK took "
          << std::chrono::duration_cast<std::chrono::milliseconds>( kdt2 - kdt1 ).count()
-         << " milliseconds " << " for " << r.size() << " particles" << std::endl;
+         << " std::chrono::milliseconds " << " for " << r.size() << " particles" << std::endl;
 
     // compute velocity and weight
     std::vector< ValueType > vpara( SZ );
@@ -660,8 +786,8 @@ void XGCAggregator< ValueType >::computeSummaryStep(
     #pragma omp parallel for simd
     for( size_t i = 0; i < SZ; ++i )
     {
-        w0[  i ] = m_phase[ W0_POS + i ];
-        w1[  i ] = m_phase[ W1_POS + i ];        
+        w0[  i ] = phase[ W0_POS + i ];
+        w1[  i ] = phase[ W1_POS + i ];        
     }
 
     const double mass_ratio = 1000.0;
@@ -676,8 +802,8 @@ void XGCAggregator< ValueType >::computeSummaryStep(
         #pragma omp parallel for simd
         for( size_t i = 0; i < SZ; ++i )
         {
-            vpara[ i ] = m_B[ i ] * m_phase[ RHO_POS + i ] * ( ( ptl_ion_charge_eu * e ) / mi_sim );
-            vperp[ i ] = sqrt( ( m_phase[   MU_POS + i ] * 2.0 * m_B[ i ] ) / mi_sim );
+            vpara[ i ] = m_B[ i ] * phase[ RHO_POS + i ] * ( ( ptl_ion_charge_eu * e ) / mi_sim );
+            vperp[ i ] = sqrt( ( phase[   MU_POS + i ] * 2.0 * m_B[ i ] ) / mi_sim );
         }
     }
     else
@@ -685,14 +811,16 @@ void XGCAggregator< ValueType >::computeSummaryStep(
         #pragma omp parallel for simd
         for( size_t i = 0; i < SZ; ++i )
         {
-            vpara[ i ] =( m_B[ i ] * m_phase[ RHO_POS + i ] * (-e) ) / me_sim;
-            vperp[ i ] = sqrt( ( m_phase[    MU_POS + i ] * 2.0 * m_B[ i ]  ) / me_sim  );
+            vpara[ i ] =( m_B[ i ] * phase[ RHO_POS + i ] * (-e) ) / me_sim;
+            vperp[ i ] = sqrt( ( phase[    MU_POS + i ] * 2.0 * m_B[ i ]  ) / me_sim  );
         }
     }
 
+    phase.clear();
+
     // compute summations over particles in each cell
 
-    std::chrono::high_resolution_clock::time_point st1 = std::chrono::high_resolution_clock::now();
+    std::chrono::high_resolution_clock::time_point at1 = std::chrono::high_resolution_clock::now();
 
     // aggregateVTKM(
     //     m_summaryGrid,
@@ -715,11 +843,94 @@ void XGCAggregator< ValueType >::computeSummaryStep(
             gridMap,
             m_summaryGrid.variables.at( "volume" ).size() );
 
-    std::chrono::high_resolution_clock::time_point st2 = std::chrono::high_resolution_clock::now();    
+    std::chrono::high_resolution_clock::time_point at2 = std::chrono::high_resolution_clock::now();    
+
     std::cout << "RANK: " << m_rank
          << ", Aggregation step took "
-         << std::chrono::duration_cast<std::chrono::milliseconds>( st2 - st1 ).count()
-         << " milliseconds " << " for " << r.size() << " particles" << std::endl;    
+         << std::chrono::duration_cast<std::chrono::milliseconds>( at2 - at1 ).count()
+         << " std::chrono::milliseconds " << " for " << r.size() << " particles" << std::endl;    
+
+    std::chrono::high_resolution_clock::time_point rt1 = std::chrono::high_resolution_clock::now();
+
+    for( auto & hist : summaryStep.histograms )
+    {
+        TN::MPI::ReduceOpMPI( m_rank, hist.second.values, MPI_SUM );
+    }
+
+    for( auto & var : summaryStep.variableStatistics )
+    {
+        auto & myCounts = var.second.values.at( 
+            ScalarVariableStatistics< ValueType >::Statistic::Count );
+
+        TN::MPI::ReduceOpMPI(
+            m_rank, 
+            myCounts, 
+            MPI_SUM );
+
+        if( var.second.values.count( ScalarVariableStatistics< ValueType >::Statistic::Min ) )
+        {
+            TN::MPI::ReduceOpMPI(
+                m_rank, 
+                var.second.values.at( 
+                    ScalarVariableStatistics< ValueType >::Statistic::Min ),
+                MPI_MIN );
+        }
+
+        if( var.second.values.count( ScalarVariableStatistics< ValueType >::Statistic::Max ) )
+        {
+            TN::MPI::ReduceOpMPI(
+                m_rank, 
+                var.second.values.at( 
+                    ScalarVariableStatistics< ValueType >::Statistic::Max ),
+                MPI_MAX );
+        }
+
+        if( var.second.values.count( ScalarVariableStatistics< ValueType >::Statistic::Mean ) )
+        {
+            TN::MPI::ReduceMean( 
+                m_rank,
+                var.second.values.at( 
+                    ScalarVariableStatistics< ValueType >::Statistic::Mean ),
+                myCounts );
+        }
+
+        if( var.second.values.count( ScalarVariableStatistics< ValueType >::Statistic::Variance ) )
+        {
+            TN::MPI::ReduceVariance( 
+                m_rank,
+                var.second.values.at( 
+                    ScalarVariableStatistics< ValueType >::Statistic::Variance ),
+                myCounts );  
+        }
+
+        if( var.second.values.count( ScalarVariableStatistics< ValueType >::Statistic::RMS ) )
+        {
+            TN::MPI::ReduceRMS( 
+                m_rank,
+                var.second.values.at( 
+                    ScalarVariableStatistics< ValueType >::Statistic::RMS ),
+                myCounts );    
+        }
+    }
+
+    MPI_Barrier(MPI_COMM_WORLD);
+
+    if( m_rank == 0 )
+    {   
+        std::chrono::high_resolution_clock::time_point rt2 = std::chrono::high_resolution_clock::now();
+        std::cout << "reduce step took " << std::chrono::duration_cast<std::chrono::milliseconds>( rt2 - rt1 ).count()
+                  << " std::chrono::milliseconds"  << std::endl;
+
+        std::chrono::high_resolution_clock::time_point wt1 = std::chrono::high_resolution_clock::now();
+        
+        writeSummaryStepBP( summaryStep, m_outputDirectory );
+
+        std::chrono::high_resolution_clock::time_point wt2 = std::chrono::high_resolution_clock::now();        
+        std::cout << "write step took " << std::chrono::duration_cast<std::chrono::milliseconds>( wt2 - wt1 ).count()
+                  << " std::chrono::milliseconds\n"  << std::endl;
+    }
+
+    MPI_Barrier(MPI_COMM_WORLD);
 }
 
 template class XGCAggregator<float>;

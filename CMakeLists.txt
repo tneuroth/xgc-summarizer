@@ -5,10 +5,10 @@ project(XGC-Summary)
 set(DEV ${CMAKE_CURRENT_SOURCE_DIR}/../)
 set(SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/source/)
 
-set(CMAKE_C_COMPILER cc)
-set(CMAKE_CXX_COMPILER CC)
+#set(CMAKE_C_COMPILER cc)
+#set(CMAKE_CXX_COMPILER CC)
 
-#set(CMAKE_CXX_COMPILER mpicxx)
+set(CMAKE_CXX_COMPILER mpicxx)
 
 set (CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_FLAGS "-w -fopenmp -frounding-math")
@@ -28,18 +28,18 @@ set(VTKm_DIR "${DEV}vtkm-build/lib/cmake/vtkm-1.2")
 include_directories(
     PUBLIC
     /usr/include/
-    /usr/include/glib-2.0/ 
-    /usr/lib/glib-2.0/include/ 
-    ${DEV}/vtkm-kdtree-generic/ 
-    ${SRC_DIR} 
-    ${DEV}/vtkm-build/include/ 
-    ${DEV}/adios-build/include/ 
-    ${DEV}/local/include/                  
+    /usr/include/glib-2.0/
+    /usr/lib/glib-2.0/include/
+    ${DEV}/vtkm-kdtree-generic/
+    ${SRC_DIR}
+    ${DEV}/vtkm-build/include/
+    ${DEV}/adios-build/include/
+    ${DEV}/local/include/
     ${DEV}/vtkm-kdtree-generic/)
 
 link_directories(
     /usr/lib/x86_64-linux-gnu/
-    /usr/lib /usr/lib64/ 
+    /usr/lib /usr/lib64/
     ${DEV}/adios-build/lib/
     ${DEV}/local/lib/)
 
@@ -48,6 +48,6 @@ find_package(VTKm  REQUIRED)
 add_library(kdtree ${SRC_DIR}/XGCAggregator.cxx)
 target_link_libraries(kdtree adios2 vtkm_cont)
 
-add_executable(summarizer ${SRC_DIR}/Main.cpp)
-target_link_libraries(summarizer vtkm_cont adios2 adios gmp kdtree)
+add_executable(summarizer ${SRC_DIR}/InSitu.cpp)
+target_link_libraries(summarizer vtkm_cont adios2 adios z bz2 gmp kdtree)
 

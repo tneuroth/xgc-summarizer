@@ -2,7 +2,6 @@
 #include "XGCAggregator.hpp"
 #include "Summary.hpp"
 #include "SummaryWriterAdios2.hpp"
-#include "Reduce/Reduce.hpp"
 
 #include <adios_read.h>
 #include <mpi.h>
@@ -18,9 +17,16 @@ typedef float ValueType;
 
 int main( int argc, char** argv )
 {
-    if( argc < 6 )
+    if( argc < 7 )
     {
-        cerr << "expected: <executable> <mesh path> <bfield path> <particle data base path> <units.m path> <optional|reduced mesh> <outpath>\n";
+        cerr << "expected: 
+            <executable> 
+                <mesh path> 
+                <bfield path> 
+                <particle data base path> 
+                <units.m path> 
+                <bool split particle data>
+                <optional|reduced mesh> <outpath>\n";
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -44,6 +50,10 @@ int main( int argc, char** argv )
     const string particle_data_base_path = argv[ 3 ];
     const string units_path              = argv[ 4 ];
     const string outpath                 = argv[ 5 ];
+    const bool splitParticleData = argv[ 6 ] == "true";
+
+    int particleChunkIndex = splitParticleData ?      0 : rank;
+    int numParticleChunks  = splitParticleData ? nRanks :    1;
 
     TN::XGCAggregator< ValueType > aggregator( 
         meshpath,
@@ -52,12 +62,12 @@ int main( int argc, char** argv )
         units_path,
         outpath,
         { "ions" , "electrons" },
-        rank,
-        nRanks );
+        particleChunkIndex,
+        numParticleChunks );
 
-    if( argc == 7 )
+    if( argc == 8 )
     {
-        aggregator.reduceMesh( argv[ 6 ] );
+        aggregator.reduceMesh( argv[ 7 ] );
     }
 
     if( rank == 0 )
