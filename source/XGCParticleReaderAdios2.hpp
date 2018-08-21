@@ -12,6 +12,39 @@
 namespace TN
 {
 
+inline std::vector< std::pair< int64_t, int64_t > > split( int64_t N, int64_t k )
+{
+    std::vector< std::pair< int64_t, int64_t > > result( k );
+    for( int64_t i = 0, offset = 0; i < k; ++i )
+    {
+        result[ i ].first  = offset;
+        result[ i ].second = ( N - offset ) / ( k - i );
+        offset += result[ i ].second;
+    }
+    return result;
+}
+
+template< typename PhaseType, typename TargetFloatType >
+inline void copySwitchOrder( 
+    const std::vector< PhaseType > & chunk,
+    std::vector< TargetFloatType > & result,
+    const uint64_t WIDTH,
+    const uint64_t offset )
+{
+    const uint64_t CHUNK_SIZE =  chunk.size() / WIDTH;
+    const uint64_t FULL_SIZE  = result.size() / WIDTH;
+
+    #pragma omp parallel for
+    for( uint64_t pIDX = 0; pIDX < CHUNK_SIZE; ++pIDX )
+    {
+        #pragma omp simd
+        for( uint64_t vIDX = 0; vIDX < WIDTH; ++vIDX )
+        {
+            result[  vIDX * FULL_SIZE + ( offset + pIDX ) ] = chunk[ ( pIDX ) * WIDTH + vIDX ];
+        }
+    }
+}
+
 template< 
     typename PhaseType, 
     typename TimeStepType, 
@@ -34,30 +67,49 @@ inline int64_t readBPParticleDataStep(
 {    
     auto dims = phaseVar.Shape();
     uint64_t SZ = dims[ 0 ];
-    uint64_t MY_SIZE = 0;
 
     if( splitByBlocks )
     {
         std::vector<typename adios2::Variable< PhaseType >::Info> blocks =
            reader.BlocksInfo( phaseVar, reader.CurrentStep() );
 
-        uint64_t BCS = blocks.size() / nRanks;
-        uint64_t MY_START_BLOC = rank * BCS;
-        uint64_t MY_NUM_BLOCKS  = ( rank < nRanks - 1 ? BCS : blocks.size() - rank*BCS );
+        auto splitPoints = split( blocks.size(), nRanks )[ rank ];
 
-        uint64_t MY_START = blocks[ MY_START_BLOC ].Start;
-        MY_SIZE  = 0;
-
-        for( int i = MY_START_BLOC; i < MY_START_BLOC + MY_NUM_BLOCKS; ++i )
+        uint64_t MY_SIZE = 0;
+        for( int i = splitPoints.first; i < splitPoints.first + splitPoints.second; ++i )
         {
-            MY_SIZE += blocks[ i ].Count;
+            MY_SIZE += blocks[ i ].Count[ 1 ];
         }
 
-        phaseVar.SetSelection(
+        result.resize( MY_SIZE * dims[ 1 ] );
+        std::vector< PhaseType > tmp;
+
+        std::cout << "RANK: " << rank 
+                  << ", from " << splitPoints.first
+                  << ", reading " << splitPoints.second 
+                  << " blocks, with " << MY_SIZE 
+                  << " particles " << std::endl; 
+
+        int64_t copy_offset = 0;
+        for( int i = splitPoints.first; i < splitPoints.first + splitPoints.second; ++i )
         {
-            { MY_START,         0 },
-            { MY_SIZE, dims[ 1 ] }
-        } );
+            phaseVar.SetSelection(
+            {
+                { blocks[ i ].Start[ 1 ],         0 },
+                { blocks[ i ].Count[ 1 ], dims[ 1 ] }
+            } );
+            
+            tmp.clear();
+            reader.Get( phaseVar, tmp, adios2::Mode::Sync );
+
+            copySwitchOrder(
+                tmp,
+                result,
+                dims[ 1 ],
+                copy_offset );
+
+            copy_offset += blocks[ i ].Count[ 1 ];
+        }
     }
     else
     {
@@ -67,24 +119,19 @@ inline int64_t readBPParticleDataStep(
 
         phaseVar.SetSelection(
         {
-            { MY_START,         0 },
+            { MY_START,        0 },
             { MY_SIZE, dims[ 1 ] }
         } );
-    }
 
-    std::vector< PhaseType > tmp;
-    reader.Get( phaseVar, tmp, adios2::Mode::Sync );
+        std::vector< PhaseType > tmp;
+        reader.Get( phaseVar, tmp, adios2::Mode::Sync );
+        result.resize( MY_SIZE * dims[ 1 ] );
 
-    result.resize( MY_SIZE * dims[ 1 ] );
-
-    #pragma omp parallel for
-    for( uint64_t pIDX = 0; pIDX < MY_SIZE; ++pIDX )
-    {
-        #pragma omp simd
-        for( uint64_t vIDX = 0; vIDX < dims[ 1 ]; ++vIDX )
-        {
-            result[ vIDX * MY_SIZE + pIDX ] = tmp[ ( pIDX ) * dims[ 1 ] + vIDX ];
-        }
+        copySwitchOrder( 
+            tmp,
+            result,
+            dims[ 1 ],
+            0 );
     }
 
     TimeStepType tStepRead;

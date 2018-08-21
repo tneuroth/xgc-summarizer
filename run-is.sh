@@ -12,7 +12,7 @@
 
 DATA_DIR=/media/tn0/data/datasets/inSituTest
 
-mpirun -np 4\
+mpirun -np 8\
     ./summarizer ${DATA_DIR}/xgc.mesh.bp \
                  ${DATA_DIR}/xgc.bfield.bp \
                  ${DATA_DIR}/xgc.particle.bp \
