@@ -12,72 +12,173 @@
 namespace TN
 {
 
-template< typename FloatType >
+template< 
+    typename PhaseType, 
+    typename TimeStepType, 
+    typename RealTimeType, 
+    typename TargetFloatType >
 inline int64_t readBPParticleDataStep(
-    std::vector< FloatType > & result,
+    std::vector< TargetFloatType > & result,
     const std::string & ptype,
     const std::string & path,
     int rank,
     int nRanks,
-    int64_t tstep,
     adios2::IO     & bpIO,
-    adios2::Engine & reader )
-{
-    std::map< std::string, adios2::Params > variableInfo = bpIO.AvailableVariables();
-    adios2::Variable<double> phase = bpIO.InquireVariable< double >(
-        ptype == "ions" ? "iphase" : "ephase" );
-    
-    int64_t totalNumParticles = 0;
+    adios2::Engine & reader,
+    adios2::Variable< PhaseType > & phaseVar,
+    adios2::Variable< TimeStepType > & timestepVar,
+    adios2::Variable< RealTimeType > & timeVar,
+    int64_t & simstep,
+    double  & realtime,
+    bool splitByBlocks )
+{    
+    auto dims = phaseVar.Shape();
+    uint64_t SZ = dims[ 0 ];
+    uint64_t MY_SIZE = 0;
 
-    if( phase )
+    if( splitByBlocks )
     {
-        auto dims = phase.Shape();
+        std::vector<typename adios2::Variable< PhaseType >::Info> blocks =
+           reader.BlocksInfo( phaseVar, reader.CurrentStep() );
 
-        const uint64_t SZ = dims[ 0 ];
-        const uint64_t CS = SZ / nRanks;
-        const uint64_t MY_START = rank * CS;
-        const uint64_t MY_CHUNK = rank < nRanks - 1 ? CS : SZ - rank*CS;
+        uint64_t BCS = blocks.size() / nRanks;
+        uint64_t MY_START_BLOC = rank * BCS;
+        uint64_t MY_NUM_BLOCKS  = ( rank < nRanks - 1 ? BCS : blocks.size() - rank*BCS );
 
-        phase.SetSelection(
+        uint64_t MY_START = blocks[ MY_START_BLOC ].Start;
+        MY_SIZE  = 0;
+
+        for( int i = MY_START_BLOC; i < MY_START_BLOC + MY_NUM_BLOCKS; ++i )
         {
-            { MY_START,         0 },
-            { MY_CHUNK, dims[ 1 ] }
-        } );
-
-        phase.SetStepSelection( { tstep, 1 } );
-
-        std::vector< double > tmp;
-        bpReader.Get( phase, tmp, adios2::Mode::Sync );
-
-        result.resize( MY_CHUNK * dims[ 1 ] );
-
-        #pragma omp parallel for
-        for( uint64_t pIDX = 0; pIDX < MY_CHUNK; ++pIDX )
-        {
-            #pragma omp simd
-            for( uint64_t vIDX = 0; vIDX < dims[ 1 ]; ++vIDX )
-            {
-                result[ vIDX * MY_CHUNK + pIDX ] = tmp[ ( pIDX ) * dims[ 1 ] + vIDX ];
-            }
+            MY_SIZE += blocks[ i ].Count;
         }
 
-        totalNumParticles = SZ;
+        phaseVar.SetSelection(
+        {
+            { MY_START,         0 },
+            { MY_SIZE, dims[ 1 ] }
+        } );
     }
     else
     {
-        std::cerr << "couldn't find iphase" << std::endl;
+        uint64_t CS = SZ / nRanks;
+        uint64_t MY_START = rank * CS;
+        uint64_t MY_SIZE = ( rank < nRanks - 1 ? CS : SZ - rank*CS );
+
+        phaseVar.SetSelection(
+        {
+            { MY_START,         0 },
+            { MY_SIZE, dims[ 1 ] }
+        } );
     }
 
-    return totalNumParticles;
+    std::vector< PhaseType > tmp;
+    reader.Get( phaseVar, tmp, adios2::Mode::Sync );
+
+    result.resize( MY_SIZE * dims[ 1 ] );
+
+    #pragma omp parallel for
+    for( uint64_t pIDX = 0; pIDX < MY_SIZE; ++pIDX )
+    {
+        #pragma omp simd
+        for( uint64_t vIDX = 0; vIDX < dims[ 1 ]; ++vIDX )
+        {
+            result[ vIDX * MY_SIZE + pIDX ] = tmp[ ( pIDX ) * dims[ 1 ] + vIDX ];
+        }
+    }
+
+    TimeStepType tStepRead;
+    reader.Get( timestepVar, &tStepRead, adios2::Mode::Sync );
+    simstep = static_cast< int64_t >( tStepRead );
+
+    RealTimeType timeRead;
+    reader.Get( timeVar, &timeRead, adios2::Mode::Sync );
+    realtime = static_cast< double >( timeRead );
+
+    return SZ;
 }
-template< typename FloatType >
+
+template< typename TargetFloatType >
 inline int64_t readBPParticleDataStep(
-    std::vector< FloatType > & result,
+    std::vector< TargetFloatType > & result,
     const std::string & ptype,
     const std::string & path,
     int rank,
     int nRanks,
-    int64_t tstep )
+    adios2::IO     & bpIO,
+    adios2::Engine & reader,
+    int64_t & simstep,
+    double  & realtime,
+    bool splitByBlocks )
+{    
+    adios2::Variable< int > stepV = bpIO.InquireVariable< int >( "timestep" );
+    adios2::Variable< double > timeV = bpIO.InquireVariable< double >( "time" );
+
+    if( ! stepV )
+    {
+        std::cerr << "couldn't find timestep as an int" << std::endl;
+        exit( 1 );
+    }
+
+    if( ! timeV )
+    {
+        std::cerr << "couldn't find time as a double" << std::endl;
+        exit( 1 );
+    }
+
+    std::string phaseName = ptype == "ions" ? "iphase" : "ephase";
+    adios2::Variable< double > phaseDouble = bpIO.InquireVariable< double >( phaseName );
+    adios2::Variable< float  > phaseFloat  = bpIO.InquireVariable< float   >( phaseName );
+
+    if( phaseDouble )
+    {
+        readBPParticleDataStep(
+            result,
+            ptype,
+            path,
+            rank,
+            nRanks,
+            bpIO,
+            reader,
+            phaseDouble,
+            stepV,
+            timeV,
+            simstep,
+            realtime,
+            splitByBlocks );
+    }
+    else if( phaseFloat )
+    {
+        readBPParticleDataStep(
+            result,
+            ptype,
+            path,
+            rank,
+            nRanks,
+            bpIO,
+            reader,
+            phaseFloat,
+            stepV,
+            timeV,
+            simstep,
+            realtime,
+            splitByBlocks );
+    }
+    else 
+    {
+        std::cerr << "couldn't find " << phaseName << " as either float or double" << std::endl;
+        exit( 1 );
+    }
+}
+template< typename TargetFloatType >
+inline int64_t readBPParticleDataStep(
+    std::vector< TargetFloatType > & result,
+    const std::string & ptype,
+    const std::string & path,
+    int rank,
+    int nRanks,
+    int64_t & simstep,
+    double  & realtime )
 {
     adios2::ADIOS adios(MPI_COMM_WORLD, adios2::DebugOFF );
     adios2::IO bpIO = adios.DeclareIO( "IO" );
@@ -89,9 +190,11 @@ inline int64_t readBPParticleDataStep(
         path,
         rank,
         nRanks,
-        tstep,
         bpIO,
-        boReader
+        bpReader,
+        simstep,
+        realtime,
+        true
     );
 
     bpReader.Close();

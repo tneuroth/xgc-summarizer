@@ -37,7 +37,7 @@ XGCAggregator< ValueType >::XGCAggregator(
     const std::string & outputDirectory,
     const std::set< std::string > & particleTypes,
     bool inSitu,
-    bool singleParticleFile,
+    bool splitByBlocks,
     int m_rank,
     int nm_ranks ) : 
         m_meshFilePath( meshFilePath ),
@@ -46,12 +46,14 @@ XGCAggregator< ValueType >::XGCAggregator(
         m_unitsMFilePath( unitsFilePath ),
         m_outputDirectory( outputDirectory ),
         m_inSitu( inSitu ),
-        m_singleParticleFile( singleParticleFile ),
+        m_splitByBlocks( splitByBlocks ),
         m_rank( m_rank ),
         m_nranks( nm_ranks )
 
 {
     TN::loadConstants( m_unitsMFilePath, m_constants );
+
+    std::cout << "reading mesh" << std::endl;
 
     TN::readMeshBP(
         m_summaryGrid,
@@ -59,6 +61,8 @@ XGCAggregator< ValueType >::XGCAggregator(
         meshFilePath,
         m_bFieldFilePath ); 
     
+    std::cout << "setting grid" << std::endl;
+
     setGrid(
         m_summaryGrid.variables.at( "r" ),
         m_summaryGrid.variables.at( "z" ),
@@ -272,58 +276,61 @@ void XGCAggregator< ValueType >::reduceMesh(
 
 template< typename ValueType >
 void XGCAggregator< ValueType >::runInSitu()
-{
-    double summaryStepTime = 0.0;
-    int64_t outputStep     = 0;
-    
-    SummaryStep2< ValueType > summaryStep;
-
-    int64_t step = -1;
-    std::vector< int64_t > steps;
-    auto stepsIter = steps.begin();
-
-    TN::Synchro::waitForFileExistence( m_restartPath );
-
+{    
+    const float TIMEOUT = 300.f;
     adios2::ADIOS adios(MPI_COMM_WORLD, adios2::DebugOFF );
     adios2::IO bpIO = adios.DeclareIO( "IO" );
-    adios2::Engine bpReader = bpIO.Open( path, adios2::Mode::Read );
 
-    double timeOutSeconds = 10000;
-    while( ( auto status = bpReader.BeginStep( StepMode::NextAvailable, timeOutSeconds ) ) == adios2::StepStatus::OK )
+    std::cout << "Waiting for file, RANK: " << m_rank << std::endl;
 
-    // while(
-    //     TN::Synchro::getNextStep( 
-    //         step, 
-    //         steps,
-    //         stepsIter,
-    //         m_restartPath, 
-    //         "ions",
-    //         m_inSitu,
-    //         1000000 ) )
+    TN::Synchro::waitForFileExistence( m_restartPath, TIMEOUT );
+    adios2::Engine bpReader = bpIO.Open( m_restartPath, adios2::Mode::Read );
+
+    std::cout << "Found file. Opened. RANK: " << m_rank << std::endl;
+
+    SummaryStep2< ValueType > summaryStep;
+    int64_t outputStep = 0;
+    
+    while( 1 )
     {
-        int64_t tstep = *stepsIter;
+        adios2::StepStatus status =
+            bpReader.BeginStep(adios2::StepMode::NextAvailable, TIMEOUT );
 
-        summaryStep.setStep( outputStep, tstep, outputStep );
-        summaryStep.objectIdentifier = "ions";
+        if (status == adios2::StepStatus::NotReady)
+        {
+            std::this_thread::sleep_for(
+                    std::chrono::milliseconds( 1000 ) );
+            std::cout << "Waiting for step: " << outputStep << ", RANK: " << m_rank << std::endl;
+            continue;
+        }
+        else if (status != adios2::StepStatus::OK)
+        {
+            std::cout << "step status not OK: " << outputStep << ", RANK: " << m_rank << std::endl;
+            break;
+        }
         
         /////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-        std::string tstepStr = std::to_string( tstep );
-
-        // std::cout << "reading particle step " << std::endl;
         std::chrono::high_resolution_clock::time_point readStartTime = std::chrono::high_resolution_clock::now();
         
-        static std::vector< ValueType > phase;
+        int64_t simstep;
+        double  realtime;
+
         int64_t totalNumParticles = readBPParticleDataStep(
-            phase,
+            m_phase,
             "ions",
-            m_singleParticleFile ? m_restartPath 
-                : m_restartPath + "xgc.restart." + std::string( 5 - tstepStr.size(), '0' ) + tstepStr +  ".bp",
+            m_restartPath,
             m_rank,
             m_nranks,
-            m_inSitu ? tstep : 0 ); // whether to select the current time step in the file
+            bpIO,
+            bpReader,
+            simstep,
+            realtime,
+            true );
 
         summaryStep.numParticles = totalNumParticles;
+        summaryStep.setStep( outputStep, simstep, realtime );
+        summaryStep.objectIdentifier = "ions";
 
         std::chrono::high_resolution_clock::time_point readStartEnd = std::chrono::high_resolution_clock::now();
 
@@ -335,11 +342,11 @@ void XGCAggregator< ValueType >::runInSitu()
         /////////////////////////////////////////////////////////////////////////////////////////////////////////
 
         computeSummaryStep(
-            phase,
+            m_phase,
             summaryStep,
-            "ions",
-            totalNumParticles,
-            tstep );
+            "ions" );
+
+        ++outputStep;
     }
 }
 
@@ -348,36 +355,29 @@ void XGCAggregator< ValueType >::runInPost()
 {
     double summaryStepTime = 0.0;
     int64_t outputStep     = 0;
-    
-    SummaryStep2< ValueType > summaryStep;
-
-    int64_t step = -1;
     std::vector< int64_t > steps = { 200, 400 };
+    SummaryStep2< ValueType > summaryStep;
 
     for( auto tstep : steps )
     {
-
-        summaryStep.setStep( outputStep, tstep, outputStep );
-        summaryStep.objectIdentifier = "ions";
-        
-        /////////////////////////////////////////////////////////////////////////////////////////////////////////
-
         std::string tstepStr = std::to_string( tstep );
-
-        // std::cout << "reading particle step " << std::endl;
         std::chrono::high_resolution_clock::time_point readStartTime = std::chrono::high_resolution_clock::now();
         
-        static std::vector< ValueType > phase;
+        int64_t simstep;
+        double  realtime;
+
         int64_t totalNumParticles = readBPParticleDataStep(
-            phase,
+            m_phase,
             "ions",
-            m_singleParticleFile ? m_restartPath 
-                : m_restartPath + "xgc.restart." + std::string( 5 - tstepStr.size(), '0' ) + tstepStr +  ".bp",
+            m_restartPath + "xgc.restart." + std::string( 5 - tstepStr.size(), '0' ) + tstepStr +  ".bp",
             m_rank,
             m_nranks,
-            m_inSitu ? tstep : 0 ); // whether to select the current time step in the file
+            simstep,
+            realtime );
 
         summaryStep.numParticles = totalNumParticles;
+        summaryStep.setStep( outputStep, simstep, realtime );
+        summaryStep.objectIdentifier = "ions";
 
         std::chrono::high_resolution_clock::time_point readStartEnd = std::chrono::high_resolution_clock::now();
 
@@ -389,11 +389,11 @@ void XGCAggregator< ValueType >::runInPost()
         /////////////////////////////////////////////////////////////////////////////////////////////////////////
 
         computeSummaryStep(
-            phase,
+            m_phase,
             summaryStep,
-            "ions",
-            totalNumParticles,
-            tstep );
+            "ions" );
+
+        ++outputStep;
     }
 }
 
@@ -740,9 +740,7 @@ template< typename ValueType >
 void XGCAggregator< ValueType >::computeSummaryStep(
     std::vector< ValueType > & phase,
     TN::SummaryStep2< ValueType > & summaryStep, 
-    const std::string & ptype,
-    int64_t totalNumParticles,
-    int64_t st )
+    const std::string & ptype )
 {
     const size_t SZ      = phase.size() / 9;
     const size_t R_POS   = XGC_PHASE_INDEX_MAP.at( "r" ) * SZ;

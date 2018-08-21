@@ -23,6 +23,12 @@ inline void writeTriangularMeshObj(
     const std::string & outpath )
 {
     std::ofstream outfile( outpath );
+
+    if( ! outfile.is_open() )
+    {
+        std::cerr << "failed to open " << outpath << std::endl;
+    }
+
     for( std::size_t i = 0, end = r.size(); i < end; ++i )
     {
         outfile << "v " << r[ i ] << " " << z[ i ] << " 0\n";
@@ -64,6 +70,12 @@ inline void writeSummaryGridBP(
         }
 
         bpWriter.Close();
+
+        writeTriangularMeshObj( 
+            summaryGrid.variables.at( "r" ), 
+            summaryGrid.variables.at( "z"),  
+            summaryGrid.triangulation,
+            outpath + "/mesh.obj" );
 }
 
 template< typename ValueType >

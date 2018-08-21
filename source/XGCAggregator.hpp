@@ -36,7 +36,7 @@ class XGCAggregator
     std::string m_outputDirectory;
 
     bool m_inSitu;
-    bool m_singleParticleFile;
+    bool m_splitByBlocks;
 
     int m_rank; 
     int m_nranks;
@@ -47,9 +47,7 @@ class XGCAggregator
     void computeSummaryStep(
         std::vector< ValueType > & phase,
         TN::SummaryStep2< ValueType > & summaryStep,
-        const std::string & ptype,
-        int64_t totalNumParticles,
-        int64_t st );
+        const std::string & ptype );
 
 public:
 
@@ -62,7 +60,7 @@ public:
         const std::string & outputDirectory,
         const std::set< std::string > & particleTypes,
         bool inSitu,
-        bool singleParticleFile,
+        bool m_splitByBlocks,
         int rank,
         int nranks );
 
