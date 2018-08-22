@@ -34,13 +34,14 @@ include_directories(
     ${SRC_DIR}
     ${DEV}/vtkm-build/include/
     ${DEV}/adios-build/include/
-    ${DEV}/local/include/
+    ${DEV}/adios2-builds/mpi/include/
     ${DEV}/vtkm-kdtree-generic/)
 
 link_directories(
     /usr/lib/x86_64-linux-gnu/
     /usr/lib /usr/lib64/
-    ${DEV}/adios-build/lib/
+    ${DEV}/adios-builds/lib/
+    ${DEV}/adios2-builds/mpi/lib/
     ${DEV}/local/lib/)
 
 find_package(VTKm  REQUIRED)
