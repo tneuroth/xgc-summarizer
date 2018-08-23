@@ -25,7 +25,7 @@ inline std::vector< std::pair< int64_t, int64_t > > split( int64_t N, int64_t k 
 }
 
 template< typename PhaseType, typename TargetFloatType >
-inline void copySwitchOrder( 
+inline void copySwitchOrder(
     const std::vector< PhaseType > & chunk,
     std::vector< TargetFloatType > & result,
     const uint64_t WIDTH,
@@ -45,10 +45,10 @@ inline void copySwitchOrder(
     }
 }
 
-template< 
-    typename PhaseType, 
-    typename TimeStepType, 
-    typename RealTimeType, 
+template<
+    typename PhaseType,
+    typename TimeStepType,
+    typename RealTimeType,
     typename TargetFloatType >
 inline int64_t readBPParticleDataStep(
     std::vector< TargetFloatType > & result,
@@ -64,14 +64,14 @@ inline int64_t readBPParticleDataStep(
     int64_t & simstep,
     double  & realtime,
     bool splitByBlocks )
-{    
+{
     auto dims = phaseVar.Shape();
     uint64_t SZ = dims[ 0 ];
 
     if( splitByBlocks )
     {
         std::vector<typename adios2::Variable< PhaseType >::Info> blocks =
-           reader.BlocksInfo( phaseVar, reader.CurrentStep() );
+            reader.BlocksInfo( phaseVar, reader.CurrentStep() );
 
         auto splitPoints = split( blocks.size(), nRanks )[ rank ];
 
@@ -84,11 +84,11 @@ inline int64_t readBPParticleDataStep(
         result.resize( MY_SIZE * dims[ 1 ] );
         std::vector< PhaseType > tmp;
 
-        std::cout << "RANK: " << rank 
+        std::cout << "RANK: " << rank
                   << ", from " << splitPoints.first
-                  << ", reading " << splitPoints.second 
-                  << " blocks, with " << MY_SIZE 
-                  << " particles " << std::endl; 
+                  << ", reading " << splitPoints.second
+                  << " blocks, with " << MY_SIZE
+                  << " particles " << std::endl;
 
         int64_t copy_offset = 0;
         for( int i = splitPoints.first; i < splitPoints.first + splitPoints.second; ++i )
@@ -98,7 +98,7 @@ inline int64_t readBPParticleDataStep(
                 { blocks[ i ].Start[ 1 ],         0 },
                 { blocks[ i ].Count[ 1 ], dims[ 1 ] }
             } );
-            
+
             tmp.clear();
             reader.Get( phaseVar, tmp, adios2::Mode::Sync );
 
@@ -127,7 +127,7 @@ inline int64_t readBPParticleDataStep(
         reader.Get( phaseVar, tmp, adios2::Mode::Sync );
         result.resize( MY_SIZE * dims[ 1 ] );
 
-        copySwitchOrder( 
+        copySwitchOrder(
             tmp,
             result,
             dims[ 1 ],
@@ -157,7 +157,7 @@ inline int64_t readBPParticleDataStep(
     int64_t & simstep,
     double  & realtime,
     bool splitByBlocks )
-{    
+{
     adios2::Variable< int > stepV = bpIO.InquireVariable< int >( "timestep" );
     adios2::Variable< double > timeV = bpIO.InquireVariable< double >( "time" );
 
@@ -211,7 +211,7 @@ inline int64_t readBPParticleDataStep(
             realtime,
             splitByBlocks );
     }
-    else 
+    else
     {
         std::cerr << "couldn't find " << phaseName << " as either float or double" << std::endl;
         exit( 1 );
@@ -232,17 +232,17 @@ inline int64_t readBPParticleDataStep(
     adios2::Engine bpReader = bpIO.Open( path, adios2::Mode::Read );
 
     auto totalNumParticles = readBPParticleDataStep(
-        result,
-        ptype,
-        path,
-        rank,
-        nRanks,
-        bpIO,
-        bpReader,
-        simstep,
-        realtime,
-        true
-    );
+                                 result,
+                                 ptype,
+                                 path,
+                                 rank,
+                                 nRanks,
+                                 bpIO,
+                                 bpReader,
+                                 simstep,
+                                 realtime,
+                                 true
+                             );
 
     bpReader.Close();
     return totalNumParticles;

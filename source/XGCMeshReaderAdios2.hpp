@@ -86,7 +86,7 @@ inline void readMeshBP(
     adios2::Engine meshReader = meshIO.Open( path, adios2::Mode::Read );
     std::map< std::string, adios2::Params > variableInfo = meshIO.AvailableVariables();
     adios2::Variable<double> rz = meshIO.InquireVariable< double >( "rz" );
-    
+
     if( rz )
     {
         auto dims = rz.Shape();
@@ -115,7 +115,7 @@ inline void readMeshBP(
     adios2::Engine meshReader = bfieldIO.Open( bpath, adios2::Mode::Read );
     std::map< std::string, adios2::Params > variableInfo = bfieldIO.AvailableVariables();
     adios2::Variable<double> B = bfieldIO.InquireVariable< double >( "rz" );
-    
+
 
     ///////////////////////////////////
 

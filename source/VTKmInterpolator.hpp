@@ -71,7 +71,7 @@ struct VTKmInterpolator2D
             const IndexType OFFSET = myNearestNeighbor > 0 ? meshNeighborhoodSums[ myNearestNeighbor - 1 ] : 0;
             const IndexType NUM_NEIGHBORS = meshNeighborhoodSums[ myNearestNeighbor ] - OFFSET;
             const ScalarType nearestDistance = vtkm::Magnitude( myPos - meshCoords[ myNearestNeighbor ] );
-    
+
             if( OFFSET < 0 || OFFSET + NUM_NEIGHBORS > meshNeighborhoods.GetNumberOfValues() )
             {
                 std::cerr << "interpolate error: 3" << std::endl;
@@ -80,11 +80,11 @@ struct VTKmInterpolator2D
 
             ScalarType sum = nearestDistance * meshScalars[ myNearestNeighbor ];
             ScalarType distanceSum = nearestDistance;
-            
+
             for( IndexType i = OFFSET; i < OFFSET + NUM_NEIGHBORS; ++i )
             {
                 const IndexType IDX = meshNeighborhoods[ i ];
-                
+
                 if( IDX < 0 || IDX >= meshCoords.GetNumberOfValues() )
                 {
                     std::cerr << "interpolate error: 4" << std::endl;

@@ -16,8 +16,8 @@ template< typename ValueType >
 struct SummaryGrid2
 {
     /* Temporally Static, Spatially Varying Per Voronoi Cell Fields */
-    std::map< std::string, std::vector< ValueType > > variables; 
-    
+    std::map< std::string, std::vector< ValueType > > variables;
+
     // delaunay triangulation dual to the voronoi decomposition
     std::vector< Triangle > triangulation;
 
@@ -43,19 +43,30 @@ struct ScalarVariableStatistics
         ShannonEntropy
     };
 
-    static const char* StatisticString( Statistic stat ) {
-        switch ( stat ) 
+    static const char* StatisticString( Statistic stat )
+    {
+        switch ( stat )
         {
-            case Count                       : return "Count";
-            case Mean                        : return "Mean";
-            case Variance                    : return "Variance";
-            case Skewness                    : return "Skewness";
-            case kurtosis                    : return "kurtosis";
-            case RMS                         : return "RMS";
-            case InterquartileRange          : return "InterquartileRange";
-            case Min                         : return "Min";
-            case Max                         : return "Max";
-            case ShannonEntropy              : return "ShannonEntropy";                       
+        case Count                       :
+            return "Count";
+        case Mean                        :
+            return "Mean";
+        case Variance                    :
+            return "Variance";
+        case Skewness                    :
+            return "Skewness";
+        case kurtosis                    :
+            return "kurtosis";
+        case RMS                         :
+            return "RMS";
+        case InterquartileRange          :
+            return "InterquartileRange";
+        case Min                         :
+            return "Min";
+        case Max                         :
+            return "Max";
+        case ShannonEntropy              :
+            return "ShannonEntropy";
         }
     }
 
@@ -64,16 +75,18 @@ struct ScalarVariableStatistics
     /* Enabled Per Scalar Variable Statistics */
     std::map< Statistic, std::vector< ValueType > > values;
 
-    ScalarVariableStatistics( 
+    ScalarVariableStatistics(
         const std::string & id,
-        const std::set< Statistic > & enabled, 
+        const std::set< Statistic > & enabled,
         size_t size = 0 ) : variableIdentifier( id )
     {
         for( auto & stat : enabled )
         {
-            values.insert( { 
+            values.insert(
+            {
                 stat,
-                std::vector< ValueType >( size ) } );
+                std::vector< ValueType >( size )
+            } );
         }
     }
 
@@ -90,7 +103,7 @@ struct ScalarVariableStatistics
         for( auto & stat : values )
         {
             stat.second.clear();
-        }   
+        }
     }
 };
 
@@ -106,7 +119,7 @@ private:
         axis = other.axis;
         dims = other.dims;
         weight = other.weight;
-        edges = other.edges;       
+        edges = other.edges;
     }
 
 public:
@@ -152,13 +165,13 @@ struct CellHistograms
     HistogramDefinition< ValueType > definition;
     std::vector< ValueType > values;
 
-    CellHistograms( const HistogramDefinition< ValueType > & def ) 
+    CellHistograms( const HistogramDefinition< ValueType > & def )
         : definition( def ) {}
 
     void resize( size_t size )
     {
         values.resize( size * definition.size() );
-    } 
+    }
     void clear()
     {
         values.clear();
@@ -169,8 +182,8 @@ template < typename ValueType >
 struct SummaryStep2
 {
     // Scalar Statistics
-    std::map< std::string, ScalarVariableStatistics< ValueType > > variableStatistics;     
-    std::map< std::string, CellHistograms< ValueType > > histograms;    
+    std::map< std::string, ScalarVariableStatistics< ValueType > > variableStatistics;
+    std::map< std::string, CellHistograms< ValueType > > histograms;
 
     std::string objectIdentifier;
 
@@ -180,10 +193,10 @@ struct SummaryStep2
     int64_t numParticles;
 
 
-    void setStep( int64_t _outStep, int64_t _simStep, double _realTime ) 
+    void setStep( int64_t _outStep, int64_t _simStep, double _realTime )
     {
         outStep  = _outStep;
-        simStep  = _simStep; 
+        simStep  = _simStep;
         realTime = _realTime;
     }
 

@@ -38,7 +38,7 @@ class XGCAggregator
     bool m_inSitu;
     bool m_splitByBlocks;
 
-    int m_rank; 
+    int m_rank;
     int m_nranks;
 
     std::vector< ValueType > m_phase;
@@ -52,9 +52,9 @@ class XGCAggregator
 public:
 
 
-	XGCAggregator(
-		const std::string & meshFilePath,
-		const std::string & bfieldFilePath,
+    XGCAggregator(
+        const std::string & meshFilePath,
+        const std::string & bfieldFilePath,
         const std::string & restartDirectory,
         const std::string & unitsFilePath,
         const std::string & outputDirectory,
@@ -122,7 +122,7 @@ private:
         const std::vector< ValueType >  & vX,
         const std::vector< ValueType >  & vY,
         const std::vector< ValueType >  & w0,
-        const std::vector< ValueType >  & w1,        
+        const std::vector< ValueType >  & w1,
         const std::vector< int64_t >    & gIDs,
         const int64_t N_CELLS );
 

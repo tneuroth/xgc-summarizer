@@ -54,11 +54,11 @@ inline void writeSummaryGrid(
     outFile.write( (char*) summaryGrid.probes.volume.data(), sizeof( float ) * N_CELLS );
     outFile.close();
 
-    writeTriangularMeshObj( 
-    	summaryGrid.probes.r, 
-    	summaryGrid.probes.z, 
-    	summaryGrid.probeTriangulation, 
-    	outpath + "/summary.grid.delaunay.obj" );
+    writeTriangularMeshObj(
+        summaryGrid.probes.r,
+        summaryGrid.probes.z,
+        summaryGrid.probeTriangulation,
+        outpath + "/summary.grid.delaunay.obj" );
 
     outFile.open( outpath + "/summary.meta.txt" );
     outFile << "delta_v "    << std::to_string( SummaryStep::DELTA_V ) << "\n";

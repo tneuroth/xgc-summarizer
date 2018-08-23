@@ -129,9 +129,9 @@ struct VTKmAggregator
                 vtkm::Int32 col = vtkm::Floor( ( ( vX[ i ] - m_xRange[ 0 ] ) / m_xWidth ) * N_COLS );
                 row = vtkm::Max( vtkm::Min( row, N_ROWS - 1 ), 0 );
                 col = vtkm::Max( vtkm::Min( col, N_COLS - 1 ), 0 );
-                
+
                 const vtkm::Int64 index = row * N_COLS + col;
-                
+
                 volatile vtkm::Float32 _yh = v -_hc[ index ];
                 volatile vtkm::Float32 _th = histOut[ index ] + _yh;
                 _hc[ index ] = ( _th - histOut [ index ] ) - _yh;
@@ -149,7 +149,7 @@ struct VTKmAggregator
                                      KeysIn keys,
                                      ValuesIn<> vIn,
                                      ReducedValuesIn<> sumsIn,
-                                     ReducedValuesIn<> countsIn,                                     
+                                     ReducedValuesIn<> countsIn,
                                      ReducedValuesOut<> sumOut );
 
         using ExecutionSignature = void( _2, _3, _4, _5 );
@@ -162,7 +162,7 @@ struct VTKmAggregator
         VTKM_EXEC void operator()(
             const ScalarVecType & values,
             const ReduceType & sum,
-            const ReduceType & count,            
+            const ReduceType & count,
             ReduceType & result ) const
         {
             const vtkm::Int64 SZ = values.GetNumberOfComponents();
@@ -253,7 +253,7 @@ struct VTKmAggregator
     {
         AggregateWorklet aggregateWorklet( histDims, xRange, yRange, nHists );
         vtkm::worklet::DispatcherReduceByKey< AggregateWorklet, DeviceAdapter >
-            aggregateDispatcher( aggregateWorklet );
+        aggregateDispatcher( aggregateWorklet );
         aggregateDispatcher.Invoke(
             keys,
             vX,
@@ -270,8 +270,8 @@ struct VTKmAggregator
         VarianceSumWorklet varianceSumWorklet;
 
         vtkm::worklet::DispatcherReduceByKey< VarianceSumWorklet, DeviceAdapter >
-            varianceSumDispatcher( varianceSumWorklet );
-        
+        varianceSumDispatcher( varianceSumWorklet );
+
         varianceSumDispatcher.Invoke(
             keys,
             w,

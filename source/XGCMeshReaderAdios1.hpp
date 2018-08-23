@@ -98,7 +98,7 @@ inline void readMeshBP(
 
     auto & r = summaryGrid.variables.at( "r" );
     auto & z = summaryGrid.variables.at( "z" );
- 
+
     for( size_t i = 0; i < SZ; ++i )
     {
         r[ i ] = tmp2[ i ].x();
@@ -123,7 +123,7 @@ inline void readMeshBP(
     adios_perform_reads ( f, 1 );
 
     summaryGrid.variables.insert( { "psin", std::vector< ValueType >( SZ ) } );
-    auto & psin = summaryGrid.variables.at( "psin" ); 
+    auto & psin = summaryGrid.variables.at( "psin" );
 
     const double NM = tmp1.back();
 
@@ -143,7 +143,7 @@ inline void readMeshBP(
     adios_perform_reads ( f, 1 );
 
     summaryGrid.variables.insert( { "volume", std::vector< ValueType >( SZ ) } );
-    auto & volume = summaryGrid.variables.at( "volume" ); 
+    auto & volume = summaryGrid.variables.at( "volume" );
 
     #pragma omp parallel for simd
     for( int i = 0; i < SZ; ++i )
@@ -156,7 +156,7 @@ inline void readMeshBP(
     /////////////////////////// Compute Poloidal Angle /////////////////////////////////////////////////////////////////////////
 
     summaryGrid.variables.insert( { "poloidal_angle", std::vector< ValueType >( SZ ) } );
-    auto & poloidal_angle = summaryGrid.variables.at( "poloidal_angle" ); 
+    auto & poloidal_angle = summaryGrid.variables.at( "poloidal_angle" );
 
     #pragma omp parallel for simd
     for( int s = 0; s < SZ; ++s )
@@ -222,15 +222,15 @@ inline void readMeshBP(
     adios_perform_reads ( f, 1 );
 
     summaryGrid.variables.insert( { "B", std::vector< ValueType >( SZ ) } );
-    auto & B = summaryGrid.variables.at( "B" ); 
+    auto & B = summaryGrid.variables.at( "B" );
 
     #pragma omp parallel for simd
     for( int s = 0; s < SZ; ++s )
     {
         B[ s ] = std::sqrt(
-            tmp3[ s*3   ]*tmp3[ s*3   ] +
-            tmp3[ s*3+1 ]*tmp3[ s*3+1 ] +
-            tmp3[ s*3+2 ]*tmp3[ s*3+2 ] );
+                     tmp3[ s*3   ]*tmp3[ s*3   ] +
+                     tmp3[ s*3+1 ]*tmp3[ s*3+1 ] +
+                     tmp3[ s*3+2 ]*tmp3[ s*3+2 ] );
     }
 
     adios_selection_delete ( selection );

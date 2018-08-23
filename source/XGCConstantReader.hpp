@@ -12,8 +12,8 @@ namespace TN
 {
 
 template< typename FloatType >
-inline void loadConstants( 
-    const std::string & units_path, 
+inline void loadConstants(
+    const std::string & units_path,
     std::map< std::string, FloatType > & constants )
 {
     std::ifstream inFile;

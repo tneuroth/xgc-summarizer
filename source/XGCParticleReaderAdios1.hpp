@@ -34,8 +34,8 @@ inline void readBPParticleDataStep(
     const uint64_t MY_START = rank * CS;
     const uint64_t MY_LAST = rank < nRanks-1 ? MY_START + CS - 1 : SZ - 1;
     const uint64_t MY_CHUNKSIZE = MY_LAST - MY_START + 1;
-	
-	result.resize( MY_CHUNKSIZE * 9 );
+
+    result.resize( MY_CHUNKSIZE * 9 );
 
     uint64_t start[ 2 ] = { MY_START,        0 };
     uint64_t count[ 2 ] = { MY_CHUNKSIZE,    9 };
@@ -46,24 +46,24 @@ inline void readBPParticleDataStep(
 
     if( std::is_same< FloatType, float >::value )
     {
-	    std::vector< double > tmp( SZ * 9 );
-	    adios_schedule_read ( f, selection, "iphase", 0, 1, tmp.data() );
-	    adios_perform_reads ( f, 1 );
+        std::vector< double > tmp( SZ * 9 );
+        adios_schedule_read ( f, selection, "iphase", 0, 1, tmp.data() );
+        adios_perform_reads ( f, 1 );
 
-	    #pragma omp parallel for
-	    for( uint64_t pIDX = 0; pIDX < MY_CHUNKSIZE; ++pIDX )
-	    {
-	        #pragma omp simd
-	        for( uint64_t vIDX = 0; vIDX < 9; ++vIDX )
-	        {
-	            result[ vIDX * MY_CHUNKSIZE + pIDX ] = tmp[ ( pIDX ) * 9 + vIDX ];
-	        }
-	    }
+        #pragma omp parallel for
+        for( uint64_t pIDX = 0; pIDX < MY_CHUNKSIZE; ++pIDX )
+        {
+            #pragma omp simd
+            for( uint64_t vIDX = 0; vIDX < 9; ++vIDX )
+            {
+                result[ vIDX * MY_CHUNKSIZE + pIDX ] = tmp[ ( pIDX ) * 9 + vIDX ];
+            }
+        }
     }
     else if( std::is_same< FloatType, double >::value )
     {
         adios_schedule_read ( f, selection, "iphase", 0, 1, result.data() );
-	    adios_perform_reads ( f, 1 );
+        adios_perform_reads ( f, 1 );
     }
 
     adios_selection_delete ( selection );

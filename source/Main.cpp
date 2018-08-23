@@ -57,17 +57,17 @@ int main( int argc, char** argv )
     const bool inSitu                    = std::string( argv[ 7 ] ) == "true";
     const bool appendedReadMode          = std::string( argv[ 8 ] ) == "true";
 
-    TN::XGCAggregator< ValueType > aggregator( 
+    TN::XGCAggregator< ValueType > aggregator(
         meshpath,
         bfieldpath,
         particle_data_base_path,
         units_path,
         outpath,
-        { "ions" , "electrons" },
-        inSitu, 
-        splitByBlocks, 
-        rank,
-        nRanks );
+    { "ions" , "electrons" },
+    inSitu,
+    splitByBlocks,
+    rank,
+    nRanks );
 
     if( argc == 10 )
     {
@@ -75,15 +75,15 @@ int main( int argc, char** argv )
     }
 
     if( rank == 0 )
-    {      
+    {
         aggregator.writeMesh();
     }
-    
+
     // finalize the adios 1 mesh reader
     adios_read_finalize_method ( ADIOS_READ_METHOD_BP );
-     
+
     aggregator.run();
-    
+
     MPI_Finalize();
     return 0;
 }
