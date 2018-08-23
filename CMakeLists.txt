@@ -50,6 +50,7 @@ find_package(VTKm  REQUIRED)
 add_library(kdtree ${SRC_DIR}/XGCAggregator.cxx)
 target_link_libraries(kdtree adios2 vtkm_cont)
 
+
 add_executable(summarizer ${SRC_DIR}/Main.cpp)
 target_link_libraries(summarizer vtkm_cont adios2 adios gmp kdtree)
 
