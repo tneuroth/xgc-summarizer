@@ -471,13 +471,17 @@ void XGCAggregator< ValueType >::compute(
         exit( 1 );
     }
 
+    std::cout << "copying result from portal" << std::endl;
+
     #pragma omp parallel for simd
     for( int64_t i = 0; i < SZ; ++i )
     {
         result[ i ] = idHandle.GetPortalControl().Get( i );
     }
 
-    vtkm::cont::ArrayHandle<vtkm::Float32> fieldResultHandle;
+    std::cout << "got result from portal" << std::endl;
+
+    //vtkm::cont::ArrayHandle<vtkm::Float32> fieldResultHandle;
 
     // m_interpolator.run(
     //     ptclHandle,
