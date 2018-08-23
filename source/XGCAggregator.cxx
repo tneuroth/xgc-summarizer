@@ -39,16 +39,16 @@ XGCAggregator< ValueType >::XGCAggregator(
     bool inSitu,
     bool splitByBlocks,
     int m_rank,
-    int nm_ranks ) :
-    m_meshFilePath( meshFilePath ),
-    m_bFieldFilePath( bfieldFilePath ),
-    m_restartPath( restartPath ),
-    m_unitsMFilePath( unitsFilePath ),
-    m_outputDirectory( outputDirectory ),
-    m_inSitu( inSitu ),
-    m_splitByBlocks( splitByBlocks ),
-    m_rank( m_rank ),
-    m_nranks( nm_ranks )
+    int nm_ranks ) : 
+        m_meshFilePath( meshFilePath ),
+        m_bFieldFilePath( bfieldFilePath ),
+        m_restartPath( restartPath ),
+        m_unitsMFilePath( unitsFilePath ),
+        m_outputDirectory( outputDirectory ),
+        m_inSitu( inSitu ),
+        m_splitByBlocks( splitByBlocks ),
+        m_rank( m_rank ),
+        m_nranks( nm_ranks )
 
 {
     TN::loadConstants( m_unitsMFilePath, m_constants );
@@ -57,10 +57,10 @@ XGCAggregator< ValueType >::XGCAggregator(
 
     TN::readMeshBP(
         m_summaryGrid,
-    { m_constants.at( "eq_axis_r" ), m_constants.at( "eq_axis_z" ) },
-    meshFilePath,
-    m_bFieldFilePath );
-
+        { m_constants.at( "eq_axis_r" ), m_constants.at( "eq_axis_z" ) },
+        meshFilePath,
+        m_bFieldFilePath ); 
+    
     std::cout << "setting grid" << std::endl;
 
     setGrid(
@@ -86,7 +86,7 @@ void XGCAggregator< ValueType >::writeMesh()
 }
 
 template< typename ValueType >
-void XGCAggregator< ValueType >::reduceMesh(
+void XGCAggregator< ValueType >::reduceMesh( 
     const std::string & reducedMeshFilePath )
 {
     std::ifstream meshFile( reducedMeshFilePath );
@@ -107,7 +107,7 @@ void XGCAggregator< ValueType >::reduceMesh(
             std::stringstream sstr( line );
             std::string v;
             sstr >> v;
-
+            
             if( v == "v" )
             {
                 float x, y, z;
@@ -122,25 +122,23 @@ void XGCAggregator< ValueType >::reduceMesh(
             {
                 unsigned int i1, i2, i3;
                 sstr >> i1 >> i2 >> i3;
-                newGrid.triangulation.push_back(
-                {
+                newGrid.triangulation.push_back( { 
                     i1 - 1,
                     i2 - 1,
-                    i3 - 1
-                } );
+                    i3 - 1 } );
             }
         }
     }
-
+ 
     MPI_Barrier(MPI_COMM_WORLD);
     std::cout << "getting neighborhoods " << std::endl;
     TN::getNeighborhoods( newGrid );
 
-    std::cout << "Copying over values from old mesh "
-              << newGrid.variables.at( "r" ).size()
-              << "/" << m_summaryGrid.variables.at( "r" ).size()
-              << std::endl;
-
+    std::cout << "Copying over values from old mesh " 
+              << newGrid.variables.at( "r" ).size() 
+              << "/" << m_summaryGrid.variables.at( "r" ).size() 
+              << std::endl; 
+    
     newGrid.variables.at( "B" ).resize( newGrid.variables.at( "r" ).size() );
     newGrid.variables.at( "psin" ).resize( newGrid.variables.at( "r" ).size() );
     newGrid.variables.at( "poloidal_angle" ).resize( newGrid.variables.at( "r" ).size() );
@@ -148,8 +146,8 @@ void XGCAggregator< ValueType >::reduceMesh(
     for( int64_t i = 0; i < newGrid.variables.at( "r" ).size(); ++i )
     {
         newGrid.variables.at( "B" )[ i ] = m_summaryGrid.variables.at( "B" )[ i*2 ];
-        newGrid.variables.at( "psin" )[ i ] = m_summaryGrid.variables.at( "psin" )[ i*2 ];
-        newGrid.variables.at( "poloidal_angle" )[ i ] = m_summaryGrid.variables.at( "poloidal_angle" )[ i*2 ];
+        newGrid.variables.at( "psin" )[ i ] = m_summaryGrid.variables.at( "psin" )[ i*2 ];       
+        newGrid.variables.at( "poloidal_angle" )[ i ] = m_summaryGrid.variables.at( "poloidal_angle" )[ i*2 ];                
     }
 
     // const int64_t SZ = newGrid.variables.at( "r.size();
@@ -165,8 +163,8 @@ void XGCAggregator< ValueType >::reduceMesh(
     // vtkm::cont::ArrayHandle<vtkm::Float32> distHandle;
 
     // MPI_Barrier(MPI_COMM_WORLD);
-    // std::cout << "getting neighbors"
-    //           << m_gridHandle.GetNumberOfValues() << " "
+    // std::cout << "getting neighbors" 
+    //           << m_gridHandle.GetNumberOfValues() << " " 
     //           << posHandle.GetNumberOfValues()    << " " << std::endl;
 
     // m_kdTree.Run( m_gridHandle, posHandle, idHandle, distHandle, VTKM_DEFAULT_DEVICE_ADAPTER_TAG() );
@@ -177,7 +175,7 @@ void XGCAggregator< ValueType >::reduceMesh(
     //     std::cout << "wrong number of ids " << std::endl;
     //     exit( 1 );
     // }
-
+  
     // std::vector< int64_t > ids( SZ );
     // #pragma omp parallel for simd
     // for( int64_t i = 0; i < SZ; ++i )
@@ -219,7 +217,7 @@ void XGCAggregator< ValueType >::reduceMesh(
     // // B
 
     // MPI_Barrier(MPI_COMM_WORLD);
-    // std::cout << "interpolating B " << std::endl;
+    // std::cout << "interpolating B " << std::endl;   
 
     // auto bHandle = vtkm::cont::make_ArrayHandle( m_summaryGrid.variables.at( "B );
     // m_interpolator.run(
@@ -273,12 +271,12 @@ void XGCAggregator< ValueType >::reduceMesh(
         m_summaryGrid.neighborhoodSums );
 
     MPI_Barrier(MPI_COMM_WORLD);
-    std::cout << "done " << std::endl;
+    std::cout << "done " << std::endl;   
 }
 
 template< typename ValueType >
 void XGCAggregator< ValueType >::runInSitu()
-{
+{    
     const float TIMEOUT = 300.f;
     adios2::ADIOS adios(MPI_COMM_WORLD, adios2::DebugOFF );
     adios2::IO bpIO = adios.DeclareIO( "IO" );
@@ -292,7 +290,7 @@ void XGCAggregator< ValueType >::runInSitu()
 
     SummaryStep2< ValueType > summaryStep;
     int64_t outputStep = 0;
-
+    
     while( 1 )
     {
         adios2::StepStatus status =
@@ -301,7 +299,7 @@ void XGCAggregator< ValueType >::runInSitu()
         if (status == adios2::StepStatus::NotReady)
         {
             std::this_thread::sleep_for(
-                std::chrono::milliseconds( 1000 ) );
+                    std::chrono::milliseconds( 1000 ) );
             std::cout << "Waiting for step: " << outputStep << ", RANK: " << m_rank << std::endl;
             continue;
         }
@@ -310,25 +308,25 @@ void XGCAggregator< ValueType >::runInSitu()
             std::cout << "step status not OK: " << outputStep << ", RANK: " << m_rank << std::endl;
             break;
         }
-
+        
         /////////////////////////////////////////////////////////////////////////////////////////////////////////
 
         std::chrono::high_resolution_clock::time_point readStartTime = std::chrono::high_resolution_clock::now();
-
+        
         int64_t simstep;
         double  realtime;
 
         int64_t totalNumParticles = readBPParticleDataStep(
-                                        m_phase,
-                                        "ions",
-                                        m_restartPath,
-                                        m_rank,
-                                        m_nranks,
-                                        bpIO,
-                                        bpReader,
-                                        simstep,
-                                        realtime,
-                                        true );
+            m_phase,
+            "ions",
+            m_restartPath,
+            m_rank,
+            m_nranks,
+            bpIO,
+            bpReader,
+            simstep,
+            realtime,
+            true );
 
         summaryStep.numParticles = totalNumParticles;
         summaryStep.setStep( outputStep, simstep, realtime );
@@ -337,9 +335,9 @@ void XGCAggregator< ValueType >::runInSitu()
         std::chrono::high_resolution_clock::time_point readStartEnd = std::chrono::high_resolution_clock::now();
 
         std::cout << "RANK: " << m_rank
-                  << ", adios Read time took "
-                  << std::chrono::duration_cast<std::chrono::milliseconds>( readStartEnd - readStartTime ).count()
-                  << " std::chrono::milliseconds " << " for " << m_phase.size()/9 << " particles" << std::endl;
+             << ", adios Read time took "
+             << std::chrono::duration_cast<std::chrono::milliseconds>( readStartEnd - readStartTime ).count()
+             << " std::chrono::milliseconds " << " for " << m_phase.size()/9 << " particles" << std::endl;
 
         /////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -364,18 +362,18 @@ void XGCAggregator< ValueType >::runInPost()
     {
         std::string tstepStr = std::to_string( tstep );
         std::chrono::high_resolution_clock::time_point readStartTime = std::chrono::high_resolution_clock::now();
-
+        
         int64_t simstep;
         double  realtime;
 
         int64_t totalNumParticles = readBPParticleDataStep(
-                                        m_phase,
-                                        "ions",
-                                        m_restartPath + "xgc.restart." + std::string( 5 - tstepStr.size(), '0' ) + tstepStr +  ".bp",
-                                        m_rank,
-                                        m_nranks,
-                                        simstep,
-                                        realtime );
+            m_phase,
+            "ions",
+            m_restartPath + "xgc.restart." + std::string( 5 - tstepStr.size(), '0' ) + tstepStr +  ".bp",
+            m_rank,
+            m_nranks,
+            simstep,
+            realtime );
 
         summaryStep.numParticles = totalNumParticles;
         summaryStep.setStep( outputStep, simstep, realtime );
@@ -384,9 +382,9 @@ void XGCAggregator< ValueType >::runInPost()
         std::chrono::high_resolution_clock::time_point readStartEnd = std::chrono::high_resolution_clock::now();
 
         std::cout << "RANK: " << m_rank
-                  << ", adios Read time took "
-                  << std::chrono::duration_cast<std::chrono::milliseconds>( readStartEnd - readStartTime ).count()
-                  << " std::chrono::milliseconds " << " for " << m_phase.size()/9 << " particles" << std::endl;
+             << ", adios Read time took "
+             << std::chrono::duration_cast<std::chrono::milliseconds>( readStartEnd - readStartTime ).count()
+             << " std::chrono::milliseconds " << " for " << m_phase.size()/9 << " particles" << std::endl;
 
         /////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -466,13 +464,20 @@ void XGCAggregator< ValueType >::compute(
     m_kdTree.Run( m_gridHandle, ptclHandle, idHandle, distHandle, VTKM_DEFAULT_DEVICE_ADAPTER_TAG() );
 
     result.resize( SZ );
+    
+    if( idHandle.GetNumberOfValues() < SZ )
+    {
+        std::cerr << "id handle index out of bounds" << std::endl;
+        exit( 1 );
+    }
+
     #pragma omp parallel for simd
     for( int64_t i = 0; i < SZ; ++i )
     {
         result[ i ] = idHandle.GetPortalControl().Get( i );
     }
 
-    // vtkm::cont::ArrayHandle<vtkm::Float32> fieldResultHandle;
+    vtkm::cont::ArrayHandle<vtkm::Float32> fieldResultHandle;
 
     // m_interpolator.run(
     //     ptclHandle,
@@ -488,7 +493,12 @@ void XGCAggregator< ValueType >::compute(
     #pragma omp parallel for simd
     for( int64_t i = 0; i < SZ; ++i )
     {
-        field[ i ] = m_gridScalars[ result[ i ] ];
+        if( result[ i ] >= m_gridScalars.size() || result[ i ] < 0 )
+        {
+            std::cerr << "result out of bounds" << std::endl;
+            exit( 1 );
+        }
+        field[ i ] = m_gridScalars[ result[ i ] ];//fieldResultHandle.GetPortalControl().Get( i );
     }
 }
 
@@ -528,26 +538,25 @@ void XGCAggregator< ValueType >::aggregateOMP(
     summaryStep.histograms.insert( { def2.identifier, CellHistograms< ValueType >( def2 ) } );
 
     // summary statistics
-
+    
 
     // For some reason this wont compile if template ValueType is used.
     std::set< ScalarVariableStatistics< float >::Statistic > stats =
     {
         ScalarVariableStatistics< float >::Statistic::Count,
         ScalarVariableStatistics< float >::Statistic::Mean,
-        ScalarVariableStatistics< float >::Statistic::Variance,
-        ScalarVariableStatistics< float >::Statistic::RMS,
-        ScalarVariableStatistics< float >::Statistic::Min,
-        ScalarVariableStatistics< float >::Statistic::Max
+        ScalarVariableStatistics< float >::Statistic::Variance,  
+        ScalarVariableStatistics< float >::Statistic::RMS,  
+        ScalarVariableStatistics< float >::Statistic::Min,    
+        ScalarVariableStatistics< float >::Statistic::Max                                
     };
 
     std::vector< std::string > vars    = { "w0", "w1", "w0w1" };
-    std::vector< std::vector< const ValueType * > > varVals =
-    {
+    std::vector< std::vector< const ValueType * > > varVals = { 
         std::vector< const ValueType * >( { w0.data() } ),
         std::vector< const ValueType * >( { w1.data() } ),
         std::vector< const ValueType * >( { w0.data(), w1.data() } )
-    };
+    }; 
 
     const int N_VARS = varVals.size();
 
@@ -563,13 +572,13 @@ void XGCAggregator< ValueType >::aggregateOMP(
     /**********************
              Compute
     **********************/
-
+  
     const int ROWS = def1.dims[ 1 ];
     const int COLS = def1.dims[ 0 ];
 
     const size_t N_BINS = ROWS * COLS;
     const size_t SZ = vX.size();
-
+    
     const Vec2< ValueType > xRange = { def1.edges[ 0 ][ 0 ], def1.edges[ 0 ][  1 ] };
     const Vec2< ValueType > yRange = { def1.edges[ 1 ][ 0 ], def1.edges[ 1 ][  1 ] };
 
@@ -581,6 +590,11 @@ void XGCAggregator< ValueType >::aggregateOMP(
 
     auto & vs = summaryStep.variableStatistics;
 
+    if( hist1.size() != hist2.size() )
+    {
+        std::cerr << "sizes of hist1,2 don't match" << std::endl;
+    }
+
     #pragma omp simd
     for( size_t i = 0; i < SZ; ++i )
     {
@@ -589,10 +603,22 @@ void XGCAggregator< ValueType >::aggregateOMP(
         int row = std::round( ( ( vY[ i ] - yRange.a() ) / Y_WIDTH ) * ROWS );
         int col = std::round( ( ( vX[ i ] - xRange.a() ) / X_WIDTH ) * COLS );
 
-        if( row < ROWS && col < COLS )
+        if( row < ROWS && col < COLS && row >= 0 && col >= 0 )
         {
+            if( index * N_BINS + row * COLS + col > hist1.size() 
+            ||  index * N_BINS + row * COLS + col < 0 )
+            {
+                std::cerr << "negative index into hist1" << std::endl;
+            }
+
+            if( index * N_BINS + row * COLS + col > hist1.size() 
+            ||  index * N_BINS + row * COLS + col < 0 )
+            {
+                std::cerr << "negative index into hist1" << std::endl;
+            }
+
             hist1[ index * N_BINS + row * COLS + col ] += w1[ i ];
-            hist2[ index * N_BINS + row * COLS + col ] += w0[ i ] * w1[ i ];
+            hist2[ index * N_BINS + row * COLS + col ] += w0[ i ] * w1[ i ];            
         }
 
         for( int v = 0; v < N_VARS; ++v )
@@ -608,10 +634,10 @@ void XGCAggregator< ValueType >::aggregateOMP(
             ValueType val = varVals[ v ].size() > 1 ? varVals[ v ][ 0 ][ i ] * varVals[ v ][ 1 ][ i ]  : varVals[ v ][ 0 ][ i ];
 
             mn[    index ] = std::min( mn[ index ], val );
-            mx[    index ] = std::max( mx[ index ], val );
+            mx[    index ] = std::max( mx[ index ], val );            
             mean[  index ] += val;
             rms[   index ] += val*val;
-            count[ index ] += 1;
+            count[ index ] += 1;            
         }
     }
 
@@ -628,7 +654,7 @@ void XGCAggregator< ValueType >::aggregateOMP(
 
             ValueType val = varVals[ v ].size() > 1 ? varVals[ v ][ 0 ][ i ] * varVals[ v ][ 1 ][ i ] : varVals[ v ][ 0 ][ i ];
             val = ( val - mean[ index ] );
-            variance[ index ] += val*val;
+            variance[ index ] += val*val;        
         }
     }
 }
@@ -742,7 +768,7 @@ void XGCAggregator< ValueType >::writeGrid( const std::string & path )
 template< typename ValueType >
 void XGCAggregator< ValueType >::computeSummaryStep(
     std::vector< ValueType > & phase,
-    TN::SummaryStep2< ValueType > & summaryStep,
+    TN::SummaryStep2< ValueType > & summaryStep, 
     const std::string & ptype )
 {
     const size_t SZ      = phase.size() / 9;
@@ -754,12 +780,16 @@ void XGCAggregator< ValueType >::computeSummaryStep(
     const size_t MU_POS  = XGC_PHASE_INDEX_MAP.at( "mu" ) * SZ;
 
     // for VTKM nearest neighbors and B field Interpolation //////////////////////
-
+    
     std::chrono::high_resolution_clock::time_point kdt1 = std::chrono::high_resolution_clock::now();
+    
+    static std::vector< int64_t > gridMap;
 
-    std::vector< int64_t > gridMap;
-    std::vector< ValueType > r( SZ );
-    std::vector< ValueType > z( SZ );
+    static std::vector< ValueType > r;
+    static std::vector< ValueType > z;
+
+    r.resize( SZ );
+    z.resize( SZ );
 
     for( size_t i = 0; i < SZ; ++i )
     {
@@ -774,9 +804,9 @@ void XGCAggregator< ValueType >::computeSummaryStep(
 
     std::chrono::high_resolution_clock::time_point kdt2 = std::chrono::high_resolution_clock::now();
     std::cout << "RANK: " << m_rank
-              << ", kdtree mapping CHUNK took "
-              << std::chrono::duration_cast<std::chrono::milliseconds>( kdt2 - kdt1 ).count()
-              << " std::chrono::milliseconds " << " for " << r.size() << " particles" << std::endl;
+         << ", kdtree mapping CHUNK took "
+         << std::chrono::duration_cast<std::chrono::milliseconds>( kdt2 - kdt1 ).count()
+         << " std::chrono::milliseconds " << " for " << r.size() << " particles" << std::endl;
 
     // compute velocity and weight
     std::vector< ValueType > vpara( SZ );
@@ -788,7 +818,7 @@ void XGCAggregator< ValueType >::computeSummaryStep(
     for( size_t i = 0; i < SZ; ++i )
     {
         w0[  i ] = phase[ W0_POS + i ];
-        w1[  i ] = phase[ W1_POS + i ];
+        w1[  i ] = phase[ W1_POS + i ];        
     }
 
     const double mass_ratio = 1000.0;
@@ -817,8 +847,6 @@ void XGCAggregator< ValueType >::computeSummaryStep(
         }
     }
 
-    phase.clear();
-
     // compute summations over particles in each cell
 
     std::chrono::high_resolution_clock::time_point at1 = std::chrono::high_resolution_clock::now();
@@ -834,24 +862,26 @@ void XGCAggregator< ValueType >::computeSummaryStep(
 
     // Without VTKM
 
-    aggregateOMP(
-        m_summaryGrid,
-        summaryStep,
-        vpara,
-        vperp,
-        w0,
-        w1,
-        gridMap,
-        m_summaryGrid.variables.at( "volume" ).size() );
+        aggregateOMP(
+            m_summaryGrid,
+            summaryStep,
+            vpara,
+            vperp,
+            w0,
+            w1,
+            gridMap,
+            m_summaryGrid.variables.at( "volume" ).size() );
 
-    std::chrono::high_resolution_clock::time_point at2 = std::chrono::high_resolution_clock::now();
+    std::chrono::high_resolution_clock::time_point at2 = std::chrono::high_resolution_clock::now();    
 
     std::cout << "RANK: " << m_rank
-              << ", Aggregation step took "
-              << std::chrono::duration_cast<std::chrono::milliseconds>( at2 - at1 ).count()
-              << " std::chrono::milliseconds " << " for " << r.size() << " particles" << std::endl;
+         << ", Aggregation step took "
+         << std::chrono::duration_cast<std::chrono::milliseconds>( at2 - at1 ).count()
+         << " std::chrono::milliseconds " << " for " << r.size() << " particles" << std::endl;    
 
     std::chrono::high_resolution_clock::time_point rt1 = std::chrono::high_resolution_clock::now();
+
+    std::cout << "reducing" << std::endl;
 
     for( auto & hist : summaryStep.histograms )
     {
@@ -860,19 +890,19 @@ void XGCAggregator< ValueType >::computeSummaryStep(
 
     for( auto & var : summaryStep.variableStatistics )
     {
-        auto & myCounts = var.second.values.at(
-                              ScalarVariableStatistics< ValueType >::Statistic::Count );
+        auto & myCounts = var.second.values.at( 
+            ScalarVariableStatistics< ValueType >::Statistic::Count );
 
         TN::MPI::ReduceOpMPI(
-            m_rank,
-            myCounts,
+            m_rank, 
+            myCounts, 
             MPI_SUM );
 
         if( var.second.values.count( ScalarVariableStatistics< ValueType >::Statistic::Min ) )
         {
             TN::MPI::ReduceOpMPI(
-                m_rank,
-                var.second.values.at(
+                m_rank, 
+                var.second.values.at( 
                     ScalarVariableStatistics< ValueType >::Statistic::Min ),
                 MPI_MIN );
         }
@@ -880,53 +910,53 @@ void XGCAggregator< ValueType >::computeSummaryStep(
         if( var.second.values.count( ScalarVariableStatistics< ValueType >::Statistic::Max ) )
         {
             TN::MPI::ReduceOpMPI(
-                m_rank,
-                var.second.values.at(
+                m_rank, 
+                var.second.values.at( 
                     ScalarVariableStatistics< ValueType >::Statistic::Max ),
                 MPI_MAX );
         }
 
         if( var.second.values.count( ScalarVariableStatistics< ValueType >::Statistic::Mean ) )
         {
-            TN::MPI::ReduceMean(
+            TN::MPI::ReduceMean( 
                 m_rank,
-                var.second.values.at(
+                var.second.values.at( 
                     ScalarVariableStatistics< ValueType >::Statistic::Mean ),
                 myCounts );
         }
 
         if( var.second.values.count( ScalarVariableStatistics< ValueType >::Statistic::Variance ) )
         {
-            TN::MPI::ReduceVariance(
+            TN::MPI::ReduceVariance( 
                 m_rank,
-                var.second.values.at(
+                var.second.values.at( 
                     ScalarVariableStatistics< ValueType >::Statistic::Variance ),
-                myCounts );
+                myCounts );  
         }
 
         if( var.second.values.count( ScalarVariableStatistics< ValueType >::Statistic::RMS ) )
         {
-            TN::MPI::ReduceRMS(
+            TN::MPI::ReduceRMS( 
                 m_rank,
-                var.second.values.at(
+                var.second.values.at( 
                     ScalarVariableStatistics< ValueType >::Statistic::RMS ),
-                myCounts );
+                myCounts );    
         }
     }
 
     MPI_Barrier(MPI_COMM_WORLD);
 
     if( m_rank == 0 )
-    {
+    {   
         std::chrono::high_resolution_clock::time_point rt2 = std::chrono::high_resolution_clock::now();
         std::cout << "reduce step took " << std::chrono::duration_cast<std::chrono::milliseconds>( rt2 - rt1 ).count()
                   << " std::chrono::milliseconds"  << std::endl;
 
         std::chrono::high_resolution_clock::time_point wt1 = std::chrono::high_resolution_clock::now();
-
+        
         writeSummaryStepBP( summaryStep, m_outputDirectory );
 
-        std::chrono::high_resolution_clock::time_point wt2 = std::chrono::high_resolution_clock::now();
+        std::chrono::high_resolution_clock::time_point wt2 = std::chrono::high_resolution_clock::now();        
         std::cout << "write step took " << std::chrono::duration_cast<std::chrono::milliseconds>( wt2 - wt1 ).count()
                   << " std::chrono::milliseconds\n"  << std::endl;
     }
