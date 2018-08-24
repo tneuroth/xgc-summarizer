@@ -5,13 +5,13 @@ project(XGC-Summary)
 set(DEV ${CMAKE_CURRENT_SOURCE_DIR}/../)
 set(SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/source/)
 
-if(DEFINED ENV{cc} AND DEFINED ENV{CC})
+find_program(cc_FOUND cc)
+if (cc_FOUND)
     set(CMAKE_C_COMPILER cc)
     set(CMAKE_CXX_COMPILER CC)
 else()
    set(CMAKE_CXX_COMPILER mpicxx)
 endif()
-
 
 set (CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_FLAGS "-w -fopenmp -frounding-math")
