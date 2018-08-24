@@ -53,55 +53,22 @@ struct VTKmInterpolator2D
             const IdPortalType     & meshNeighborhoodSums,
             ScalarType             & myScalarOut ) const
         {
-            if( meshScalars.GetNumberOfValues() != meshCoords.GetNumberOfValues() )
-            {
-                std::cerr << "interpolate error: 0" << std::endl;
-            }
+            // const IndexType OFFSET = myNearestNeighbor > 0 ? meshNeighborhoodSums[ myNearestNeighbor - 1 ] : 0;
+            // const IndexType NUM_NEIGHBORS = meshNeighborhoodSums[ myNearestNeighbor ] - OFFSET;
+            // const ScalarType nearestDistance = vtkm::Magnitude( myPos - meshCoords[ myNearestNeighbor ] );
 
-            if( meshNeighborhoodSums.GetNumberOfValues() != meshScalars.GetNumberOfValues() )
-            {
-                std::cerr << "interpolate error: 1" << std::endl;
-            }
+            myScalarOut = meshScalars[ myNearestNeighbor ];
 
-            if( myNearestNeighbor < 0 ||  myNearestNeighbor >= meshNeighborhoodSums.GetNumberOfValues() )
-            {
-                std::cerr << "interpolate error: 2" << std::endl;
-            }
+            // for( IndexType i = OFFSET; i < OFFSET + NUM_NEIGHBORS; ++i )
+            // {
+            //     const IndexType IDX = meshNeighborhoods[ i ];
+            //     const ScalarType dist = vtkm::Magnitude( myPos - meshCoords[ IDX ] );
 
-            const IndexType OFFSET = myNearestNeighbor > 0 ? meshNeighborhoodSums[ myNearestNeighbor - 1 ] : 0;
-            const IndexType NUM_NEIGHBORS = meshNeighborhoodSums[ myNearestNeighbor ] - OFFSET;
-            const ScalarType nearestDistance = vtkm::Magnitude( myPos - meshCoords[ myNearestNeighbor ] );
+                // sum += dist * meshScalars[ IDX ];
+                // distanceSum += dist;
+            // }
 
-            if( OFFSET < 0 || OFFSET + NUM_NEIGHBORS > meshNeighborhoods.GetNumberOfValues() )
-            {
-                std::cerr << "interpolate error: 3" << std::endl;
-                std::cerr << meshNeighborhoods.GetNumberOfValues() << " " << NUM_NEIGHBORS << " " << OFFSET << std::endl;
-            }
-
-            ScalarType sum = nearestDistance * meshScalars[ myNearestNeighbor ];
-            ScalarType distanceSum = nearestDistance;
-
-            for( IndexType i = OFFSET; i < OFFSET + NUM_NEIGHBORS; ++i )
-            {
-                const IndexType IDX = meshNeighborhoods[ i ];
-
-                if( IDX < 0 || IDX >= meshCoords.GetNumberOfValues() )
-                {
-                    std::cerr << "interpolate error: 4" << std::endl;
-                }
-
-                const ScalarType dist = vtkm::Magnitude( myPos - meshCoords[ IDX ] );
-
-                sum += dist * meshScalars[ IDX ];
-                distanceSum += dist;
-            }
-
-            if( distanceSum <= 0 )
-            {
-                std::cerr << "interpolate error: 5" << std::endl;
-            }
-
-            myScalarOut = sum / distanceSum;
+            //myScalarOut = ;
         }
     };
 

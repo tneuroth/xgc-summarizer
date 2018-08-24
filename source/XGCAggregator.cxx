@@ -463,46 +463,33 @@ void XGCAggregator< ValueType >::compute(
 
     m_kdTree.Run( m_gridHandle, ptclHandle, idHandle, distHandle, VTKM_DEFAULT_DEVICE_ADAPTER_TAG() );
 
-    result.resize( SZ );
-    
-    if( idHandle.GetNumberOfValues() < SZ )
-    {
-        std::cerr << "id handle index out of bounds" << std::endl;
-        exit( 1 );
-    }
+    vtkm::cont::ArrayHandle<vtkm::Float32> fieldResultHandle;
+    m_interpolator.run(
+        ptclHandle,
+        idHandle,
+        m_gridHandle,
+        m_gridScalarHandle,
+        m_gridNeighborhoodsHandle,
+        m_gridNeighborhoodSumsHandle,
+        fieldResultHandle,
+        VTKM_DEFAULT_DEVICE_ADAPTER_TAG() );
 
-    std::cout << "copying result from portal" << std::endl;
+    result.resize( SZ );
+    const auto idControl = idHandle.GetPortalControl();
 
     #pragma omp parallel for simd
     for( int64_t i = 0; i < SZ; ++i )
     {
-        result[ i ] = idHandle.GetPortalControl().Get( i );
+        result[ i ] =  idControl.Get( i );
     }
-
-    std::cout << "got result from portal" << std::endl;
-
-    //vtkm::cont::ArrayHandle<vtkm::Float32> fieldResultHandle;
-
-    // m_interpolator.run(
-    //     ptclHandle,
-    //     idHandle,
-    //     m_gridHandle,
-    //     m_gridScalarHandle,
-    //     m_gridNeighborhoodsHandle,
-    //     m_gridNeighborhoodSumsHandle,
-    //     fieldResultHandle,
-    //     VTKM_DEFAULT_DEVICE_ADAPTER_TAG() );
 
     field.resize( SZ );
+    const auto fieldControl = fieldResultHandle.GetPortalControl();
+
     #pragma omp parallel for simd
     for( int64_t i = 0; i < SZ; ++i )
     {
-        if( result[ i ] >= m_gridScalars.size() || result[ i ] < 0 )
-        {
-            std::cerr << "result out of bounds" << std::endl;
-            exit( 1 );
-        }
-        field[ i ] = m_gridScalars[ result[ i ] ];//fieldResultHandle.GetPortalControl().Get( i );
+        field[ i ] = fieldControl.Get( i );
     }
 }
 
