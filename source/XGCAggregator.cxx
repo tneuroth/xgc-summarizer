@@ -180,7 +180,7 @@ void XGCAggregator< ValueType >::reduceMesh(
     // #pragma omp parallel for simd
     // for( int64_t i = 0; i < SZ; ++i )
     // {
-    //     ids[ i ] = idHandle.GetPortalControl().Get( i );
+    //     ids[ i ] = idHandle.GetPortalConstControl().Get( i );
     // }
 
     // vtkm::cont::ArrayHandle<vtkm::Float32> fieldResultHandle;
@@ -211,7 +211,7 @@ void XGCAggregator< ValueType >::reduceMesh(
     // #pragma omp parallel for simd
     // for( int64_t i = 0; i < SZ; ++i )
     // {
-    //     newGrid.variables.at( "psin[ i ] = fieldResultHandle.GetPortalControl().Get( i );
+    //     newGrid.variables.at( "psin[ i ] = fieldResultHandle.GetPortalConstControl().Get( i );
     // }
 
     // // B
@@ -240,7 +240,7 @@ void XGCAggregator< ValueType >::reduceMesh(
     // #pragma omp parallel for simd
     // for( int64_t i = 0; i < SZ; ++i )
     // {
-    //     newGrid.variables.at( "B[ i ] = fieldResultHandle.GetPortalControl().Get( i );
+    //     newGrid.variables.at( "B[ i ] = fieldResultHandle.GetPortalConstControl().Get( i );
     // }
 
     // // Poloidal Angle
@@ -475,7 +475,7 @@ void XGCAggregator< ValueType >::compute(
         VTKM_DEFAULT_DEVICE_ADAPTER_TAG() );
 
     result.resize( SZ );
-    const auto idControl = idHandle.GetPortalControl();
+    const auto idControl = idHandle.GetPortalConstControl();
 
     #pragma omp parallel for simd
     for( int64_t i = 0; i < SZ; ++i )
@@ -484,7 +484,7 @@ void XGCAggregator< ValueType >::compute(
     }
 
     field.resize( SZ );
-    const auto fieldControl = fieldResultHandle.GetPortalControl();
+    const auto fieldControl = fieldResultHandle.GetPortalConstControl();
 
     #pragma omp parallel for simd
     for( int64_t i = 0; i < SZ; ++i )
@@ -714,7 +714,7 @@ void XGCAggregator< ValueType >::aggregateVTKM(
     // const int64_t N_UK = uniqueKeys.GetNumberOfValues();
 
     // std::cout << histHndl.GetNumberOfValues() << " values ";
-    // std::cout << sizeof( histHndl.GetPortalControl().Get( 0 ) ) << " is size of each" << std::endl;
+    // std::cout << sizeof( histHndl.GetPortalConstControl().Get( 0 ) ) << " is size of each" << std::endl;
     // std::cout << summaryStep.velocityDistribution.size() << " is summary size of each" << std::endl;
 
     // std::cout << "copying aggregation results" << std::endl;
@@ -722,14 +722,14 @@ void XGCAggregator< ValueType >::aggregateVTKM(
     // // #pragma omp parallel for simd
     // for( int64_t i = 0; i < N_UK; ++i )
     // {
-    //     int64_t key = static_cast< int64_t >( uniqueKeys.GetPortalControl().Get( i ) );
+    //     int64_t key = static_cast< int64_t >( uniqueKeys.GetPortalConstControl().Get( i ) );
 
-    //     summaryStep.w0w1_mean[     key ] = meanHdl.GetPortalControl().Get( i );
-    //     summaryStep.w0w1_rms[      key ] = rmsHdl.GetPortalControl().Get( i );
-    //     summaryStep.w0w1_variance[ key ] = varHdl.GetPortalControl().Get( i );
-    //     summaryStep.w0w1_min[      key ] = minHdl.GetPortalControl().Get( i );
-    //     summaryStep.w0w1_max[      key ] = maxHdl.GetPortalControl().Get( i );
-    //     summaryStep.num_particles[ key ] = cntHdl.GetPortalControl().Get( i );
+    //     summaryStep.w0w1_mean[     key ] = meanHdl.GetPortalConstControl().Get( i );
+    //     summaryStep.w0w1_rms[      key ] = rmsHdl.GetPortalConstControl().Get( i );
+    //     summaryStep.w0w1_variance[ key ] = varHdl.GetPortalConstControl().Get( i );
+    //     summaryStep.w0w1_min[      key ] = minHdl.GetPortalConstControl().Get( i );
+    //     summaryStep.w0w1_max[      key ] = maxHdl.GetPortalConstControl().Get( i );
+    //     summaryStep.num_particles[ key ] = cntHdl.GetPortalConstControl().Get( i );
 
     //     for( int64_t j = 0; j < BINS_PER_CELL; ++j )
     //     {
@@ -745,7 +745,7 @@ void XGCAggregator< ValueType >::aggregateVTKM(
     //         }
 
     //         summaryStep.velocityDistribution[ key * BINS_PER_CELL + j ]
-    //             = histHndl.GetPortalControl().Get( i )[ j ];
+    //             = histHndl.GetPortalConstControl().Get( i )[ j ];
     //     }
     // }
 }
