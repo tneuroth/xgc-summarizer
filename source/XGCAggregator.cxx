@@ -581,11 +581,6 @@ void XGCAggregator< ValueType >::aggregateOMP(
 
     auto & vs = summaryStep.variableStatistics;
 
-    if( hist1.size() != hist2.size() )
-    {
-        std::cerr << "sizes of hist1,2 don't match" << std::endl;
-    }
-
     #pragma omp simd
     for( size_t i = 0; i < SZ; ++i )
     {
@@ -596,18 +591,6 @@ void XGCAggregator< ValueType >::aggregateOMP(
 
         if( row < ROWS && col < COLS && row >= 0 && col >= 0 )
         {
-            if( index * N_BINS + row * COLS + col > hist1.size() 
-            ||  index * N_BINS + row * COLS + col < 0 )
-            {
-                std::cerr << "negative index into hist1" << std::endl;
-            }
-
-            if( index * N_BINS + row * COLS + col > hist1.size() 
-            ||  index * N_BINS + row * COLS + col < 0 )
-            {
-                std::cerr << "negative index into hist1" << std::endl;
-            }
-
             hist1[ index * N_BINS + row * COLS + col ] += w1[ i ];
             hist2[ index * N_BINS + row * COLS + col ] += w0[ i ] * w1[ i ];            
         }
@@ -628,7 +611,7 @@ void XGCAggregator< ValueType >::aggregateOMP(
             mx[    index ] = std::max( mx[ index ], val );            
             mean[  index ] += val;
             rms[   index ] += val*val;
-            count[ index ] += 1;            
+            count[ index ] += 1;   
         }
     }
 
