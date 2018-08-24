@@ -12,6 +12,7 @@ else()
    set(CMAKE_CXX_COMPILER mpicxx)
 endif()
 
+
 set (CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_FLAGS "-w -fopenmp -frounding-math")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3")
