@@ -51,10 +51,21 @@ XGCAggregator< ValueType >::XGCAggregator(
         m_nranks( nm_ranks )
 
 {
+    TN::Synchro::waitForFileExistence( m_unitsMFilePath, 100000 );
+    std::this_thread::sleep_for(
+        std::chrono::milliseconds( 1000 ) );
+
     TN::loadConstants( m_unitsMFilePath, m_constants );
 
-    std::cout << "reading mesh" << std::endl;
 
+    TN::Synchro::waitForFileExistence(     meshFilePath, 100000 );
+    TN::Synchro::waitForFileExistence( m_bFieldFilePath, 100000 );
+    
+    std::this_thread::sleep_for(
+        std::chrono::milliseconds( 1000 ) );
+
+    std::cout << "reading mesh" << std::endl;
+    
     TN::readMeshBP(
         m_summaryGrid,
         { m_constants.at( "eq_axis_r" ), m_constants.at( "eq_axis_z" ) },
