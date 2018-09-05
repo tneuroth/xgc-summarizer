@@ -2,19 +2,24 @@ set(CMAKE_VERBOSE_MAKEFILE ON)
 cmake_minimum_required (VERSION 2.6)
 project(XGC-Summary)
 
-set(TITAN 1)
+option(TITAN OFF)
+option(CORI OFF)
+option(UBUNTU ON)
 
 set(DEV ${CMAKE_CURRENT_SOURCE_DIR}/../)
 set(SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/source/)
 set(VTKm_DIR "${DEV}vtkm-build/lib/cmake/vtkm-1.2")
-
-if (TITAN EQUAL 0)
-    set(CMAKE_CXX_COMPILER mpicxx)
-    set(ADIOS2_DIR "${DEV}/adios2-builds/mpi/lib")    
-elseif(TITAN EQUAL 1)
+  
+if(TITAN)
     set(CMAKE_C_COMPILER cc)
     set(CMAKE_CXX_COMPILER CC)
     set(ADIOS2_DIR "/lustre/atlas/world-shared/csc143/jyc/titan/sw/adios2/devel/gnu") 
+elseif(CORI)
+    set(CMAKE_CXX_COMPILER mpicxx)
+    set(ADIOS2_DIR "${DEV}/adios2-builds/mpi/lib")     
+elseif (UBUNTU)
+    set(CMAKE_CXX_COMPILER mpicxx)
+    set(ADIOS2_DIR "${DEV}/adios2-builds/mpi/lib")  
 endif()
 
 set (CMAKE_CXX_STANDARD 11)
@@ -53,7 +58,6 @@ find_package(VTKm  REQUIRED)
 
 add_library(kdtree ${SRC_DIR}/XGCAggregator.cxx)
 target_link_libraries(kdtree adios2 vtkm_cont)
-
 
 add_executable(summarizer ${SRC_DIR}/Main.cpp)
 target_link_libraries(summarizer vtkm_cont adios2 adios gmp kdtree)
