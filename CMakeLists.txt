@@ -16,7 +16,7 @@ if(TITAN)
     set(ADIOS2_DIR "/lustre/atlas/world-shared/csc143/jyc/titan/sw/adios2/devel/gnu") 
 elseif(CORI)
     set(CMAKE_CXX_COMPILER mpicxx)
-    set(ADIOS2_DIR "${DEV}/adios2-builds/mpi/lib")     
+    set(ADIOS2_DIR "/global/cscratch1/sd/jyc/sw/cori.haswell.gnu/adios2/devel")     
 elseif (UBUNTU)
     set(CMAKE_CXX_COMPILER mpicxx)
     set(ADIOS2_DIR "${DEV}/adios2-builds/mpi/lib")  
@@ -52,7 +52,8 @@ link_directories(
     /usr/lib/x86_64-linux-gnu/    
     ${DEV}/adios-builds/lib/
     ${ADIOS2_DIR}/lib/
-    /usr/lib /usr/lib64/)
+    /usr/lib/
+    /usr/lib64/)
 
 find_package(VTKm  REQUIRED)
 
