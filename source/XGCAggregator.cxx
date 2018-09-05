@@ -306,21 +306,24 @@ void XGCAggregator< ValueType >::runInSitu()
     adios2::ADIOS adios(MPI_COMM_WORLD, adios2::DebugOFF );
     adios2::IO particleIO = adios.DeclareIO( "IO" );
 
+    std::string particlePath = m_restartPath;
+
     if( m_particleReaderEngine == "SST" )
     {
         std::cout << "setting engine to sst";
         particleIO.SetEngine( "Sst" );
+        particlePath = "xgc.particle.bp";
     }
 
     std::cout << "Attempting to open particle file, RANK: " << m_rank << " " << m_restartPath << std::endl;
 
-    TN::Synchro::waitForFileExistence( m_restartPath, 1000000 );
-    std::this_thread::sleep_for(
-        std::chrono::milliseconds( 1000 ) );
+    // TN::Synchro::waitForFileExistence( m_restartPath, 1000000 );
+    // std::this_thread::sleep_for(
+    //     std::chrono::milliseconds( 1000 ) );
 
-    std::cout << "Particle File Does exist, trying to open for reading, RANK: " << m_rank << " " << m_restartPath << std::endl;
+    // std::cout << "Particle File Does exist, trying to open for reading, RANK: " << m_rank << " " << m_restartPath << std::endl;
 
-    adios2::Engine bpReader = particleIO.Open( m_restartPath, adios2::Mode::Read );
+    adios2::Engine bpReader = particleIO.Open( particlePath, adios2::Mode::Read );
 
     SummaryStep2< ValueType > summaryStep;
     int64_t outputStep = 0;
