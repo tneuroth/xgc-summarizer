@@ -5,6 +5,7 @@ project(XGC-Summary)
 option(TITAN OFF)
 option(CORI OFF)
 option(UBUNTU ON)
+option(VTKM_CUDA OFF)
 
 set(DEV ${CMAKE_CURRENT_SOURCE_DIR}/../)
 set(SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/source/)
@@ -35,8 +36,10 @@ set(CUDA_NVCC_FLAGS "-std=c++11 -O3 -m 64 -Xcompiler \"\
 -openmp\" --ptxas-options=-v --compiler-options '-fPIC'\
  -o libkdtree-cu.so --shared")
 
-#get_source_file_property( _cuda_source_format XGCAggregator.cxx CUDA_SOURCE_PROPERTY_FORMAT)
-#set_source_files_properties( XGCAggregator.cxx PROPERTIES CUDA_SOURCE_PROPERTY_FORMAT _cuda_source_format )
+if( VTKM_CUDA )
+    get_source_file_property( _cuda_source_format XGCAggregator.cxx CUDA_SOURCE_PROPERTY_FORMAT)
+    set_source_files_properties( XGCAggregator.cxx PROPERTIES CUDA_SOURCE_PROPERTY_FORMAT _cuda_source_format )
+endif()
 
 set(CMAKE_BUILD_TYPE Release)
 
@@ -58,12 +61,25 @@ link_directories(
     ${ADIOS2_DIR}/lib/
     /usr/lib/
     /usr/lib64/)
-
+    
 find_package(VTKm  REQUIRED)
 
 add_library(kdtree ${SRC_DIR}/XGCAggregator.cxx)
-target_link_libraries(kdtree adios2 vtkm_cont)
 
-add_executable(summarizer ${SRC_DIR}/Main.cpp)
-target_link_libraries(summarizer vtkm_cont adios2 adios gmp kdtree)
-
+if(TITAN)
+    target_link_libraries(kdtree adios2 vtkm_cont)
+    add_executable(summarizer ${SRC_DIR}/Main.cpp)
+    target_link_libraries(summarizer vtkm_cont 
+        adios2 adios2_sst pthread adios2_evpath adios adios2_enet adios2_atl adios2_atl adios2_ffs adios2_dill
+        bz2 gmp kdtree)
+elseif(CORI)
+    target_link_libraries(kdtree adios2 vtkm_cont)
+    add_executable(summarizer ${SRC_DIR}/Main.cpp)
+    target_link_libraries(summarizer vtkm_cont 
+        adios2 adios2_sst pthread adios2_evpath adios adios2_enet adios2_atl adios2_atl adios2_ffs adios2_dill
+        bz2 gmp kdtree)
+else()
+    target_link_libraries(kdtree adios2 vtkm_cont)
+    add_executable(summarizer ${SRC_DIR}/Main.cpp)
+    target_link_libraries(summarizer vtkm_cont adios2 adios gmp kdtree)
+endif()
