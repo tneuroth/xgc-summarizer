@@ -322,14 +322,17 @@ void XGCAggregator< ValueType >::runInSitu()
 
     adios2::Engine bpReader = particleIO.Open( m_restartPath, adios2::Mode::Read );
 
-
     SummaryStep2< ValueType > summaryStep;
     int64_t outputStep = 0;
 
     while( 1 )
     {
+        std::cout << "Before begin step, RANK: " << m_rank << std::endl;
+
         adios2::StepStatus status =
             bpReader.BeginStep( adios2::StepMode::NextAvailable, TIMEOUT );
+
+        std::cout << "After begin step, RANK: " << m_rank << std::endl;
 
         if (status == adios2::StepStatus::NotReady)
         {
