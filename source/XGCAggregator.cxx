@@ -302,7 +302,7 @@ void XGCAggregator< ValueType >::reduceMesh(
 template< typename ValueType >
 void XGCAggregator< ValueType >::runInSitu()
 {
-    const float TIMEOUT = 300.f;
+    const float TIMEOUT = 300000.f;
     adios2::ADIOS adios(MPI_COMM_WORLD, adios2::DebugOFF );
     adios2::IO particleIO = adios.DeclareIO( "IO" );
 
@@ -335,7 +335,6 @@ void XGCAggregator< ValueType >::runInSitu()
         {
             std::this_thread::sleep_for(
                 std::chrono::milliseconds( 1000 ) );
-            std::cout << "Waiting for step: " << outputStep << ", RANK: " << m_rank << std::endl;
             continue;
         }
         else if (status != adios2::StepStatus::OK)
@@ -350,6 +349,8 @@ void XGCAggregator< ValueType >::runInSitu()
 
         int64_t simstep;
         double  realtime;
+
+        std::cout << "Read particle file, RANK: " << m_rank << std::endl;
 
         int64_t totalNumParticles = readBPParticleDataStep(
                                         m_phase,
