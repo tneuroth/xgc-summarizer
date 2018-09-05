@@ -316,9 +316,8 @@ void XGCAggregator< ValueType >::runInSitu()
     //     particleIO.SetEngine( "InSituMPI" );  
     // }
 
-    std::cout << "Waiting for file, RANK: " << m_rank << std::endl;
+    std::cout << "Waiting for file, RANK: " << m_rank << " " << m_restartPath << std::endl;
 
-    TN::Synchro::waitForFileExistence( m_restartPath, TIMEOUT );
     adios2::Engine bpReader = particleIO.Open( m_restartPath, adios2::Mode::Read );
 
     std::cout << "Found file. Opened. RANK: " << m_rank << std::endl;
@@ -329,7 +328,7 @@ void XGCAggregator< ValueType >::runInSitu()
     while( 1 )
     {
         adios2::StepStatus status =
-            bpReader.BeginStep(adios2::StepMode::NextAvailable, TIMEOUT );
+            bpReader.BeginStep( adios2::StepMode::NextAvailable, TIMEOUT );
 
         if (status == adios2::StepStatus::NotReady)
         {

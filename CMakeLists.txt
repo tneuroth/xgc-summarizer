@@ -2,15 +2,19 @@ set(CMAKE_VERBOSE_MAKEFILE ON)
 cmake_minimum_required (VERSION 2.6)
 project(XGC-Summary)
 
+set(TITAN 1)
+
 set(DEV ${CMAKE_CURRENT_SOURCE_DIR}/../)
 set(SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/source/)
+set(VTKm_DIR "${DEV}vtkm-build/lib/cmake/vtkm-1.2")
 
-find_program(mod_FOUND module)
-if (NOT mod_FOUND)
+if (TITAN EQUAL 0)
     set(CMAKE_CXX_COMPILER mpicxx)
-else()
+    set(ADIOS2_DIR "${DEV}/adios2-builds/mpi/lib")    
+elseif(TITAN EQUAL 1)
     set(CMAKE_C_COMPILER cc)
     set(CMAKE_CXX_COMPILER CC)
+    set(ADIOS2_DIR "/lustre/atlas/world-shared/csc143/jyc/titan/sw/adios2/devel/gnu") 
 endif()
 
 set (CMAKE_CXX_STANDARD 11)
@@ -26,7 +30,6 @@ set(CUDA_NVCC_FLAGS "-std=c++11 -O3 -m 64 -Xcompiler \"\
 #set_source_files_properties( XGCAggregator.cxx PROPERTIES CUDA_SOURCE_PROPERTY_FORMAT _cuda_source_format )
 
 set(CMAKE_BUILD_TYPE Release)
-set(VTKm_DIR "${DEV}vtkm-build/lib/cmake/vtkm-1.2")
 
 include_directories(
     PUBLIC
@@ -34,17 +37,17 @@ include_directories(
     /usr/include/glib-2.0/
     /usr/lib/glib-2.0/include/
     ${DEV}/vtkm-kdtree-generic/
-    ${SRC_DIR}
+    ${SRC_DIR}/
     ${DEV}/vtkm-build/include/
     ${DEV}/adios-builds/include/
-    ${DEV}/adios2-builds/mpi/include/
+    ${ADIOS2_DIR}/include/
     ${DEV}/vtkm-kdtree-generic/)
 
 link_directories(
-    /usr/lib/x86_64-linux-gnu/
-    /usr/lib /usr/lib64/
+    /usr/lib/x86_64-linux-gnu/    
     ${DEV}/adios-builds/lib/
-    ${DEV}/adios2-builds/mpi/lib/)
+    ${ADIOS2_DIR}/lib/
+    /usr/lib /usr/lib64/)
 
 find_package(VTKm  REQUIRED)
 
