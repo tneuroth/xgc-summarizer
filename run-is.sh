@@ -1,6 +1,7 @@
 #!/bin/bash
 
 #arguments
+    #adios2 config file
     #mesh file path
     #bfield file path
     #particle data directory or filepath if single particle file mode
@@ -13,7 +14,8 @@
 DATA_DIR=/media/tn0/data/datasets/inSituTest
 
 mpirun -np 8\
-    ./summarizer ${DATA_DIR}/xgc.mesh.bp \
+    ./summarizer ${DATA_DIR}/adios2cfg.xml \
+                 ${DATA_DIR}/xgc.mesh.bp \
                  ${DATA_DIR}/xgc.bfield.bp \
                  ${DATA_DIR}/xgc.particle.bp \
                  ${DATA_DIR}/units.m \

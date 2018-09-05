@@ -12,10 +12,10 @@ PROGRAM_PATH=/lustre/atlas/scratch/tneuroth/csc143/
 
 cd $PROGRAM_PATH
 
-export OMP_NUM_THREADS=8
-
-aprun -n 8 -N 1 -d 8 -j 1\
-    ./summarizer $DATA_PATH/xgc.mesh.bp \
+export OMP_NUM_THREADS=16
+aprun -n 16 -N 1 -d 16 -j 1\
+    ./summarizer $DATA_PATH/adios2cfg.xml \
+        $DATA_PATH/xgc.mesh.bp \
         $DATA_PATH/xgc.bfield.bp \
         $DATA_PATH/xgc.particle.bp \
         $DATA_PATH/units.m \

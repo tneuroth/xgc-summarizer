@@ -34,6 +34,7 @@ class XGCAggregator
     std::string m_restartPath;
     std::string m_unitsMFilePath;
     std::string m_outputDirectory;
+    std::string m_particleReaderEngine;
 
     bool m_inSitu;
     bool m_splitByBlocks;
@@ -53,6 +54,7 @@ public:
 
 
     XGCAggregator(
+        const std::string & adiosConfigFilePath,
         const std::string & meshFilePath,
         const std::string & bfieldFilePath,
         const std::string & restartDirectory,

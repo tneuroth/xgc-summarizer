@@ -64,8 +64,8 @@ struct VTKmInterpolator2D
             //     const IndexType IDX = meshNeighborhoods[ i ];
             //     const ScalarType dist = vtkm::Magnitude( myPos - meshCoords[ IDX ] );
 
-                // sum += dist * meshScalars[ IDX ];
-                // distanceSum += dist;
+            // sum += dist * meshScalars[ IDX ];
+            // distanceSum += dist;
             // }
 
             //myScalarOut = ;

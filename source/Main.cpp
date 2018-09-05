@@ -48,16 +48,18 @@ int main( int argc, char** argv )
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    const string meshpath                = argv[ 1 ];
-    const string bfieldpath              = argv[ 2 ];
-    const string particle_data_base_path = argv[ 3 ];
-    const string units_path              = argv[ 4 ];
-    const string outpath                 = argv[ 5 ];
-    const bool splitByBlocks             = std::string( argv[ 6 ] ) == "true";
-    const bool inSitu                    = std::string( argv[ 7 ] ) == "true";
-    const bool appendedReadMode          = std::string( argv[ 8 ] ) == "true";
+    const string adios2conf              = argv[ 1 ];
+    const string meshpath                = argv[ 2 ];
+    const string bfieldpath              = argv[ 3 ];
+    const string particle_data_base_path = argv[ 4 ];
+    const string units_path              = argv[ 5 ];
+    const string outpath                 = argv[ 6 ];
+    const bool splitByBlocks             = std::string( argv[ 7 ] ) == "true";
+    const bool inSitu                    = std::string( argv[ 8 ] ) == "true";
+    const bool appendedReadMode          = std::string( argv[ 9 ] ) == "true";
 
     TN::XGCAggregator< ValueType > aggregator(
+        adios2conf,
         meshpath,
         bfieldpath,
         particle_data_base_path,
@@ -69,9 +71,9 @@ int main( int argc, char** argv )
     rank,
     nRanks );
 
-    if( argc == 10 )
+    if( argc == 11 )
     {
-        aggregator.reduceMesh( argv[ 9 ] );
+        aggregator.reduceMesh( argv[ 10 ] );
     }
 
     if( rank == 0 )
