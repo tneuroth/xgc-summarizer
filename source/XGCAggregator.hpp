@@ -2,6 +2,7 @@
 #define TN_PTCL_MESH_INTERPOLATOR_HPP
 
 #include "Summary.hpp"
+#include <adios2.h>
 #include <KDTree/KdTree.h>
 #include "VTKmInterpolator.hpp"
 #include "VTKmAggregator.hpp"
@@ -38,6 +39,7 @@ class XGCAggregator
 
     bool m_inSitu;
     bool m_splitByBlocks;
+    bool m_summaryWriterAppendMode;
 
     int m_rank;
     int m_nranks;
@@ -48,7 +50,9 @@ class XGCAggregator
     void computeSummaryStep(
         std::vector< ValueType > & phase,
         TN::SummaryStep2< ValueType > & summaryStep,
-        const std::string & ptype );
+        const std::string & ptype,
+        std::unique_ptr< adios2::IO > & summaryIO,
+        std::unique_ptr< adios2::Engine > & summaryWriter );
 
 public:
 

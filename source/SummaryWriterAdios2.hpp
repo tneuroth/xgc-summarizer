@@ -82,24 +82,14 @@ template< typename ValueType >
 inline void writeSummaryStepBP(
     const SummaryStep2< ValueType > & summaryStep,
     const std::string & directory,
-    adios2::IO & bpIO )
+    adios2::IO & bpIO,
+    adios2::Engine & bpWriter )
 {
-    bpIO.BeginStep();
-
-    std::string step = std::to_string( summaryStep.simStep );
-
-    std::cout << "writing step to " << ( directory
-                                  + "summary."
-                                  + std::string( 7 - step.size(), '0' ) + step + ".bp" ) << std::endl;
-
-    adios2::Engine bpWriter = bpIO.Open(
-                                  directory
-                                  + "summary."
-                                  + std::string( 7 - step.size(), '0' ) + step + ".bp",
-                                  adios2::Mode::Write );
+    auto availableVariables = bpIO.AvailableVariables();
 
     bpWriter.Put< ValueType >(
-        bpIO.DefineVariable< ValueType >(
+        availableVariables.count( "real_time" ) ? bpIO.InquireVariable< ValueType >( "real_time" )
+        : bpIO.DefineVariable< ValueType >(
             "real_time",
     { 1 },
     { 0 },
@@ -108,7 +98,8 @@ inline void writeSummaryStepBP(
     & summaryStep.realTime );
 
     bpWriter.Put< int64_t >(
-        bpIO.DefineVariable< int64_t >(
+        availableVariables.count( "sim_step" ) ? bpIO.InquireVariable< int64_t >( "sim_step" )  
+        : bpIO.DefineVariable< int64_t >(
             "sim_step",
     { 1 },
     { 0 },
@@ -116,9 +107,11 @@ inline void writeSummaryStepBP(
     adios2::ConstantDims ),
     & summaryStep.simStep );
 
+    auto np_name = summaryStep.objectIdentifier + "/" + "num_particles"; 
     bpWriter.Put< int64_t >(
-        bpIO.DefineVariable< int64_t >(
-            summaryStep.objectIdentifier + "/" + "num_particles",
+        availableVariables.count( np_name ) ? bpIO.InquireVariable< int64_t >(  np_name )
+        : bpIO.DefineVariable< int64_t >(
+            np_name,
     { 1 },
     { 0 },
     { 1 },
@@ -129,60 +122,73 @@ inline void writeSummaryStepBP(
     {
         for( auto & stat : var.second.values )
         {
-            bpWriter.Put< ValueType >(
-                bpIO.DefineVariable< ValueType >(
-                    summaryStep.objectIdentifier + "/" + "statistics/"
+            auto name = summaryStep.objectIdentifier + "/" + "statistics/"
                     + var.first + "."
-                    + ScalarVariableStatistics< ValueType >::StatisticString( stat.first ),
-            { stat.second.size() },
-            { 0 },
-            { stat.second.size() },
-            adios2::ConstantDims ),
+                    + ScalarVariableStatistics< ValueType >::StatisticString( stat.first );
+
+            bpWriter.Put< ValueType >(
+                availableVariables.count( name ) ? bpIO.InquireVariable< ValueType >( name )
+                : bpIO.DefineVariable< ValueType >(
+                    name,
+                    { stat.second.size() },
+                    { 0 },
+                    { stat.second.size() },
+                    adios2::ConstantDims ),
             stat.second.data() );
         }
     }
 
     for( auto & hist : summaryStep.histograms )
     {
+        auto valuesName = summaryStep.objectIdentifier + "/" + "histograms/" + hist.first + ".values";
         bpWriter.Put< ValueType >(
-            bpIO.DefineVariable< ValueType >(
-                summaryStep.objectIdentifier + "/" + "histograms/" + hist.first + ".values",
+            availableVariables.count( valuesName ) ? bpIO.InquireVariable< ValueType >( valuesName )
+            : bpIO.DefineVariable< ValueType >(
+                valuesName,
         { hist.second.values.size() },
         { 0 },
         { hist.second.values.size() },
         adios2::ConstantDims ),
         hist.second.values.data() );
 
+        auto axisName = summaryStep.objectIdentifier + "/" + "histograms/" + hist.first + ".params.axis";
         bpWriter.Put< std::string >(
-            bpIO.DefineVariable< std::string >(
-                summaryStep.objectIdentifier + "/" + "histograms/" + hist.first + ".params.axis",
+            availableVariables.count( axisName ) ? bpIO.InquireVariable< std::string >( axisName )
+            : bpIO.DefineVariable< std::string >(
+                axisName,
         { hist.second.definition.axis.size() },
         { 0 },
         { hist.second.definition.axis.size() },
         adios2::ConstantDims ),
         hist.second.definition.axis.data() );
 
+        auto identifierName = summaryStep.objectIdentifier + "/" + "histograms/" + hist.first + ".params.identifier";
         bpWriter.Put< std::string >(
-            bpIO.DefineVariable< std::string >(
-                summaryStep.objectIdentifier + "/" + "histograms/" + hist.first + ".params.identifier",
+            availableVariables.count( identifierName ) ? bpIO.InquireVariable< std::string >( identifierName )
+            : bpIO.DefineVariable< std::string >(
+                identifierName,
         { 1 },
         { 0 },
         { 1 },
         adios2::ConstantDims ),
         & hist.second.definition.identifier );
 
+        auto weightName = summaryStep.objectIdentifier + "/" + "histograms/" + hist.first + ".params.weight";
         bpWriter.Put< std::string >(
-            bpIO.DefineVariable< std::string >(
-                summaryStep.objectIdentifier + "/" + "histograms/" + hist.first + ".params.weight",
+            availableVariables.count( weightName ) ? bpIO.InquireVariable< std::string >( weightName )
+            : bpIO.DefineVariable< std::string >(
+                weightName,
         { 1 },
         { 0 },
         { 1 },
         adios2::ConstantDims ),
         & hist.second.definition.weight );
 
+        auto dimsName = summaryStep.objectIdentifier + "/" + "histograms/" + hist.first + ".params.dims";
         bpWriter.Put< int >(
-            bpIO.DefineVariable< int >(
-                summaryStep.objectIdentifier + "/" + "histograms/" + hist.first + ".params.dims",
+            availableVariables.count( dimsName ) ? bpIO.InquireVariable< int >( dimsName )
+            : bpIO.DefineVariable< int >(
+                dimsName,
         { hist.second.definition.dims.size() },
         { 0 },
         { hist.second.definition.dims.size() },
@@ -191,9 +197,14 @@ inline void writeSummaryStepBP(
 
         for( size_t i = 0; i < hist.second.definition.edges.size(); ++i )
         {
+            auto name = 
+                summaryStep.objectIdentifier + "/" + "histograms/" 
+                + hist.first + ".params.edges(" + std::to_string( i ) + ")";
+
             bpWriter.Put< ValueType >(
-                bpIO.DefineVariable< ValueType >(
-                    summaryStep.objectIdentifier + "/" + "histograms/" + hist.first + ".params.edges(" + std::to_string( i ) + ")",
+                availableVariables.count( name ) ? bpIO.InquireVariable< ValueType >( name )
+                : bpIO.DefineVariable< ValueType >(
+                name,
             { hist.second.definition.edges[ i ].size() },
             { 0 },
             { hist.second.definition.edges[ i ].size() },
@@ -201,8 +212,6 @@ inline void writeSummaryStepBP(
             hist.second.definition.edges[ i ].data() );
         }
     }
-
-    bpIO.EndStep();
 }
 
 template< typename ValueType >
@@ -212,7 +221,15 @@ inline void writeSummaryStepBP(
 {
     adios2::ADIOS adios( adios2::DebugOFF );
     adios2::IO bpIO = adios.DeclareIO( "XGC-SUMMARY-STEP-IO" );
-    writeSummaryStepBP( summaryStep, directory, bpIO );
+    
+    std::string step = std::to_string( summaryStep.simStep );
+    adios2::Engine bpWriter = bpIO.Open(
+                                  directory
+                                  + "summary."
+                                  + std::string( 7 - step.size(), '0' ) + step + ".bp",
+                                  adios2::Mode::Write );
+
+    writeSummaryStepBP( summaryStep, directory, bpIO, bpWriter );
     bpWriter.Close();
 }
 

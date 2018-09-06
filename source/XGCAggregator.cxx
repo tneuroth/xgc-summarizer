@@ -50,8 +50,8 @@ XGCAggregator< ValueType >::XGCAggregator(
     m_inSitu( inSitu ),
     m_splitByBlocks( splitByBlocks ),
     m_rank( m_rank ),
-    m_nranks( nm_ranks )
-
+    m_nranks( nm_ranks ),
+    m_summaryWriterAppendMode( true )
 {
     const std::map< std::string, std::string > ioEngines 
         = TN::XML::extractIoEngines( adiosConfigFilePath );
@@ -316,14 +316,6 @@ void XGCAggregator< ValueType >::runInSitu()
         particlePath = "xgc.particle.bp";
     }
 
-    std::cout << "Waiting for .sst file, RANK: " << m_rank << " " << m_restartPath << std::endl;
-
-    TN::Synchro::waitForFileExistence( m_restartPath, 1000000 );
-    std::this_thread::sleep_for(
-        std::chrono::milliseconds( 1000 ) );
-
-    std::cout << ".sst file exists, trying to open stream for reading, RANK: " << m_rank << " " << particlePath << std::endl;
-
     adios2::Engine particleReader = particleIO.Open( particlePath, adios2::Mode::Read );
     MPI_Barrier(MPI_COMM_WORLD);
     
@@ -331,6 +323,17 @@ void XGCAggregator< ValueType >::runInSitu()
 
     SummaryStep2< ValueType > summaryStep;
     int64_t outputStep = 0;
+ 
+    std::unique_ptr< adios2::IO > summaryIO;
+    std::unique_ptr< adios2::Engine > summaryWriter;
+
+    if( m_summaryWriterAppendMode )
+    {
+        summaryIO = std::unique_ptr< adios2::IO >( 
+            new adios2::IO( adios.DeclareIO( "summaryIO" ) ) );
+        summaryWriter = std::unique_ptr< adios2::Engine >( 
+            new adios2::Engine( summaryIO->Open( m_outputDirectory + "/summary.bp", adios2::Mode::Write ) ) );
+    }
 
     while( 1 )
     {
@@ -395,7 +398,9 @@ void XGCAggregator< ValueType >::runInSitu()
         computeSummaryStep(
             m_phase,
             summaryStep,
-            "ions" );
+            "ions",
+            summaryIO,
+            summaryWriter );
 
         ++outputStep;
     }
@@ -441,10 +446,15 @@ void XGCAggregator< ValueType >::runInPost()
 
         /////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+        std::unique_ptr< adios2::IO > io;
+        std::unique_ptr< adios2::Engine > en;
+
         computeSummaryStep(
             m_phase,
             summaryStep,
-            "ions" );
+            "ions",
+            io,
+            en );
 
         ++outputStep;
     }
@@ -843,7 +853,9 @@ template< typename ValueType >
 void XGCAggregator< ValueType >::computeSummaryStep(
     std::vector< ValueType > & phase,
     TN::SummaryStep2< ValueType > & summaryStep,
-    const std::string & ptype )
+    const std::string & ptype,
+    std::unique_ptr< adios2::IO > & summaryIO,
+    std::unique_ptr< adios2::Engine > & summaryWriter )
 {
     const size_t SZ      = phase.size() / 9;
     const size_t R_POS   = XGC_PHASE_INDEX_MAP.at( "r" ) * SZ;
@@ -1028,11 +1040,25 @@ void XGCAggregator< ValueType >::computeSummaryStep(
 
         std::chrono::high_resolution_clock::time_point wt1 = std::chrono::high_resolution_clock::now();
 
-        writeSummaryStepBP( summaryStep, m_outputDirectory );
+        if( m_summaryWriterAppendMode )
+        {
+            summaryWriter->BeginStep();
+            writeSummaryStepBP( summaryStep, m_outputDirectory, *summaryIO, *summaryWriter );
+            summaryWriter->EndStep();
+        }
+        else
+        {
+            writeSummaryStepBP( summaryStep, m_outputDirectory );   
+        }
 
         std::chrono::high_resolution_clock::time_point wt2 = std::chrono::high_resolution_clock::now();
         std::cout << "write step took " << std::chrono::duration_cast<std::chrono::milliseconds>( wt2 - wt1 ).count()
                   << " std::chrono::milliseconds\n"  << std::endl;
+    }
+    else if ( m_summaryWriterAppendMode )
+    {
+        summaryWriter->BeginStep();
+        summaryWriter->EndStep();
     }
 
     MPI_Barrier(MPI_COMM_WORLD);
