@@ -10,6 +10,7 @@
 #include <set>
 #include <string>
 #include <vector>
+#include "mpi.h"
 
 namespace TN
 {
@@ -43,6 +44,7 @@ class XGCAggregator
 
     int m_rank;
     int m_nranks;
+    MPI_Comm m_mpiCommunicator;
 
     std::vector< ValueType > m_phase;
     std::vector< ValueType > m_B;
@@ -68,7 +70,8 @@ public:
         bool inSitu,
         bool m_splitByBlocks,
         int rank,
-        int nranks );
+        int nranks,
+        MPI_Comm communicator );
 
     void runInSitu();
     void runInPost();

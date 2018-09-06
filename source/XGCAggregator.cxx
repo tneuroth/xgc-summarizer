@@ -41,7 +41,8 @@ XGCAggregator< ValueType >::XGCAggregator(
     bool inSitu,
     bool splitByBlocks,
     int m_rank,
-    int nm_ranks ) :
+    int nm_ranks,
+    MPI_Comm communicator ) :
     m_meshFilePath( meshFilePath ),
     m_bFieldFilePath( bfieldFilePath ),
     m_restartPath( restartPath ),
@@ -51,7 +52,8 @@ XGCAggregator< ValueType >::XGCAggregator(
     m_splitByBlocks( splitByBlocks ),
     m_rank( m_rank ),
     m_nranks( nm_ranks ),
-    m_summaryWriterAppendMode( true )
+    m_summaryWriterAppendMode( true ),
+    m_mpiCommunicator( communicator )
 {
     const std::map< std::string, std::string > ioEngines 
         = TN::XML::extractIoEngines( adiosConfigFilePath );
@@ -155,7 +157,7 @@ void XGCAggregator< ValueType >::reduceMesh(
         }
     }
 
-    MPI_Barrier(MPI_COMM_WORLD);
+    MPI_Barrier(m_mpiCommunicator);
     std::cout << "getting neighborhoods " << std::endl;
     TN::getNeighborhoods( newGrid );
 
@@ -187,7 +189,7 @@ void XGCAggregator< ValueType >::reduceMesh(
     // vtkm::cont::ArrayHandle<vtkm::Id> idHandle;
     // vtkm::cont::ArrayHandle<vtkm::Float32> distHandle;
 
-    // MPI_Barrier(MPI_COMM_WORLD);
+    // MPI_Barrier(m_mpiCommunicator);
     // std::cout << "getting neighbors"
     //           << m_gridHandle.GetNumberOfValues() << " "
     //           << posHandle.GetNumberOfValues()    << " " << std::endl;
@@ -212,7 +214,7 @@ void XGCAggregator< ValueType >::reduceMesh(
 
     // // Psi
 
-    // MPI_Barrier(MPI_COMM_WORLD);
+    // MPI_Barrier(m_mpiCommunicator);
     // std::cout << "interpolating psi " << std::endl;
 
     // auto psinHandle = vtkm::cont::make_ArrayHandle( m_summaryGrid.variables.at( "psin );
@@ -241,7 +243,7 @@ void XGCAggregator< ValueType >::reduceMesh(
 
     // // B
 
-    // MPI_Barrier(MPI_COMM_WORLD);
+    // MPI_Barrier(m_mpiCommunicator);
     // std::cout << "interpolating B " << std::endl;
 
     // auto bHandle = vtkm::cont::make_ArrayHandle( m_summaryGrid.variables.at( "B );
@@ -270,7 +272,7 @@ void XGCAggregator< ValueType >::reduceMesh(
 
     // // Poloidal Angle
 
-    // MPI_Barrier(MPI_COMM_WORLD);
+    // MPI_Barrier(m_mpiCommunicator);
     // std::cout << "calculating angles " << std::endl;
 
     // newGrid.variables.at( "poloidalAngle.resize( SZ );
@@ -285,7 +287,7 @@ void XGCAggregator< ValueType >::reduceMesh(
 
     m_summaryGrid = newGrid;
 
-    MPI_Barrier(MPI_COMM_WORLD);
+    MPI_Barrier(m_mpiCommunicator);
     std::cout << "setting static handles " << std::endl;
 
     setGrid(
@@ -295,7 +297,7 @@ void XGCAggregator< ValueType >::reduceMesh(
         m_summaryGrid.neighborhoods,
         m_summaryGrid.neighborhoodSums );
 
-    MPI_Barrier(MPI_COMM_WORLD);
+    MPI_Barrier(m_mpiCommunicator);
     std::cout << "done " << std::endl;
 }
 
@@ -305,7 +307,7 @@ void XGCAggregator< ValueType >::runInSitu()
     const float TIMEOUT = 300000.f;
     std::string particlePath = m_restartPath;
     
-    adios2::ADIOS adios(MPI_COMM_WORLD, adios2::DebugOFF );
+    adios2::ADIOS adios(m_mpiCommunicator, adios2::DebugOFF );
     
     std::unique_ptr< adios2::IO > summaryIO;
     std::unique_ptr< adios2::Engine > summaryWriter;
@@ -323,7 +325,7 @@ void XGCAggregator< ValueType >::runInSitu()
     if( m_particleReaderEngine == "SST" )
     {
         particleIO.SetEngine( "Sst" );
-        MPI_Barrier( MPI_COMM_WORLD );
+        MPI_Barrier( m_mpiCommunicator );
         particlePath = "xgc.particle.bp";
         std::cout << "set engine type to sst";
     }
@@ -1040,7 +1042,7 @@ void XGCAggregator< ValueType >::computeSummaryStep(
         }
     }
 
-    MPI_Barrier(MPI_COMM_WORLD);
+    MPI_Barrier(m_mpiCommunicator);
 
     if( m_rank == 0 )
     {
@@ -1071,7 +1073,7 @@ void XGCAggregator< ValueType >::computeSummaryStep(
         summaryWriter->EndStep();
     }
 
-    MPI_Barrier(MPI_COMM_WORLD);
+    MPI_Barrier(m_mpiCommunicator);
 }
 
 template class XGCAggregator<float>;

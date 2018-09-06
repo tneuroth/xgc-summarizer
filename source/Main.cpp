@@ -34,12 +34,22 @@ int main( int argc, char** argv )
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    MPI_Init(NULL, NULL);
-    int nRanks, rank;
-    MPI_Comm_size(MPI_COMM_WORLD, &nRanks);
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    int wrank = 0, wnproc = 1;
+    int rank  = 0, nRanks = 1;
 
-    int err  = adios_read_init_method ( ADIOS_READ_METHOD_BP, MPI_COMM_WORLD, "verbose=3" );
+    MPI_Comm mpiReaderComm;
+
+    MPI_Init( &argc, &argv );
+    MPI_Comm_rank( MPI_COMM_WORLD, &wrank  );
+    MPI_Comm_size( MPI_COMM_WORLD, &wnproc );
+
+    const unsigned int color = 99;
+    MPI_Comm_split( MPI_COMM_WORLD, color, wrank, &mpiReaderComm );
+
+    MPI_Comm_rank( mpiReaderComm, &rank   );
+    MPI_Comm_size( mpiReaderComm, &nRanks );
+
+    int err  = adios_read_init_method ( ADIOS_READ_METHOD_BP, mpiReaderComm, "verbose=3" );
 
     if( rank == 0 )
     {
@@ -69,7 +79,8 @@ int main( int argc, char** argv )
     inSitu,
     splitByBlocks,
     rank,
-    nRanks );
+    nRanks,
+    mpiReaderComm );
 
     if( argc == 11 )
     {
