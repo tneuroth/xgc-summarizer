@@ -306,44 +306,46 @@ void XGCAggregator< ValueType >::runInSitu()
     std::string particlePath = m_restartPath;
     
     adios2::ADIOS adios(MPI_COMM_WORLD, adios2::DebugOFF );
-    adios2::IO particleIO = adios.DeclareIO( "IO" );
+    
+    std::unique_ptr< adios2::IO > summaryIO;
+    std::unique_ptr< adios2::Engine > summaryWriter;
+    if( m_summaryWriterAppendMode )
+    {
+        summaryIO = std::unique_ptr< adios2::IO >( 
+            new adios2::IO( adios.DeclareIO( "summaryIO" ) ) );
+
+        summaryWriter = std::unique_ptr< adios2::Engine >( 
+            new adios2::Engine( summaryIO->Open( m_outputDirectory + "/summary.bp", adios2::Mode::Write ) ) );
+    }
+
+    adios2::IO particleIO = adios.DeclareIO( "particleIO" );
 
     if( m_particleReaderEngine == "SST" )
     {
         std::cout << "setting engine to sst";
         particleIO.SetEngine( "Sst" );
-        MPI_Barrier(MPI_COMM_WORLD);
+        MPI_Barrier( MPI_COMM_WORLD );
         particlePath = "xgc.particle.bp";
     }
+
+    std::cout << "Trying to open reader: " << particlePath << std::endl;
 
     adios2::Engine particleReader = particleIO.Open( particlePath, adios2::Mode::Read );
     MPI_Barrier(MPI_COMM_WORLD);
     
-    std::cout << "Reader opened, RANK: " << m_rank << std::endl;
+    std::cout << "Reader opened" << std::endl;
 
     SummaryStep2< ValueType > summaryStep;
     int64_t outputStep = 0;
- 
-    std::unique_ptr< adios2::IO > summaryIO;
-    std::unique_ptr< adios2::Engine > summaryWriter;
-
-    if( m_summaryWriterAppendMode )
-    {
-        summaryIO = std::unique_ptr< adios2::IO >( 
-            new adios2::IO( adios.DeclareIO( "summaryIO" ) ) );
-        summaryWriter = std::unique_ptr< adios2::Engine >( 
-            new adios2::Engine( summaryIO->Open( m_outputDirectory + "/summary.bp", adios2::Mode::Write ) ) );
-    }
 
     while( 1 )
     {
-        std::cout << "Before begin step, RANK: " << m_rank << std::endl;
+        std::cout << "Before begin step" << std::endl;
 
         adios2::StepStatus status =
             particleReader.BeginStep( adios2::StepMode::NextAvailable, TIMEOUT );
-        MPI_Barrier(MPI_COMM_WORLD);
 
-        std::cout << "After begin step, RANK: " << m_rank << std::endl;
+        std::cout << "After begin step" << std::endl;
 
         if (status == adios2::StepStatus::NotReady)
         {
@@ -364,7 +366,7 @@ void XGCAggregator< ValueType >::runInSitu()
         int64_t simstep;
         double  realtime;
 
-        std::cout << "Read particle file, RANK: " << m_rank << std::endl;
+        std::cout << "Reading Particles" << std::endl;
 
         int64_t totalNumParticles = readBPParticleDataStep(
                                         m_phase,
@@ -378,9 +380,9 @@ void XGCAggregator< ValueType >::runInSitu()
                                         realtime,
                                         true );
 
-        MPI_Barrier(MPI_COMM_WORLD);
+        std::cout << "Before EndStep" << std::endl;
         particleReader.EndStep();
-        MPI_Barrier(MPI_COMM_WORLD);
+        std::cout << "After EndStep" << std::endl;
 
         summaryStep.numParticles = totalNumParticles;
         summaryStep.setStep( outputStep, simstep, realtime );
