@@ -303,28 +303,30 @@ template< typename ValueType >
 void XGCAggregator< ValueType >::runInSitu()
 {
     const float TIMEOUT = 300000.f;
+    std::string particlePath = m_restartPath;
+    
     adios2::ADIOS adios(MPI_COMM_WORLD, adios2::DebugOFF );
     adios2::IO particleIO = adios.DeclareIO( "IO" );
-
-    std::string particlePath = m_restartPath;
 
     if( m_particleReaderEngine == "SST" )
     {
         std::cout << "setting engine to sst";
         particleIO.SetEngine( "Sst" );
+        MPI_Barrier(MPI_COMM_WORLD);
         particlePath = "xgc.particle.bp";
     }
 
-    std::cout << "Attempting to open particle file, RANK: " << m_rank << " " << m_restartPath << std::endl;
+    std::cout << "Waiting for .sst file, RANK: " << m_rank << " " << m_restartPath << std::endl;
 
     TN::Synchro::waitForFileExistence( m_restartPath, 1000000 );
     std::this_thread::sleep_for(
         std::chrono::milliseconds( 1000 ) );
 
-    std::cout << "Particle File Does exist, trying to open for reading, RANK: " << m_rank << " " << m_restartPath << std::endl;
+    std::cout << ".sst file exists, trying to open stream for reading, RANK: " << m_rank << " " << particlePath << std::endl;
 
-    adios2::Engine bpReader = particleIO.Open( particlePath, adios2::Mode::Read );
-
+    adios2::Engine particleReader = particleIO.Open( particlePath, adios2::Mode::Read );
+    MPI_Barrier(MPI_COMM_WORLD);
+    
     std::cout << "Reader opened, RANK: " << m_rank << std::endl;
 
     SummaryStep2< ValueType > summaryStep;
@@ -335,7 +337,8 @@ void XGCAggregator< ValueType >::runInSitu()
         std::cout << "Before begin step, RANK: " << m_rank << std::endl;
 
         adios2::StepStatus status =
-            bpReader.BeginStep( adios2::StepMode::NextAvailable, TIMEOUT );
+            particleReader.BeginStep( adios2::StepMode::NextAvailable, TIMEOUT );
+        MPI_Barrier(MPI_COMM_WORLD);
 
         std::cout << "After begin step, RANK: " << m_rank << std::endl;
 
@@ -367,10 +370,14 @@ void XGCAggregator< ValueType >::runInSitu()
                                         m_rank,
                                         m_nranks,
                                         particleIO,
-                                        bpReader,
+                                        particleReader,
                                         simstep,
                                         realtime,
                                         true );
+
+        MPI_Barrier(MPI_COMM_WORLD);
+        particleReader.EndStep();
+        MPI_Barrier(MPI_COMM_WORLD);
 
         summaryStep.numParticles = totalNumParticles;
         summaryStep.setStep( outputStep, simstep, realtime );
