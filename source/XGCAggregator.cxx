@@ -331,7 +331,7 @@ void XGCAggregator< ValueType >::runInSitu()
     std::cout << "Trying to open reader: " << particlePath << std::endl;
 
     adios2::Engine particleReader = particleIO.Open( particlePath, adios2::Mode::Read );
-    MPI_Barrier(MPI_COMM_WORLD);
+    MPI_Barrier( MPI_COMM_WORLD );
     
     std::cout << "Reader opened" << std::endl;
 
@@ -345,15 +345,15 @@ void XGCAggregator< ValueType >::runInSitu()
         adios2::StepStatus status =
             particleReader.BeginStep( adios2::StepMode::NextAvailable, TIMEOUT );
 
-        std::cout << "After begin step" << std::endl;
+        std::cout << "After begin step: " << status << std::endl;
 
-        if (status == adios2::StepStatus::NotReady)
+        if ( status == adios2::StepStatus::NotReady )
         {
             std::this_thread::sleep_for(
                 std::chrono::milliseconds( 1000 ) );
             continue;
         }
-        else if (status != adios2::StepStatus::OK)
+        else if ( status != adios2::StepStatus::OK )
         {
             std::cout << "step status not OK: " << outputStep << ", RANK: " << m_rank << std::endl;
             break;
