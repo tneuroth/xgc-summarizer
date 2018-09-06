@@ -344,7 +344,7 @@ void XGCAggregator< ValueType >::runInSitu()
         adios2::StepStatus status =
             particleReader.BeginStep( adios2::StepMode::NextAvailable, TIMEOUT );
 
-        std::cout << "After begin step: " << status << std::endl;
+        std::cout << "After begin step: " << ((int)status) << std::endl;
 
         if ( status == adios2::StepStatus::NotReady )
         {
