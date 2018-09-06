@@ -81,17 +81,20 @@ inline void writeSummaryGridBP(
 template< typename ValueType >
 inline void writeSummaryStepBP(
     const SummaryStep2< ValueType > & summaryStep,
-    const std::string & directory )
+    const std::string & directory,
+    adios2::IO & bpIO )
 {
-    adios2::ADIOS adios( adios2::DebugOFF );
-    adios2::IO bpIO = adios.DeclareIO( "XGC-SUMMARY-STEP-IO" );
+    bpIO.BeginStep();
 
     std::string step = std::to_string( summaryStep.simStep );
+
+    std::cout << "writing step to " << ( directory
+                                  + "summary."
+                                  + std::string( 7 - step.size(), '0' ) + step + ".bp" ) << std::endl;
 
     adios2::Engine bpWriter = bpIO.Open(
                                   directory
                                   + "summary."
-                                  + summaryStep.objectIdentifier + "."
                                   + std::string( 7 - step.size(), '0' ) + step + ".bp",
                                   adios2::Mode::Write );
 
@@ -199,6 +202,17 @@ inline void writeSummaryStepBP(
         }
     }
 
+    bpIO.EndStep();
+}
+
+template< typename ValueType >
+inline void writeSummaryStepBP(
+    const SummaryStep2< ValueType > & summaryStep,
+    const std::string & directory )
+{
+    adios2::ADIOS adios( adios2::DebugOFF );
+    adios2::IO bpIO = adios.DeclareIO( "XGC-SUMMARY-STEP-IO" );
+    writeSummaryStepBP( summaryStep, directory, bpIO );
     bpWriter.Close();
 }
 

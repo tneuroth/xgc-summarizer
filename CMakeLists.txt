@@ -25,9 +25,6 @@ elseif (UBUNTU)
     set(ADIOS2_DIR "${DEV}/adios2-builds/mpi/")  
 endif()
 
-message( ${CMAKE_CURRENT_SOURCE_DIR} )
-message( ${ADIOS2_DIR} )
-
 set (CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_FLAGS "-w -fopenmp -frounding-math")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3")
