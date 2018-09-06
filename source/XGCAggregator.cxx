@@ -322,16 +322,15 @@ void XGCAggregator< ValueType >::runInSitu()
 
     if( m_particleReaderEngine == "SST" )
     {
-        std::cout << "setting engine to sst";
         particleIO.SetEngine( "Sst" );
         MPI_Barrier( MPI_COMM_WORLD );
         particlePath = "xgc.particle.bp";
+        std::cout << "set engine type to sst";
     }
 
     std::cout << "Trying to open reader: " << particlePath << std::endl;
 
     adios2::Engine particleReader = particleIO.Open( particlePath, adios2::Mode::Read );
-    MPI_Barrier( MPI_COMM_WORLD );
     
     std::cout << "Reader opened" << std::endl;
 
@@ -408,6 +407,11 @@ void XGCAggregator< ValueType >::runInSitu()
     }
 
     particleReader.Close();
+
+    if( m_summaryWriterAppendMode )
+    {
+        summaryWriter->Close();
+    }
 }
 
 template< typename ValueType >
