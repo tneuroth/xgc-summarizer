@@ -63,7 +63,7 @@ link_directories(
     /usr/lib/
     /usr/lib64/)
     
-find_package(VTKm  REQUIRED)
+find_package(VTKm REQUIRED)
 
 add_library(kdtree ${SRC_DIR}/XGCAggregator.cxx)
 

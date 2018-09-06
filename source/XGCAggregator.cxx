@@ -313,8 +313,7 @@ void XGCAggregator< ValueType >::runInSitu()
         std::cout << "setting engine to sst";
         particleIO.SetEngine( "Sst" );
         MPI_Barrier(MPI_COMM_WORLD);
-        //particlePath = "xgc.particle.bp";
-        particlePath = "particles";
+        particlePath = "xgc.particle.bp";
     }
 
     std::cout << "Waiting for .sst file, RANK: " << m_rank << " " << m_restartPath << std::endl;
@@ -400,6 +399,8 @@ void XGCAggregator< ValueType >::runInSitu()
 
         ++outputStep;
     }
+
+    particleReader.Close();
 }
 
 template< typename ValueType >
