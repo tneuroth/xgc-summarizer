@@ -77,7 +77,7 @@ elseif(CORI)
     target_link_libraries(kdtree adios2 vtkm_cont)
     add_executable(summarizer ${SRC_DIR}/Main.cpp)
     target_link_libraries(summarizer vtkm_cont 
-        adios2 adios2_sst pthread adios2_evpath adios adios2_enet adios2_atl adios2_atl adios2_ffs adios2_dill
+        adios2 adios
         gmp kdtree)
 else()
     target_link_libraries(kdtree adios2 vtkm_cont)
