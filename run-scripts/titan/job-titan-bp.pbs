@@ -16,7 +16,7 @@ cd $DATA_PATH
 rm ./adios2cfg.xml
 ln -s ../adios2cfg.bp.xml ./adios2cfg.xml
 
-export OMP_NUM_THREADS=16
+export OMP_NUM_THREADS=1
 aprun -n 1024 -N 16 ./xgc-es &
 aprun -n 16   -N 1 -d 16 \
       ./summarizer \
