@@ -6,10 +6,11 @@
 #PBS -l walltime=01:00:00
 #PBS -V
 
-DATA_PATH=$(pwd)/xgc-adios2/
-OUTPUT_PATH=$(pwd)/xgc-adios2-out/
+DATA_PATH=/lustre/atlas/world-shared/csc143/xgc-adios-dir-tyson/xgc-adios2/
+OUTPUT_PATH=/lustre/atlas/world-shared/csc143/xgc-adios-dir-tyson/xgc-adios2-out/
 
-cd ./xgc-adios2/
+cd $DATA_PATH
+
 ./cleanup.sh
 
 rm ./adios2cfg.xml
@@ -30,5 +31,4 @@ aprun -n 16   -N 1 -d 16 \
           true \
           true
 
-cd ../
 
