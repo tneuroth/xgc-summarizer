@@ -53,7 +53,7 @@ include_directories(
     ${SRC_DIR}/
     ${DEV}/vtkm-build/include/
     ${DEV}/adios-builds/include/
-    ${ADIOS1_DIR|/include/
+    ${ADIOS1_DIR}/include/
     ${ADIOS2_DIR}/include/
     ${DEV}/vtkm-kdtree-generic/)
 
