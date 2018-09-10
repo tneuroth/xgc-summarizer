@@ -19,6 +19,9 @@ typedef float ValueType;
 int main( int argc, char** argv )
 {
 
+    omp_set_num_threads( 16 );
+
+    std::cout << "set omp num threads " << omp_get_num_threads() << std::endl;
     std::cout << "summarizer started" << std::endl;
     
     if( argc < 7 )
@@ -56,7 +59,7 @@ int main( int argc, char** argv )
     MPI_Comm_rank( mpiReaderComm, &rank   );
     MPI_Comm_size( mpiReaderComm, &nRanks );
 
-    std::cout << "rank=" << rank << ", nRanks=" << nproc << std::endl;
+    std::cout << "rank=" << rank << ", nRanks=" << nRanks << std::endl;
 
     int err  = adios_read_init_method ( ADIOS_READ_METHOD_BP, MPI_COMM_SELF, "verbose=3" );
 
