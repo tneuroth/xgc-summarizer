@@ -1,0 +1,34 @@
+#!/bin/bash
+#PBS -A CSC143
+#PBS -j oe
+#PBS -q batch 
+#PBS -l nodes=80
+#PBS -l walltime=01:00:00
+#PBS -V
+
+DATA_PATH=/lustre/atlas/scratch/tneuroth/csc143/xgc-adios2/
+OUTPUT_PATH=/lustre/atlas/scratch/tneuroth/csc143/xgc-adios2-out/
+
+cd /lustre/atlas/scratch/tneuroth/csc143/xgc-adios2/
+./cleanup.sh
+
+rm ./adios2cfg.xml
+ln -s adios2cfg.xml ../adios2cfg.bp.xml
+
+export OMP_NUM_THREADS=16
+aprun -n 1024 -N 16 ./xgc-es &
+aprun -n 16   -N 1 -d 16 \
+      ./summarizer \
+          $DATA_PATH/adios2cfg.xml \
+          $DATA_PATH/xgc.mesh.bp \
+          $DATA_PATH/xgc.bfield.bp \
+          $DATA_PATH/xgc.particle.bp \
+          $DATA_PATH/units.m \
+          $OUTPUT_PATH \
+          true \
+          true \
+          true &
+
+wait
+
+

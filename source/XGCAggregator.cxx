@@ -122,7 +122,7 @@ void XGCAggregator< ValueType >::runInSitu()
         adiosOutPut = std::unique_ptr< adios2::ADIOS >( 
             new adios2::ADIOS( MPI_COMM_SELF, adios2::DebugOFF ) );
         summaryIO = std::unique_ptr< adios2::IO >( 
-            new adios2::IO( adiosOutPut.DeclareIO( "Summary-IO-Root" ) ) );
+            new adios2::IO( adiosOutPut->DeclareIO( "Summary-IO-Root" ) ) );
         summaryWriter = std::unique_ptr< adios2::Engine >( 
             new adios2::Engine( summaryIO->Open( 
                 m_outputDirectory + "/summary.bp", adios2::Mode::Write ) ) );
@@ -154,6 +154,9 @@ void XGCAggregator< ValueType >::runInSitu()
 
     /************************************************************************************/
 
+    int64_t outputStep = 0;
+    SummaryStep2< ValueType > summaryStep;   
+ 
     while( 1 )
     {
         /*******************************************************************************/

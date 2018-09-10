@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<!-- XGC Config XML file for ADIOS2 -->
+
+<adios-config>
+
+    <!--==========================================
+           Configuration for the Particle Writer
+        ==========================================-->
+    <io name="particles">
+        <engine type="BPFile">
+            <parameter key="substreams" value="2000"/>
+            <parameter key="collectivemetadata" value="on"/>
+            <parameter key="Profile" value="Off"/>
+        </engine>
+    </io>
+
+    <io name="restart">
+        <engine type="BPFile">
+            <parameter key="substreams" value="2000"/>
+            <parameter key="collectivemetadata" value="on"/>
+            <parameter key="Profile" value="Off"/>
+        </engine>
+    </io>
+
+    <io name="restartf0">
+        <engine type="BPFile">
+            <parameter key="substreams" value="2000"/>
+            <parameter key="collectivemetadata" value="on"/>
+            <parameter key="Profile" value="Off"/>
+        </engine>
+    </io>
+
+</adios-config>
