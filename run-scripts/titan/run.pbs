@@ -1,0 +1,24 @@
+#!/bin/bash
+#PBS -A CSC143
+#PBS -N XGC-Summarizer
+#PBS -j oe
+#PBS -l walltime=0:05:00,nodes=8
+#PBS -l gres=atlas1%atlas2
+#PBS -q batch
+
+DATA_PATH=/lustre/atlas/world-shared/csc143/CODAR_demo/demo_cheetah/campaign-jyc-check-v1/XGC_GENE/run-000/XGC
+OUTPUT_PATH=/lustre/atlas/scratch/tneuroth/csc143/out/
+PROGRAM_PATH=/lustre/atlas/scratch/tneuroth/csc143/
+
+cd $PROGRAM_PATH
+
+export OMP_NUM_THREADS=8
+
+aprun -n 8 -N 1 -d 8 -j 1\
+    summarizer $DATA_PATH/xgc.mesh.bp \
+        $DATA_PATH/xgc.bfield.bp \
+        $DATA_PATH/restart_dir/ \
+        $DATA_PATH/units.m \
+        $OUTPUT_PATH
+
+
