@@ -18,10 +18,16 @@ typedef float ValueType;
 
 int main( int argc, char** argv )
 {
-
+    omp_set_dynamic( 0 );
     omp_set_num_threads( 16 );
 
-    std::cout << "set omp num threads " << omp_get_num_threads() << std::endl;
+    int nt = 1;
+    #pragma omp parallel
+    {
+        nt = omp_get_num_threads();
+    }
+
+    std::cout << "set omp num threads " << nt << std::endl;
     std::cout << "summarizer started" << std::endl;
     
     if( argc < 7 )

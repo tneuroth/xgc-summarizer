@@ -45,7 +45,7 @@ XGCAggregator< ValueType >::XGCAggregator(
     MPI_Comm communicator ) :
     m_meshFilePath( meshFilePath ),
     m_bFieldFilePath( bfieldFilePath ),
-    m_restartPath( restartPath ),
+    m_particleFile( restartPath ),
     m_unitsMFilePath( unitsFilePath ),
     m_outputDirectory( outputDirectory ),
     m_inSitu( inSitu ),
@@ -108,7 +108,6 @@ template< typename ValueType >
 void XGCAggregator< ValueType >::runInSitu()
 {
     const float TIMEOUT = 30000.f;
-    std::string particlePath = m_restartPath;
     
     /*************************************************************************/
     // Summary Writer (results are reduced to and written from mpi root)
@@ -138,19 +137,17 @@ void XGCAggregator< ValueType >::runInSitu()
     {
         particleIO.SetEngine( "Sst" );
         MPI_Barrier( m_mpiCommunicator );
-        particlePath = "xgc.particle.bp";
         std::cout << "set engine type to sst";
     }
     else if( m_particleReaderEngine == "InSituMPI" )
     {
         particleIO.SetEngine( "InSituMPI" );
         MPI_Barrier( m_mpiCommunicator );
-        particlePath = "xgc.particle.bp";
         std::cout << "set engine type to InSituMPI";
     }
 
-    std::cout << "Trying to open reader: " << particlePath << std::endl;
-    adios2::Engine particleReader = particleIO.Open( particlePath, adios2::Mode::Read );
+    std::cout << "Trying to open reader: " << m_particleFile << std::endl;
+    adios2::Engine particleReader = particleIO.Open( m_particleFile, adios2::Mode::Read );
 
     /************************************************************************************/
 
@@ -197,7 +194,7 @@ void XGCAggregator< ValueType >::runInSitu()
             = readBPParticleDataStep(
                 m_phase,
                 "ions",
-                m_restartPath,
+                m_particleFile,
                 m_rank,
                 m_nranks,
                 particleIO,

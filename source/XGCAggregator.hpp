@@ -33,7 +33,7 @@ class XGCAggregator
 {
     std::string m_meshFilePath;
     std::string m_bFieldFilePath;
-    std::string m_restartPath;
+    std::string m_particleFile;
     std::string m_unitsMFilePath;
     std::string m_outputDirectory;
     std::string m_particleReaderEngine;
