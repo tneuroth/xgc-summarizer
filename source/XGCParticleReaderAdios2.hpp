@@ -227,8 +227,8 @@ inline int64_t readBPParticleDataStep(
     int64_t & simstep,
     double  & realtime )
 {
-    adios2::ADIOS adios(MPI_COMM_WORLD, adios2::DebugOFF );
-    adios2::IO bpIO = adios.DeclareIO( "IO" );
+    adios2::ADIOS adios( MPI_COMM_SELF, adios2::DebugOFF );
+    adios2::IO bpIO = adios.DeclareIO( "Particle-IO-Self-" + std::to_string( rank ) );
     adios2::Engine bpReader = bpIO.Open( path, adios2::Mode::Read );
 
     auto totalNumParticles = readBPParticleDataStep(

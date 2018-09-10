@@ -68,15 +68,12 @@ XGCAggregator< ValueType >::XGCAggregator(
     }
 
     TN::Synchro::waitForFileExistence( m_unitsMFilePath, 100000 );
-    std::this_thread::sleep_for(
-        std::chrono::milliseconds( 1000 ) );
+    std::this_thread::sleep_for( std::chrono::milliseconds( 1000 ) );
     TN::loadConstants( m_unitsMFilePath, m_constants );
-
+    
     TN::Synchro::waitForFileExistence(     meshFilePath, 100000 );
     TN::Synchro::waitForFileExistence( m_bFieldFilePath, 100000 );
-
-    std::this_thread::sleep_for(
-        std::chrono::milliseconds( 1000 ) );
+    std::this_thread::sleep_for( std::chrono::milliseconds( 1000 ) );
 
     std::cout << "reading mesh" << std::endl;
 
@@ -104,66 +101,69 @@ XGCAggregator< ValueType >::XGCAggregator(
 template< typename ValueType >
 void XGCAggregator< ValueType >::writeMesh()
 {
-    if( m_rank == 0 )
-    {
-        writeGrid( m_outputDirectory );
-    }
+    writeGrid( m_outputDirectory );
 }
 
 template< typename ValueType >
 void XGCAggregator< ValueType >::runInSitu()
 {
-    const float TIMEOUT = 300000.f;
+    const float TIMEOUT = 30000.f;
     std::string particlePath = m_restartPath;
     
-    adios2::ADIOS adios( m_mpiCommunicator, adios2::DebugOFF );
-    std::unique_ptr< adios2::ADIOS > adiosOutPut;    
+    /*************************************************************************/
+    // Summary Writer (results are reduced to and written from mpi root)
 
+    std::unique_ptr< adios2::ADIOS > adiosOutPut;    
     std::unique_ptr< adios2::IO > summaryIO;
     std::unique_ptr< adios2::Engine > summaryWriter;
 
     if( m_summaryWriterAppendMode && m_rank == 0 )
     {
-        adiosOutPut = std::unique_ptr< adios2::ADIOS >( MPI_COMM_SELF, adios2::DebugOFF );
+        adiosOutPut = std::unique_ptr< adios2::ADIOS >( 
+            new adios2::ADIOS( MPI_COMM_SELF, adios2::DebugOFF ) );
         summaryIO = std::unique_ptr< adios2::IO >( 
-            new adios2::IO( adiosOutPut.DeclareIO( "summaryIO" ) ) );
-
+            new adios2::IO( adiosOutPut.DeclareIO( "Summary-IO-Root" ) ) );
         summaryWriter = std::unique_ptr< adios2::Engine >( 
-            new adios2::Engine( summaryIO->Open( m_outputDirectory + "/summary.bp", adios2::Mode::Write ) ) );
+            new adios2::Engine( summaryIO->Open( 
+                m_outputDirectory + "/summary.bp", adios2::Mode::Write ) ) );
     }
 
-    adios2::IO particleIO = adios.DeclareIO( "particleIO" );
+    /*************************************************************************/
+    // Reader
+
+    adios2::ADIOS adios( m_mpiCommunicator, adios2::DebugOFF );
+    adios2::IO particleIO = adios.DeclareIO( "Particle-IO-Collective" );
 
     if( m_particleReaderEngine == "SST" )
     {
         particleIO.SetEngine( "Sst" );
-        MPI_Barrier( MPI_COMM_WORLD );
+        MPI_Barrier( m_mpiCommunicator );
         particlePath = "xgc.particle.bp";
         std::cout << "set engine type to sst";
     }
     else if( m_particleReaderEngine == "InSituMPI" )
     {
         particleIO.SetEngine( "InSituMPI" );
-        MPI_Barrier( MPI_COMM_WORLD );
+        MPI_Barrier( m_mpiCommunicator );
         particlePath = "xgc.particle.bp";
         std::cout << "set engine type to InSituMPI";
     }
 
     std::cout << "Trying to open reader: " << particlePath << std::endl;
-
     adios2::Engine particleReader = particleIO.Open( particlePath, adios2::Mode::Read );
-    
-    std::cout << "Reader opened" << std::endl;
 
-    SummaryStep2< ValueType > summaryStep;
-    int64_t outputStep = 0;
+    /************************************************************************************/
 
     while( 1 )
     {
+        /*******************************************************************************/
+        // Read Particle Data Step
+
         std::cout << "Before begin step" << std::endl;
 
         adios2::StepStatus status =
-            particleReader.BeginStep( adios2::StepMode::NextAvailable, TIMEOUT );
+            particleReader.BeginStep( 
+                adios2::StepMode::NextAvailable, TIMEOUT );
 
         std::cout << "After begin step, status is: "
                   << ( status == adios2::StepStatus::OK          ? "OK"          :
@@ -183,8 +183,6 @@ void XGCAggregator< ValueType >::runInSitu()
             break;
         }
 
-        /////////////////////////////////////////////////////////////////////////////////////////////////////////
-
         std::chrono::high_resolution_clock::time_point readStartTime = std::chrono::high_resolution_clock::now();
 
         int64_t simstep;
@@ -192,21 +190,24 @@ void XGCAggregator< ValueType >::runInSitu()
 
         std::cout << "Reading Particles" << std::endl;
 
-        int64_t totalNumParticles = readBPParticleDataStep(
-                                        m_phase,
-                                        "ions",
-                                        m_restartPath,
-                                        m_rank,
-                                        m_nranks,
-                                        particleIO,
-                                        particleReader,
-                                        simstep,
-                                        realtime,
-                                        true );
+        int64_t totalNumParticles 
+            = readBPParticleDataStep(
+                m_phase,
+                "ions",
+                m_restartPath,
+                m_rank,
+                m_nranks,
+                particleIO,
+                particleReader,
+                simstep,
+                realtime,
+                true );
 
         std::cout << "Before EndStep" << std::endl;
         particleReader.EndStep();
         std::cout << "After EndStep" << std::endl;
+
+        /*******************************************************************************/
 
         summaryStep.numParticles = totalNumParticles;
         summaryStep.setStep( outputStep, simstep, realtime );
@@ -691,7 +692,7 @@ void XGCAggregator< ValueType >::computeSummaryStep(
         }
     }
 
-    MPI_Barrier( MPI_COMM_WORLD );
+    MPI_Barrier( m_mpiCommunicator );
 
     if( m_rank == 0 )
     {
@@ -717,7 +718,7 @@ void XGCAggregator< ValueType >::computeSummaryStep(
                   << " std::chrono::milliseconds\n"  << std::endl;
     }
 
-    MPI_Barrier( MPI_COMM_WORLD );
+    MPI_Barrier( m_mpiCommunicator );
 }
 
 template class XGCAggregator<float>;

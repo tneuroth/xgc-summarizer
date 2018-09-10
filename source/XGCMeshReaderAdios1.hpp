@@ -72,7 +72,7 @@ inline void readMeshBP(
 
     ////////////////////////   Read rz /////////////////////////////////////////////////////////////////////////////////////////
 
-    ADIOS_FILE * f = adios_read_open_file ( path.c_str(), ADIOS_READ_METHOD_BP, MPI_COMM_WORLD );
+    ADIOS_FILE * f = adios_read_open_file ( path.c_str(), ADIOS_READ_METHOD_BP, MPI_COMM_SELF );
 
     if (f == NULL)
     {
@@ -200,7 +200,7 @@ inline void readMeshBP(
 
     // BField
 
-    f = adios_read_open_file ( bpath.c_str(), ADIOS_READ_METHOD_BP, MPI_COMM_WORLD );
+    f = adios_read_open_file ( bpath.c_str(), ADIOS_READ_METHOD_BP, MPI_COMM_SELF );
 
     if (f == NULL)
     {

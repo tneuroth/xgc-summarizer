@@ -80,7 +80,7 @@ inline void readMeshBP(
 
     // ADIOS2 has bug reading the mesh files, all variables show up as scalars
 
-    adios2::ADIOS adios(MPI_COMM_WORLD, adios2::DebugOFF );
+    adios2::ADIOS adios(MPI_COMM_SELF, adios2::DebugOFF );
 
     adios2::IO meshIO = adios.DeclareIO( "Mesh-IO" );
     adios2::Engine meshReader = meshIO.Open( path, adios2::Mode::Read );
@@ -131,7 +131,7 @@ inline void readMeshBP(
 
     ////////////////////////   Read rz /////////////////////////////////////////////////////////////////////////////////////////
 
-    ADIOS_FILE * f = adios_read_open_file ( path.c_str(), ADIOS_READ_METHOD_BP, MPI_COMM_WORLD );
+    ADIOS_FILE * f = adios_read_open_file ( path.c_str(), ADIOS_READ_METHOD_BP, MPI_COMM_SELF );
 
     if (f == NULL)
     {
@@ -250,7 +250,7 @@ inline void readMeshBP(
 
     // BField
 
-    f = adios_read_open_file ( bpath.c_str(), ADIOS_READ_METHOD_BP, MPI_COMM_WORLD );
+    f = adios_read_open_file ( bpath.c_str(), ADIOS_READ_METHOD_BP, MPI_COMM_SELF );
 
     if (f == NULL)
     {

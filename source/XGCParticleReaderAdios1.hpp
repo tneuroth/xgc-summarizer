@@ -19,7 +19,7 @@ inline void readBPParticleDataStep(
     int rank,
     int nRanks )
 {
-    ADIOS_FILE * f = adios_read_open_file ( path.c_str(), ADIOS_READ_METHOD_BP, MPI_COMM_WORLD );
+    ADIOS_FILE * f = adios_read_open_file ( path.c_str(), ADIOS_READ_METHOD_BP, MPI_COMM_SELF );
 
     if (f == NULL)
     {

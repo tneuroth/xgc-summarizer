@@ -52,8 +52,7 @@ inline void writeSummaryGridBP(
     const SummaryGrid2< ValueType > & summaryGrid,
     const std::string & outpath )
 {
-    adios2::ADIOS adios( adios2::DebugOFF );
-
+    adios2::ADIOS adios( MPI_COMM_SELF, adios2::DebugOFF );
     adios2::IO bpIO = adios.DeclareIO( "XGC-SUMMARY-GRID-IO" );
     adios2::Engine bpWriter = bpIO.Open( outpath + "/summary.mesh.bp", adios2::Mode::Write );
 
@@ -219,7 +218,7 @@ inline void writeSummaryStepBP(
     const SummaryStep2< ValueType > & summaryStep,
     const std::string & directory )
 {
-    adios2::ADIOS adios( adios2::DebugOFF );
+    adios2::ADIOS adios( MPI_COMM_SELF, adios2::DebugOFF );
     adios2::IO bpIO = adios.DeclareIO( "XGC-SUMMARY-STEP-IO" );
     
     std::string step = std::to_string( summaryStep.simStep );
