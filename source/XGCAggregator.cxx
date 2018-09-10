@@ -633,7 +633,7 @@ void XGCAggregator< ValueType >::computeSummaryStep(
 
     for( auto & hist : summaryStep.histograms )
     {
-        TN::MPI::ReduceOpMPI( m_rank, hist.second.values, MPI_SUM );
+        TN::MPI::ReduceOpMPI( m_rank, hist.second.values, MPI_SUM, m_mpiCommunicator );
     }
 
     for( auto & var : summaryStep.variableStatistics )
@@ -644,7 +644,8 @@ void XGCAggregator< ValueType >::computeSummaryStep(
         TN::MPI::ReduceOpMPI(
             m_rank,
             myCounts,
-            MPI_SUM );
+            MPI_SUM,
+            m_mpiCommunicator );
 
         if( var.second.values.count( ScalarVariableStatistics< ValueType >::Statistic::Min ) )
         {
@@ -652,7 +653,8 @@ void XGCAggregator< ValueType >::computeSummaryStep(
                 m_rank,
                 var.second.values.at(
                     ScalarVariableStatistics< ValueType >::Statistic::Min ),
-                MPI_MIN );
+                MPI_MIN,
+                m_mpiCommunicator );
         }
 
         if( var.second.values.count( ScalarVariableStatistics< ValueType >::Statistic::Max ) )
@@ -661,7 +663,8 @@ void XGCAggregator< ValueType >::computeSummaryStep(
                 m_rank,
                 var.second.values.at(
                     ScalarVariableStatistics< ValueType >::Statistic::Max ),
-                MPI_MAX );
+                MPI_MAX,
+                m_mpiCommunicator );
         }
 
         if( var.second.values.count( ScalarVariableStatistics< ValueType >::Statistic::Mean ) )
@@ -670,7 +673,8 @@ void XGCAggregator< ValueType >::computeSummaryStep(
                 m_rank,
                 var.second.values.at(
                     ScalarVariableStatistics< ValueType >::Statistic::Mean ),
-                myCounts );
+                myCounts,
+                m_mpiCommunicator );
         }
 
         if( var.second.values.count( ScalarVariableStatistics< ValueType >::Statistic::Variance ) )
@@ -679,7 +683,8 @@ void XGCAggregator< ValueType >::computeSummaryStep(
                 m_rank,
                 var.second.values.at(
                     ScalarVariableStatistics< ValueType >::Statistic::Variance ),
-                myCounts );
+                myCounts,
+                m_mpiCommunicator );
         }
 
         if( var.second.values.count( ScalarVariableStatistics< ValueType >::Statistic::RMS ) )
@@ -688,7 +693,8 @@ void XGCAggregator< ValueType >::computeSummaryStep(
                 m_rank,
                 var.second.values.at(
                     ScalarVariableStatistics< ValueType >::Statistic::RMS ),
-                myCounts );
+                myCounts,
+                m_mpiCommunicator );
         }
     }
 
@@ -723,5 +729,4 @@ void XGCAggregator< ValueType >::computeSummaryStep(
 
 template class XGCAggregator<float>;
 //template class XGCAggregator<double>;
-
 }

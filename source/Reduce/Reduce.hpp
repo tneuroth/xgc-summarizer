@@ -102,7 +102,8 @@ template< typename T >
 inline void ReduceOpMPI( 
     int rank, 
     std::vector< T > & myData,
-    MPI_Op op )
+    MPI_Op op,
+    MPI_Comm comm )
 {
     MPI_Reduce(
         rank == 0 ? MPI_IN_PLACE : myData.data(),
@@ -111,16 +112,17 @@ inline void ReduceOpMPI(
         sizeof( T ) == 4 ? MPI_FLOAT : MPI_DOUBLE,
         op,
         0,
-        MPI_COMM_WORLD );
+        comm );
 }
 
 template< typename T > 
 inline void ReduceMean( 
     int rank, 
     std::vector< T > & sums, 
-    const std::vector< T > & reducedCounts )
+    const std::vector< T > & reducedCounts,
+    MPI_Comm comm )
 {
-    ReduceOpMPI( rank, sums, MPI_SUM );
+    ReduceOpMPI( rank, sums, MPI_SUM, comm );
 
     if( rank == 0 )
     {
@@ -132,9 +134,10 @@ template< typename T >
 inline void ReduceVariance( 
     int rank, 
     std::vector< T > & mySumOfSquaredDeviations,
-    const std::vector< T > & reducedCounts )
+    const std::vector< T > & reducedCounts,
+    MPI_Comm comm )
 {
-    ReduceOpMPI( rank, mySumOfSquaredDeviations, MPI_SUM );
+    ReduceOpMPI( rank, mySumOfSquaredDeviations, MPI_SUM, comm );
  
     if( rank == 0 )
     {
@@ -146,9 +149,10 @@ template< typename T >
 inline void ReduceRMS( 
     int rank, 
     std::vector< T > & mySumOfSquares, 
-    const std::vector< T > & reducedCounts )
+    const std::vector< T > & reducedCounts,
+    MPI_Comm comm )
 {
-    ReduceOpMPI( rank, mySumOfSquares, MPI_SUM );
+    ReduceOpMPI( rank, mySumOfSquares, MPI_SUM, comm );
 
     if( rank == 0 )
     {
@@ -159,7 +163,8 @@ inline void ReduceRMS(
 template< typename T > 
 inline void ReduceSkewness( 
     int rank, 
-    std::vector< T > & myData )
+    std::vector< T > & myData,
+    MPI_Comm comm )
 {
 
 }
@@ -167,7 +172,8 @@ inline void ReduceSkewness(
 template< typename T > 
 inline void ReduceKurtosis( 
     int rank, 
-    std::vector< T > & myData )
+    std::vector< T > & myData,
+    MPI_Comm comm )
 {
 
 }
@@ -175,7 +181,8 @@ inline void ReduceKurtosis(
 template< typename T > 
 inline void ReduceInterquartileRange( 
     int rank, 
-    std::vector< T > & myData )
+    std::vector< T > & myData,
+    MPI_Comm comm )
 {
 
 }
@@ -183,7 +190,8 @@ inline void ReduceInterquartileRange(
 template< typename T > 
 inline void ReduceShannonEntropy( 
     int rank, 
-    std::vector< T > & myData )
+    std::vector< T > & myData,
+    MPI_Comm comm )
 {
 
 }
