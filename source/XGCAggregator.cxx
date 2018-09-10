@@ -148,6 +148,7 @@ void XGCAggregator< ValueType >::runInSitu()
 
     std::cout << "Trying to open reader: " << m_particleFile << std::endl;
     adios2::Engine particleReader = particleIO.Open( m_particleFile, adios2::Mode::Read );
+    std::cout << "Summarizer opened reader";
 
     /************************************************************************************/
 
