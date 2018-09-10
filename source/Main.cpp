@@ -39,19 +39,19 @@ int main( int argc, char** argv )
     int wrank = 0, wnproc = 1;
     int rank  = 0, nRanks = 1;
 
-    MPI_Comm mpiReaderComm;
+    MPI_Comm mpiReaderComm = MPI_COMM_WORLD;
 
     MPI_Init( &argc, &argv );
 
     std::cout << "MPI initialized in summarizer" << std::endl;
 
-    MPI_Comm_rank( MPI_COMM_WORLD, &wrank  );
-    MPI_Comm_size( MPI_COMM_WORLD, &wnproc );
+    // MPI_Comm_rank( MPI_COMM_WORLD, &wrank  );
+    // MPI_Comm_size( MPI_COMM_WORLD, &wnproc );
 
-    std::cout << "wrank=" << wrank << ", wnproc=" << wnproc << std::endl;
+    // std::cout << "wrank=" << wrank << ", wnproc=" << wnproc << std::endl;
 
-    const unsigned int color = 12899;
-    MPI_Comm_split( MPI_COMM_WORLD, color, wrank, &mpiReaderComm );
+    // const unsigned int color = 12899;
+    // MPI_Comm_split( MPI_COMM_WORLD, color, wrank, &mpiReaderComm );
 
     MPI_Comm_rank( mpiReaderComm, &rank   );
     MPI_Comm_size( mpiReaderComm, &nRanks );
