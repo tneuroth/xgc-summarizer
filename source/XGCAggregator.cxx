@@ -111,210 +111,22 @@ void XGCAggregator< ValueType >::writeMesh()
 }
 
 template< typename ValueType >
-void XGCAggregator< ValueType >::reduceMesh(
-    const std::string & reducedMeshFilePath )
-{
-    std::ifstream meshFile( reducedMeshFilePath );
-    std::string line;
-
-    if( ! meshFile.is_open() )
-    {
-        std::cerr << "couldn't open file: " << reducedMeshFilePath << std::endl;
-        exit( 1 );
-    }
-
-    SummaryGrid2< ValueType > newGrid;
-
-    while( std::getline( meshFile, line ) )
-    {
-        if( line.size() > 3 )
-        {
-            std::stringstream sstr( line );
-            std::string v;
-            sstr >> v;
-
-            if( v == "v" )
-            {
-                float x, y, z;
-                sstr >> x >> y >> z;
-                newGrid.variables.at( "r" ).push_back( x );
-                newGrid.variables.at( "z" ).push_back( y );
-
-                //just for now until voronoi cell face area can be calculated.
-                newGrid.variables.at( "volume" ).push_back( 1.f );
-            }
-            else if( v == "f" )
-            {
-                unsigned int i1, i2, i3;
-                sstr >> i1 >> i2 >> i3;
-                newGrid.triangulation.push_back(
-                {
-                    i1 - 1,
-                    i2 - 1,
-                    i3 - 1
-                } );
-            }
-        }
-    }
-
-    MPI_Barrier(m_mpiCommunicator);
-    std::cout << "getting neighborhoods " << std::endl;
-    TN::getNeighborhoods( newGrid );
-
-    std::cout << "Copying over values from old mesh "
-              << newGrid.variables.at( "r" ).size()
-              << "/" << m_summaryGrid.variables.at( "r" ).size()
-              << std::endl;
-
-    newGrid.variables.at( "B" ).resize( newGrid.variables.at( "r" ).size() );
-    newGrid.variables.at( "psin" ).resize( newGrid.variables.at( "r" ).size() );
-    newGrid.variables.at( "poloidal_angle" ).resize( newGrid.variables.at( "r" ).size() );
-
-    for( int64_t i = 0; i < newGrid.variables.at( "r" ).size(); ++i )
-    {
-        newGrid.variables.at( "B" )[ i ] = m_summaryGrid.variables.at( "B" )[ i*2 ];
-        newGrid.variables.at( "psin" )[ i ] = m_summaryGrid.variables.at( "psin" )[ i*2 ];
-        newGrid.variables.at( "poloidal_angle" )[ i ] = m_summaryGrid.variables.at( "poloidal_angle" )[ i*2 ];
-    }
-
-    // const int64_t SZ = newGrid.variables.at( "r.size();
-    // std::vector< vtkm::Vec< vtkm::Float32, 2 > > pos( SZ );
-    // #pragma omp parallel for simd
-    // for( int64_t i = 0; i < SZ; ++i )
-    // {
-    //     pos[ i ] = vtkm::Vec< vtkm::Float32, 2 >( newGrid.variables.at( "r[ i ], newGrid.variables.at( "z[ i ] );
-    // }
-
-    // auto posHandle = vtkm::cont::make_ArrayHandle( pos );
-    // vtkm::cont::ArrayHandle<vtkm::Id> idHandle;
-    // vtkm::cont::ArrayHandle<vtkm::Float32> distHandle;
-
-    // MPI_Barrier(m_mpiCommunicator);
-    // std::cout << "getting neighbors"
-    //           << m_gridHandle.GetNumberOfValues() << " "
-    //           << posHandle.GetNumberOfValues()    << " " << std::endl;
-
-    // m_kdTree.Run( m_gridHandle, posHandle, idHandle, distHandle, VTKM_DEFAULT_DEVICE_ADAPTER_TAG() );
-    // std::cout << "finished getting neighbors" << std::endl;
-
-    // if( idHandle.GetNumberOfValues() < SZ )
-    // {
-    //     std::cout << "wrong number of ids " << std::endl;
-    //     exit( 1 );
-    // }
-
-    // std::vector< int64_t > ids( SZ );
-    // #pragma omp parallel for simd
-    // for( int64_t i = 0; i < SZ; ++i )
-    // {
-    //     ids[ i ] = idHandle.GetPortalConstControl().Get( i );
-    // }
-
-    // vtkm::cont::ArrayHandle<vtkm::Float32> fieldResultHandle;
-
-    // // Psi
-
-    // MPI_Barrier(m_mpiCommunicator);
-    // std::cout << "interpolating psi " << std::endl;
-
-    // auto psinHandle = vtkm::cont::make_ArrayHandle( m_summaryGrid.variables.at( "psin );
-    // m_interpolator.run(
-    //     posHandle,
-    //     idHandle,
-    //     m_gridHandle,
-    //     psinHandle,
-    //     m_gridNeighborhoodsHandle,
-    //     m_gridNeighborhoodSumsHandle,
-    //     fieldResultHandle,
-    //     VTKM_DEFAULT_DEVICE_ADAPTER_TAG() );
-
-    // if( fieldResultHandle.GetNumberOfValues() < SZ )
-    // {
-    //     std::cout << "wrong number of psi values " << std::endl;
-    //     exit( 1 );
-    // }
-
-    // newGrid.variables.at( "psin.resize( SZ );
-    // #pragma omp parallel for simd
-    // for( int64_t i = 0; i < SZ; ++i )
-    // {
-    //     newGrid.variables.at( "psin[ i ] = fieldResultHandle.GetPortalConstControl().Get( i );
-    // }
-
-    // // B
-
-    // MPI_Barrier(m_mpiCommunicator);
-    // std::cout << "interpolating B " << std::endl;
-
-    // auto bHandle = vtkm::cont::make_ArrayHandle( m_summaryGrid.variables.at( "B );
-    // m_interpolator.run(
-    //     posHandle,
-    //     idHandle,
-    //     m_gridHandle,
-    //     bHandle,
-    //     m_gridNeighborhoodsHandle,
-    //     m_gridNeighborhoodSumsHandle,
-    //     fieldResultHandle,
-    //     VTKM_DEFAULT_DEVICE_ADAPTER_TAG() );
-
-    // if( fieldResultHandle.GetNumberOfValues() < SZ )
-    // {
-    //     std::cout << "wrong number of B values " << std::endl;
-    //     exit( 1 );
-    // }
-
-    // newGrid.variables.at( "B.resize( SZ );
-    // #pragma omp parallel for simd
-    // for( int64_t i = 0; i < SZ; ++i )
-    // {
-    //     newGrid.variables.at( "B[ i ] = fieldResultHandle.GetPortalConstControl().Get( i );
-    // }
-
-    // // Poloidal Angle
-
-    // MPI_Barrier(m_mpiCommunicator);
-    // std::cout << "calculating angles " << std::endl;
-
-    // newGrid.variables.at( "poloidalAngle.resize( SZ );
-    // const TN::Vec2< float > poloidal_center = { m_constants.at( "eq_axis_r" ), m_constants.at( "eq_axis_z" ) };
-    // #pragma omp parallel for simd
-    // for( int64_t i = 0; i < SZ; ++i )
-    // {
-    //     newGrid.variables.at( "poloidalAngle[ i ] =
-    //         ( TN::Vec2< float >( newGrid.variables.at( "r[ i ], newGrid.variables.at( "z[ i ] )
-    //           - poloidal_center ).angle( TN::Vec2< float >( 1.0, 0.0 ) );
-    // }
-
-    m_summaryGrid = newGrid;
-
-    MPI_Barrier(m_mpiCommunicator);
-    std::cout << "setting static handles " << std::endl;
-
-    setGrid(
-        m_summaryGrid.variables.at( "r" ),
-        m_summaryGrid.variables.at( "z" ),
-        m_summaryGrid.variables.at( "B" ),
-        m_summaryGrid.neighborhoods,
-        m_summaryGrid.neighborhoodSums );
-
-    MPI_Barrier(m_mpiCommunicator);
-    std::cout << "done " << std::endl;
-}
-
-template< typename ValueType >
 void XGCAggregator< ValueType >::runInSitu()
 {
     const float TIMEOUT = 300000.f;
     std::string particlePath = m_restartPath;
     
-    adios2::ADIOS adios(m_mpiCommunicator, adios2::DebugOFF );
-    
+    adios2::ADIOS adios( m_mpiCommunicator, adios2::DebugOFF );
+    std::unique_ptr< adios2::ADIOS > adiosOutPut;    
+
     std::unique_ptr< adios2::IO > summaryIO;
     std::unique_ptr< adios2::Engine > summaryWriter;
-    if( m_summaryWriterAppendMode )
+
+    if( m_summaryWriterAppendMode && m_rank == 0 )
     {
+        adiosOutPut = std::unique_ptr< adios2::ADIOS >( MPI_COMM_SELF, adios2::DebugOFF );
         summaryIO = std::unique_ptr< adios2::IO >( 
-            new adios2::IO( adios.DeclareIO( "summaryIO" ) ) );
+            new adios2::IO( adiosOutPut.DeclareIO( "summaryIO" ) ) );
 
         summaryWriter = std::unique_ptr< adios2::Engine >( 
             new adios2::Engine( summaryIO->Open( m_outputDirectory + "/summary.bp", adios2::Mode::Write ) ) );
@@ -325,9 +137,16 @@ void XGCAggregator< ValueType >::runInSitu()
     if( m_particleReaderEngine == "SST" )
     {
         particleIO.SetEngine( "Sst" );
-        MPI_Barrier( m_mpiCommunicator );
+        MPI_Barrier( MPI_COMM_WORLD );
         particlePath = "xgc.particle.bp";
         std::cout << "set engine type to sst";
+    }
+    else if( m_particleReaderEngine == "InSituMPI" )
+    {
+        particleIO.SetEngine( "InSituMPI" );
+        MPI_Barrier( MPI_COMM_WORLD );
+        particlePath = "xgc.particle.bp";
+        std::cout << "set engine type to InSituMPI";
     }
 
     std::cout << "Trying to open reader: " << particlePath << std::endl;
@@ -414,7 +233,7 @@ void XGCAggregator< ValueType >::runInSitu()
 
     particleReader.Close();
 
-    if( m_summaryWriterAppendMode )
+    if( m_summaryWriterAppendMode && m_rank == 0 )
     {
         summaryWriter->Close();
     }
@@ -756,106 +575,6 @@ void XGCAggregator< ValueType >::aggregateOMP(
 }
 
 template< typename ValueType >
-void XGCAggregator< ValueType >::aggregateVTKM(
-    const SummaryGrid2< ValueType > & summaryGrid,
-    SummaryStep2< ValueType >       & summaryStep,
-    const std::vector< ValueType >  & vX,
-    const std::vector< ValueType >  & vY,
-    const std::vector< ValueType >  & w,
-    const std::vector< int64_t >    & gIDs,
-    const int64_t N_CELLS )
-{
-    // const int64_t BINS_PER_CELL = SummaryStep::NR*SummaryStep::NC;
-
-    // auto vxHdl = vtkm::cont::make_ArrayHandle( vX );
-    // auto vyHdl = vtkm::cont::make_ArrayHandle( vY );
-    // auto wHdl  = vtkm::cont::make_ArrayHandle(  w );
-    // auto gHdl  = vtkm::cont::make_ArrayHandle(  gIDs );
-    // vtkm::worklet::Keys < int64_t > keys( gHdl, VTKM_DEFAULT_DEVICE_ADAPTER_TAG() );
-
-    // vtkm::cont::ArrayHandle< ValueType > meanHdl;
-    // vtkm::cont::ArrayHandle< ValueType > rmsHdl;
-    // vtkm::cont::ArrayHandle< ValueType > varHdl;
-    // vtkm::cont::ArrayHandle< ValueType > minHdl;
-    // vtkm::cont::ArrayHandle< ValueType > maxHdl;
-    // vtkm::cont::ArrayHandle< ValueType > cntHdl;
-    // vtkm::cont::ArrayHandle< vtkm::Vec< ValueType, BINS_PER_CELL > > histHndl;
-
-    // const vtkm::Vec< vtkm::Int32,    2 >  histDims = { SummaryStep::NR,   SummaryStep::NC      };
-    // const vtkm::Vec< ValueType,  2 >  xRange   = { -SummaryStep::DELTA_V, SummaryStep::DELTA_V };
-    // const vtkm::Vec< ValueType,  2 >  yRange   = { 0,                     SummaryStep::DELTA_V };
-
-    // std::cout << "running aggregate" << std::endl;
-
-    //Run(
-    //     N_CELLS,
-    //     histDims,
-    //     xRange,
-    //     yRange,
-    //     vxHdl,
-    //     vyHdl,
-    //     wHdl,
-    //     keys,
-    //     meanHdl,
-    //     rmsHdl,
-    //     varHdl,
-    //     minHdl,
-    //     maxHdl,
-    //     cntHdl,
-    //     histHndl,
-    //     VTKM_DEFAULT_DEVICE_ADAPTER_TAG() );
-
-    // std::cout << "done aggregating" << std::endl;
-
-    // summaryStep.w0w1_mean            = std::vector< ValueType >( N_CELLS, 0.f );
-    // summaryStep.w0w1_rms             = std::vector< ValueType >( N_CELLS, 0.f );
-    // summaryStep.w0w1_variance        = std::vector< ValueType >( N_CELLS, 0.f );
-    // summaryStep.w0w1_min             = std::vector< ValueType >( N_CELLS,  std::numeric_limits< ValueType >::max() );
-    // summaryStep.w0w1_max             = std::vector< ValueType >( N_CELLS, -std::numeric_limits< ValueType >::max() );
-    // summaryStep.num_particles        = std::vector< ValueType >( N_CELLS, 0.f );
-    // summaryStep.velocityDistribution = std::vector< ValueType >( N_CELLS*SummaryStep::NR*SummaryStep::NC, 0.f );
-
-    // auto uniqueKeys = keys.GetUniqueKeys();
-    // const int64_t N_UK = uniqueKeys.GetNumberOfValues();
-
-    // std::cout << histHndl.GetNumberOfValues() << " values ";
-    // std::cout << sizeof( histHndl.GetPortalConstControl().Get( 0 ) ) << " is size of each" << std::endl;
-    // std::cout << summaryStep.velocityDistribution.size() << " is summary size of each" << std::endl;
-
-    // std::cout << "copying aggregation results" << std::endl;
-
-    // // #pragma omp parallel for simd
-    // for( int64_t i = 0; i < N_UK; ++i )
-    // {
-    //     int64_t key = static_cast< int64_t >( uniqueKeys.GetPortalConstControl().Get( i ) );
-
-    //     summaryStep.w0w1_mean[     key ] = meanHdl.GetPortalConstControl().Get( i );
-    //     summaryStep.w0w1_rms[      key ] = rmsHdl.GetPortalConstControl().Get( i );
-    //     summaryStep.w0w1_variance[ key ] = varHdl.GetPortalConstControl().Get( i );
-    //     summaryStep.w0w1_min[      key ] = minHdl.GetPortalConstControl().Get( i );
-    //     summaryStep.w0w1_max[      key ] = maxHdl.GetPortalConstControl().Get( i );
-    //     summaryStep.num_particles[ key ] = cntHdl.GetPortalConstControl().Get( i );
-
-    //     for( int64_t j = 0; j < BINS_PER_CELL; ++j )
-    //     {
-    //         if( key * BINS_PER_CELL + j >= N_CELLS * BINS_PER_CELL )
-    //         {
-    //             std::cout << "error " << key * BINS_PER_CELL + j << " / " << N_CELLS * BINS_PER_CELL << std::endl;
-    //             exit( 1 );
-    //         }
-    //         if( key >= N_CELLS  )
-    //         {
-    //             std::cout << "error " << key << " / " << N_CELLS << std::endl;
-    //             exit( 1 );
-    //         }
-
-    //         summaryStep.velocityDistribution[ key * BINS_PER_CELL + j ]
-    //             = histHndl.GetPortalConstControl().Get( i )[ j ];
-    //     }
-    // }
-}
-
-template< typename ValueType >
 void XGCAggregator< ValueType >::writeGrid( const std::string & path )
 {
     TN::writeSummaryGridBP( m_summaryGrid, path );
@@ -949,17 +668,6 @@ void XGCAggregator< ValueType >::computeSummaryStep(
 
     std::chrono::high_resolution_clock::time_point at1 = std::chrono::high_resolution_clock::now();
 
-    // aggregateVTKM(
-    //     m_summaryGrid,
-    //     summaryStep,
-    //     vpara,
-    //     vperp,
-    //     w0w1,
-    //     gridMap,
-    //     m_summaryGrid.variables.at( "volume.size() );
-
-    // Without VTKM
-
     aggregateOMP(
         m_summaryGrid,
         summaryStep,
@@ -1042,7 +750,7 @@ void XGCAggregator< ValueType >::computeSummaryStep(
         }
     }
 
-    MPI_Barrier(m_mpiCommunicator);
+    MPI_Barrier( MPI_COMM_WORLD );
 
     if( m_rank == 0 )
     {
@@ -1067,13 +775,8 @@ void XGCAggregator< ValueType >::computeSummaryStep(
         std::cout << "write step took " << std::chrono::duration_cast<std::chrono::milliseconds>( wt2 - wt1 ).count()
                   << " std::chrono::milliseconds\n"  << std::endl;
     }
-    else if ( m_summaryWriterAppendMode )
-    {
-        summaryWriter->BeginStep();
-        summaryWriter->EndStep();
-    }
 
-    MPI_Barrier(m_mpiCommunicator);
+    MPI_Barrier( MPI_COMM_WORLD );
 }
 
 template class XGCAggregator<float>;

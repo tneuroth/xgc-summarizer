@@ -31,8 +31,7 @@ int main( int argc, char** argv )
                 <units.m path> \
                 <bool split particle data> \
                 <bool in-situ> \
-                <bool single particle file> \
-                <optional|reduced mesh> <outpath>\n";
+                <bool single particle file>\n";
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -59,7 +58,7 @@ int main( int argc, char** argv )
 
     std::cout << "rank=" << wrank << ", nRanks=" << wnproc << std::endl;
 
-    int err  = adios_read_init_method ( ADIOS_READ_METHOD_BP, mpiReaderComm, "verbose=3" );
+    int err  = adios_read_init_method ( ADIOS_READ_METHOD_BP, MPI_COMM_SELF, "verbose=3" );
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -90,11 +89,6 @@ int main( int argc, char** argv )
     mpiReaderComm );
 
     std::cout << "after summarizer intialize" << std::endl;
-
-    // if( argc == 11 )
-    // {
-    //     aggregator.reduceMesh( argv[ 10 ] );
-    // }
 
     if( rank == 0 )
     {

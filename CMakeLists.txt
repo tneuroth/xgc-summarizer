@@ -14,15 +14,18 @@ set(VTKm_DIR "${DEV}vtkm-build/lib/cmake/vtkm-1.2")
 if(TITAN)
     set(CMAKE_C_COMPILER cc)
     set(CMAKE_CXX_COMPILER CC)
-    set(ADIOS2_DIR "/lustre/atlas/world-shared/csc143/jyc/titan/sw/adios2/devel/gnu") 
+    set(ADIOS2_DIR "/lustre/atlas/world-shared/csc143/jyc/titan/sw/adios2/devel/gnu")
+    set(ADIOS1_DIR "/lustre/atlas/world-shared/csc143/jyc/titan/sw/adios-matlab/devel/gnu") 
 elseif(CORI)
     set(CMAKE_C_COMPILER cc)
     set(CMAKE_CXX_COMPILER CC)
     #set(ADIOS2_DIR "/global/cscratch1/sd/jyc/sw/cori.haswell.gnu/adios2/devel")     
-    set(ADIOS2_DIR "${DEV}/adios2-builds/mpi/")         
+    set(ADIOS2_DIR "${DEV}/adios2-builds/mpi/")  
+    set(ADIOS1_DIR "${DEV}/adios-builds/")        
 elseif (UBUNTU)
     set(CMAKE_CXX_COMPILER mpicxx)
     set(ADIOS2_DIR "${DEV}/adios2-builds/mpi/")  
+    set(ADIOS1_DIR "${DEV}/adios-builds/")     
 endif()
 
 set (CMAKE_CXX_STANDARD 11)
@@ -50,12 +53,13 @@ include_directories(
     ${SRC_DIR}/
     ${DEV}/vtkm-build/include/
     ${DEV}/adios-builds/include/
+    ${ADIOS1_DIR|/include/
     ${ADIOS2_DIR}/include/
     ${DEV}/vtkm-kdtree-generic/)
 
 link_directories(
     /usr/lib/x86_64-linux-gnu/    
-    ${DEV}/adios-builds/lib/
+    ${ADIOS1_DIR}/lib/
     ${ADIOS2_DIR}/lib/
     /usr/lib/
     /usr/lib64/)

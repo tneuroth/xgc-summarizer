@@ -77,7 +77,6 @@ public:
     void runInPost();
 
     void run();
-    void reduceMesh( const std::string & reducedMeshFilePath );
     void writeMesh();
 
 private:
@@ -86,7 +85,6 @@ private:
 
     vtkm::worklet::KdTree< 2 > m_kdTree;
     TN::VTKmInterpolator2D m_interpolator;
-    TN::VTKmAggregator m_aggregator;
 
     vtkm::cont::ArrayHandle< vtkm::Vec< ValueType, 2 > > m_gridHandle;
     std::vector< vtkm::Vec< ValueType, 2 > > m_gridPoints;
@@ -115,15 +113,6 @@ private:
         std::vector< ValueType > & field,
         const std::vector< ValueType > & r,
         const std::vector< ValueType > & z );
-
-    void aggregateVTKM(
-        const SummaryGrid2< ValueType > & summaryGrid,
-        SummaryStep2< ValueType > & summary,
-        const std::vector< ValueType > & vX,
-        const std::vector< ValueType > & vY,
-        const std::vector< ValueType > & w,
-        const std::vector< int64_t > & gIDs,
-        const int64_t N_CELLS );
 
     void aggregateOMP(
         const SummaryGrid2< ValueType > & summaryGrid,
