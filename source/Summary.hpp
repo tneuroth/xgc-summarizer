@@ -24,6 +24,8 @@ struct SummaryGrid2
     // neighborhood
     std::vector< int64_t > neighborhoods;
     std::vector< int64_t > neighborhoodSums;
+
+    int64_t maxNeighbors;
 };
 
 template < typename ValueType >

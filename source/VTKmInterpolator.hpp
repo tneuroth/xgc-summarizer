@@ -17,11 +17,13 @@
 #include <vtkm/worklet/internal/DispatcherBase.h>
 #include <vtkm/worklet/internal/WorkletBase.h>
 
+
 namespace TN
 {
 
 struct VTKmInterpolator2D
 {
+
     struct InterpolationWorklet2D : public vtkm::worklet::WorkletMapField
     {
         using ControlSignature = void(
@@ -33,10 +35,33 @@ struct VTKmInterpolator2D
                                      WholeArrayIn<> nsIn,
                                      FieldOut<> rsOut );
 
-        using ExecutionSignature = void(_1, _2, _3, _4, _5, _6, _7);
+        using ExecutionSignature = void(_1, _2, _3, _4, _5, _6, _7 );
+
+        VTKM_EXEC
+        vtkm::Id m_maxNeighbors;
 
         VTKM_CONT
-        InterpolationWorklet2D() {}
+        InterpolationWorklet2D( vtkm::Id maxNeighbors ) : m_maxNeighbors( maxNeighbors ){  }
+
+        /* Based on the algorithm given by: http://www.mcs.anl.gov/~fathom/meshkit-docs/html/circumcenter_8cpp_source.html */
+        template < typename CoordVecType >
+        VTKM_EXEC CoordVecType getTriangleCircumenter(
+            const CoordVecType & a,
+            const CoordVecType & b,
+            const CoordVecType & c )
+        {
+            double xba = b[0] - a[0];
+            double yba = b[1] - a[1];
+            double xca = c[0] - a[0];
+            double yca = c[1] - a[1];
+            double balength = xba * xba + yba * yba;
+            double calength = xca * xca + yca * yca;
+            double denominator = 0.5 / (xba * yca - yba * xca);
+            CoordVecType circumcenter;
+            circumcenter[0] = (yca * balength - yba * calength) * denominator;
+            circumcenter[1] = (xba * calength - xca * balength) * denominator;
+            return circumcenter;
+        }
 
         template <typename CoordsPortalType,
                   typename CoordVecType,
@@ -50,25 +75,22 @@ struct VTKmInterpolator2D
             const CoordsPortalType & meshCoords,
             const ScalarPortalType & meshScalars,
             const IdPortalType     & meshNeighborhoods,
-            const IdPortalType     & meshNeighborhoodSums,
+            const IdPortalType     & meshNeighborhoodSums,  
             ScalarType             & myScalarOut ) const
         {
             // const IndexType OFFSET = myNearestNeighbor > 0 ? meshNeighborhoodSums[ myNearestNeighbor - 1 ] : 0;
             // const IndexType NUM_NEIGHBORS = meshNeighborhoodSums[ myNearestNeighbor ] - OFFSET;
-            // const ScalarType nearestDistance = vtkm::Magnitude( myPos - meshCoords[ myNearestNeighbor ] );
+            
+            // const CoordVecType voronoiSites[ NUM_NEIGHBORS ];
 
-            myScalarOut = meshScalars[ myNearestNeighbor ];
-
-            // for( IndexType i = OFFSET; i < OFFSET + NUM_NEIGHBORS; ++i )
+            // for( IndexType i = 0; i < NUM_NEIGHBORS + 1; ++i )
             // {
             //     const IndexType IDX = meshNeighborhoods[ i ];
-            //     const ScalarType dist = vtkm::Magnitude( myPos - meshCoords[ IDX ] );
-
-            // sum += dist * meshScalars[ IDX ];
-            // distanceSum += dist;
+            //     voronoiSites[ k ] = voronoiSite(  )
+            //     ++k;
             // }
 
-            //myScalarOut = ;
+            myScalarOut = meshScalars[ myNearestNeighbor ];
         }
     };
 
@@ -86,10 +108,11 @@ struct VTKmInterpolator2D
         const vtkm::cont::ArrayHandle< ScalarType, ScalarStorageTag >               & meshScalars,
         const vtkm::cont::ArrayHandle< IndexType, IndexStorageTag >                 & meshNeighborhoods,
         const vtkm::cont::ArrayHandle< IndexType, IndexStorageTag >                 & meshNeighborhoodSums,
+        const std::int64_t                                                          MAX_NEIGHBORS,
         vtkm::cont::ArrayHandle< ScalarType, ScalarStorageTag >                     & result,
         DeviceAdapter device )
     {
-        InterpolationWorklet2D interpolationWorklet;
+        InterpolationWorklet2D interpolationWorklet( static_cast< vtkm::Id >( MAX_NEIGHBORS )  );
         vtkm::worklet::DispatcherMapField< InterpolationWorklet2D, DeviceAdapter >
         interpDispatcher( interpolationWorklet );
 

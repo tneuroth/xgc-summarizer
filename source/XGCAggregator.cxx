@@ -8,6 +8,7 @@
 #include "XGCConstantReader.hpp"
 #include "Reduce/Reduce.hpp"
 #include "XGCSynchronizer.hpp"
+#include "grid-algorithms/MeshUtils.hpp"
 
 #include <adios2.h>
 #include <mpi.h>
@@ -82,6 +83,19 @@ XGCAggregator< ValueType >::XGCAggregator(
     { m_constants.at( "eq_axis_r" ), m_constants.at( "eq_axis_z" ) },
     meshFilePath,
     m_bFieldFilePath );
+
+    std::cout << "sorting neigborhoods" << std::endl;
+    
+    TN::Mesh::sortNeighborhoodsCCW( 
+        m_summaryGrid.variables.at( "r" ),
+        m_summaryGrid.variables.at( "z" ),
+        m_summaryGrid.neighborhoods,    
+        m_summaryGrid.neighborhoodSums );
+
+    m_summaryGrid.maxNeighbors = TN::Mesh::maxNeighborhoodSize(
+        m_summaryGrid.neighborhoodSums );
+
+    std::cout << "max neighborhood=" << m_summaryGrid.maxNeighbors;
 
     std::cout << "setting grid" << std::endl;
 
@@ -308,6 +322,7 @@ void XGCAggregator< ValueType >::compute(
         m_gridScalarHandle,
         m_gridNeighborhoodsHandle,
         m_gridNeighborhoodSumsHandle,
+        m_summaryGrid.maxNeighbors,
         fieldResultHandle,
         VTKM_DEFAULT_DEVICE_ADAPTER_TAG() );
 
