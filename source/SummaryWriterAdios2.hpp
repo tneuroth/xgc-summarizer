@@ -60,13 +60,40 @@ inline void writeSummaryGridBP(
     {
         bpWriter.Put< ValueType >(
             bpIO.DefineVariable< ValueType >(
-                var.first,
+            "fields/" + var.first,
         { var.second.size() },
         { 0 },
         { var.second.size() },
         adios2::ConstantDims ),
         var.second.data() );
     }
+
+    bpWriter.Put< int64_t >(
+    bpIO.DefineVariable< int64_t >(
+        "connectivity/neighborhoods",
+        { summaryGrid.neighborhoods.size() },
+        { 0 },
+        { summaryGrid.neighborhoods.size() },
+        adios2::ConstantDims ),
+        summaryGrid.neighborhoods.data() );
+
+    bpWriter.Put< int64_t >(
+    bpIO.DefineVariable< int64_t >(
+        "connectivity/neighborhoodSums",
+        { summaryGrid.neighborhoodSums.size() },
+        { 0 },
+        { summaryGrid.neighborhoodSums.size() },
+        adios2::ConstantDims ),
+        summaryGrid.neighborhoodSums.data() );
+
+    bpWriter.Put< int64_t >(
+    bpIO.DefineVariable< int64_t >(
+        "connectivity/triangulation",
+        { summaryGrid.triangulation.size() * 3 },
+        { 0 },
+        { summaryGrid.triangulation.size() * 3 },
+        adios2::ConstantDims ),
+        reinterpret_cast< const int64_t * >( summaryGrid.triangulation.data() ) );
 
     bpWriter.Close();
 

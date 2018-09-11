@@ -184,51 +184,51 @@ void XGCAggregator< ValueType >::runInSitu()
             break;
         }
 
-        // std::chrono::high_resolution_clock::time_point readStartTime = std::chrono::high_resolution_clock::now();
+        std::chrono::high_resolution_clock::time_point readStartTime = std::chrono::high_resolution_clock::now();
 
-        // int64_t simstep;
-        // double  realtime;
+        int64_t simstep;
+        double  realtime;
 
-        // std::cout << "Reading Particles" << std::endl;
+        std::cout << "Reading Particles" << std::endl;
 
-        // int64_t totalNumParticles 
-        //     = readBPParticleDataStep(
-        //         m_phase,
-        //         "ions",
-        //         m_particleFile,
-        //         m_rank,
-        //         m_nranks,
-        //         particleIO,
-        //         particleReader,
-        //         simstep,
-        //         realtime,
-        //         true );
+        int64_t totalNumParticles 
+            = readBPParticleDataStep(
+                m_phase,
+                "ions",
+                m_particleFile,
+                m_rank,
+                m_nranks,
+                particleIO,
+                particleReader,
+                simstep,
+                realtime,
+                true );
 
-        // std::cout << "Before EndStep" << std::endl;
-        // particleReader.EndStep();
-        // std::cout << "After EndStep" << std::endl;
+        std::cout << "Before EndStep" << std::endl;
+        particleReader.EndStep();
+        std::cout << "After EndStep" << std::endl;
 
-        // /*******************************************************************************/
+        /*******************************************************************************/
 
-        // summaryStep.numParticles = totalNumParticles;
-        // summaryStep.setStep( outputStep, simstep, realtime );
-        // summaryStep.objectIdentifier = "ions";
+        summaryStep.numParticles = totalNumParticles;
+        summaryStep.setStep( outputStep, simstep, realtime );
+        summaryStep.objectIdentifier = "ions";
 
-        // std::chrono::high_resolution_clock::time_point readStartEnd = std::chrono::high_resolution_clock::now();
+        std::chrono::high_resolution_clock::time_point readStartEnd = std::chrono::high_resolution_clock::now();
 
-        // std::cout << "RANK: " << m_rank
-        //           << ", adios Read time took "
-        //           << std::chrono::duration_cast<std::chrono::milliseconds>( readStartEnd - readStartTime ).count()
-        //           << " std::chrono::milliseconds " << " for " << m_phase.size()/9 << " particles" << std::endl;
+        std::cout << "RANK: " << m_rank
+                  << ", adios Read time took "
+                  << std::chrono::duration_cast<std::chrono::milliseconds>( readStartEnd - readStartTime ).count()
+                  << " std::chrono::milliseconds " << " for " << m_phase.size()/9 << " particles" << std::endl;
 
-        // /////////////////////////////////////////////////////////////////////////////////////////////////////////
+        /////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-        // computeSummaryStep(
-        //     m_phase,
-        //     summaryStep,
-        //     "ions",
-        //     summaryIO,
-        //     summaryWriter );
+        computeSummaryStep(
+            m_phase,
+            summaryStep,
+            "ions",
+            summaryIO,
+            summaryWriter );
 
         ++outputStep;
     }
