@@ -78,18 +78,23 @@ struct VTKmInterpolator2D
             const IdPortalType     & meshNeighborhoodSums,  
             ScalarType             & myScalarOut ) const
         {
-            // const IndexType OFFSET = myNearestNeighbor > 0 ? meshNeighborhoodSums[ myNearestNeighbor - 1 ] : 0;
-            // const IndexType NUM_NEIGHBORS = meshNeighborhoodSums[ myNearestNeighbor ] - OFFSET;
+            const IndexType OFFSET = myNearestNeighbor > 0 ? meshNeighborhoodSums[ myNearestNeighbor - 1 ] : 0;
+            const IndexType NUM_NEIGHBORS = meshNeighborhoodSums[ myNearestNeighbor ] - OFFSET;
             
-            // const CoordVecType voronoiSites[ NUM_NEIGHBORS ];
+            const CoordVecType voronoiSites[ NUM_NEIGHBORS ];
 
-            // for( IndexType i = 0; i < NUM_NEIGHBORS + 1; ++i )
-            // {
-            //     const IndexType IDX = meshNeighborhoods[ i ];
-            //     voronoiSites[ k ] = voronoiSite(  )
-            //     ++k;
-            // }
-
+            for( IndexType i = OFFSET; i < OFFSET + NUM_NEIGHBORS - 1; ++i )
+            {
+                const IndexType IA = myNearestNeighbor;
+                const IndexType IB = meshNeighborhoods[ i ];
+                const IndexType IC = meshNeighborhoods[ i + 1 ];
+                
+                voronoiSites[ i - OFFSET ] = getTriangleCircumenter(  
+                    meshCoords[ IA ],
+                    meshCoords[ IB ],
+                    meshCoords[ IC ] );
+            }
+            
             myScalarOut = meshScalars[ myNearestNeighbor ];
         }
     };
