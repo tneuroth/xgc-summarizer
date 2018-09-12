@@ -92,6 +92,16 @@ XGCAggregator< ValueType >::XGCAggregator(
         m_summaryGrid.neighborhoods,    
         m_summaryGrid.neighborhoodSums );
 
+    m_summaryGrid.vertexFlags.resize( 
+        m_summaryGrid.neighborhoodSums.size() );
+    
+    TN::Mesh::computeVertexFlags( 
+        m_summaryGrid.variables.at( "r" ),
+        m_summaryGrid.variables.at( "z" ),
+        m_summaryGrid.neighborhoods,    
+        m_summaryGrid.neighborhoodSums,
+        m_summaryGrid.vertexFlags );
+
     m_summaryGrid.maxNeighbors = TN::Mesh::maxNeighborhoodSize(
         m_summaryGrid.neighborhoodSums );
 
@@ -104,7 +114,8 @@ XGCAggregator< ValueType >::XGCAggregator(
         m_summaryGrid.variables.at( "z" ),
         m_summaryGrid.variables.at( "B" ),
         m_summaryGrid.neighborhoods,
-        m_summaryGrid.neighborhoodSums );
+        m_summaryGrid.neighborhoodSums,
+        m_summaryGrid.vertexFlags );
 
     if( m_rank == 0 )
     {
@@ -368,7 +379,8 @@ void XGCAggregator< ValueType >::setGrid(
     const std::vector< ValueType > & z,
     const std::vector< ValueType > & scalar,
     const std::vector< int64_t > & gridNeighborhoods,
-    const std::vector< int64_t > & gridNeighborhoodSums )
+    const std::vector< int64_t > & gridNeighborhoodSums,
+    const std::vector< uint8_t > & vertexFlags )
 {
     const int64_t N_CELLS = r.size();
     m_gridPoints.resize( N_CELLS );
@@ -390,6 +402,8 @@ void XGCAggregator< ValueType >::setGrid(
     m_gridScalars = std::vector< ValueType >( scalar.begin(), scalar.end() );
     m_gridScalarHandle = vtkm::cont::make_ArrayHandle( m_gridScalars );
 
+    m_vertexFlagsHandle = vtkm::cont::make_ArrayHandle( vertexFlags );
+
     m_kdTree.Build( m_gridHandle, VTKM_DEFAULT_DEVICE_ADAPTER_TAG() );
 }
 
@@ -410,6 +424,7 @@ void XGCAggregator< ValueType >::compute(
     }
 
     auto ptclHandle = vtkm::cont::make_ArrayHandle( ptclPos );
+
     vtkm::cont::ArrayHandle< vtkm::Id  > idHandle;
     vtkm::cont::ArrayHandle< ValueType > distHandle;
 
@@ -420,6 +435,7 @@ void XGCAggregator< ValueType >::compute(
         ptclHandle,
         idHandle,
         m_gridHandle,
+        m_vertexFlagsHandle,
         m_gridScalarHandle,
         m_gridNeighborhoodsHandle,
         m_gridNeighborhoodSumsHandle,

@@ -98,6 +98,8 @@ private:
     vtkm::cont::ArrayHandle< vtkm::Int64 > m_gridNeighborhoodSumsHandle;
     std::vector< vtkm::Int64 > m_gridNeighborhoodSums;
 
+    vtkm::cont::ArrayHandle< vtkm::UInt8 > m_vertexFlagsHandle;
+
     std::map< std::string, double > m_constants;
 
     void setGrid(
@@ -105,8 +107,8 @@ private:
         const std::vector< ValueType > & z,
         const std::vector< ValueType > & scalar,
         const std::vector< int64_t >   & gridNeighborhoods,
-        const std::vector< int64_t >   & gridNeighborhoodSums
-    );
+        const std::vector< int64_t >   & gridNeighborhoodSums,
+        const std::vector< uint8_t >   & vertexFlags );
 
     void compute(
         std::vector< int64_t > & neighbors,

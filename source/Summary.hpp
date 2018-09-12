@@ -25,6 +25,9 @@ struct SummaryGrid2
     std::vector< int64_t > neighborhoods;
     std::vector< int64_t > neighborhoodSums;
 
+    // see MeshUtils.hpp for flag enumeration
+    std::vector< uint8_t > vertexFlags;    
+
     int64_t maxNeighbors;
 };
 

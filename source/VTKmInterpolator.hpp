@@ -27,15 +27,16 @@ struct VTKmInterpolator2D
     struct InterpolationWorklet2D : public vtkm::worklet::WorkletMapField
     {
         using ControlSignature = void(
-                                     FieldIn<> pcIn,
-                                     FieldIn<> mnIn,
-                                     WholeArrayIn<> qcIn,
-                                     WholeArrayIn<> scIn,
-                                     WholeArrayIn<> nbIn,
-                                     WholeArrayIn<> nsIn,
-                                     FieldOut<> rsOut );
+            FieldIn<> pcIn,
+            FieldIn<> mnIn,
+            FieldIn<> flags,
+            WholeArrayIn<> qcIn,
+            WholeArrayIn<> scIn,
+            WholeArrayIn<> nbIn,
+            WholeArrayIn<> nsIn,
+            FieldOut<> rsOut );
 
-        using ExecutionSignature = void(_1, _2, _3, _4, _5, _6, _7 );
+        using ExecutionSignature = void(_1, _2, _3, _4, _5, _6, _7, _8 );
 
         VTKM_EXEC
         vtkm::Id m_maxNeighbors;
@@ -68,39 +69,27 @@ struct VTKmInterpolator2D
                   typename ScalarPortalType,
                   typename IdPortalType,
                   typename IndexType,
-                  typename ScalarType >
+                  typename ScalarType,
+                  typename FlagType >
         VTKM_EXEC void operator()(
             const CoordVecType     & myPos,
             const IndexType        & myNearestNeighbor,
-            const CoordsPortalType & meshCoords,
+            const FlagType         & myFlag,  
+            const CoordsPortalType & meshCoords,          
             const ScalarPortalType & meshScalars,
             const IdPortalType     & meshNeighborhoods,
-            const IdPortalType     & meshNeighborhoodSums,  
+            const IdPortalType     & meshNeighborhoodSums,
             ScalarType             & myScalarOut ) const
         {
-            // const IndexType OFFSET = myNearestNeighbor > 0 ? meshNeighborhoodSums[ myNearestNeighbor - 1 ] : 0;
-            // const IndexType NUM_NEIGHBORS = meshNeighborhoodSums[ myNearestNeighbor ] - OFFSET;
-            
-            // const CoordVecType voronoiSites[ NUM_NEIGHBORS ];
-
-            // for( IndexType i = OFFSET; i < OFFSET + NUM_NEIGHBORS - 1; ++i )
-            // {
-            //     const IndexType IA = myNearestNeighbor;
-            //     const IndexType IB = meshNeighborhoods[ i ];
-            //     const IndexType IC = meshNeighborhoods[ i + 1 ];
-                
-            //     voronoiSites[ i - OFFSET ] = getTriangleCircumenter(  
-            //         meshCoords[ IA ],
-            //         meshCoords[ IB ],
-            //         meshCoords[ IC ] );
-            // }
-            
+            const IndexType OFFSET = myNearestNeighbor > 0 ? meshNeighborhoodSums[ myNearestNeighbor - 1 ] : 0;
+            const IndexType NUM_NEIGHBORS = meshNeighborhoodSums[ myNearestNeighbor ] - OFFSET;
             myScalarOut = meshScalars[ myNearestNeighbor ];
         }
     };
 
     template <typename CoordType,
               typename CoordStorageTag,
+              typename FlagStrorageTag,
               typename ScalarType,
               typename ScalarStorageTag,
               typename IndexType,
@@ -110,6 +99,7 @@ struct VTKmInterpolator2D
         const vtkm::cont::ArrayHandle< vtkm::Vec< CoordType, 2 >, CoordStorageTag > & particleCoords,
         const vtkm::cont::ArrayHandle< IndexType, IndexStorageTag >                 & particleNeighbors,
         const vtkm::cont::ArrayHandle< vtkm::Vec<CoordType, 2>, CoordStorageTag >   & meshCoords,
+        const vtkm::cont::ArrayHandle< vtkm::UInt8, FlagStrorageTag >               & meshFlags,        
         const vtkm::cont::ArrayHandle< ScalarType, ScalarStorageTag >               & meshScalars,
         const vtkm::cont::ArrayHandle< IndexType, IndexStorageTag >                 & meshNeighborhoods,
         const vtkm::cont::ArrayHandle< IndexType, IndexStorageTag >                 & meshNeighborhoodSums,
@@ -125,6 +115,7 @@ struct VTKmInterpolator2D
             particleCoords,
             particleNeighbors,
             meshCoords,
+            meshFlags,
             meshScalars,
             meshNeighborhoods,
             meshNeighborhoodSums,
