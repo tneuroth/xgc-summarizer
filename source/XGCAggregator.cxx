@@ -150,13 +150,11 @@ void XGCAggregator< ValueType >::runInSitu()
     if( m_particleReaderEngine == "SST" )
     {
         particleIO.SetEngine( "Sst" );
-        MPI_Barrier( m_mpiCommunicator );
         std::cout << "set engine type to sst";
     }
     else if( m_particleReaderEngine == "InSituMPI" )
     {
         particleIO.SetEngine( "InSituMPI" );
-        MPI_Barrier( m_mpiCommunicator );
         std::cout << "set engine type to InSituMPI";
     }
 
@@ -256,9 +254,112 @@ void XGCAggregator< ValueType >::runInSitu()
 }
 
 template< typename ValueType >
+void XGCAggregator< ValueType >::runInPost()
+{
+    double summaryStepTime = 0.0;
+    int64_t outputStep     = 0;
+
+    std::vector< int64_t > steps = { 
+        200, 
+        400, 
+        600, 
+        800, 
+        1000, 
+        1200, 
+        1400, 
+        1600, 
+        1800, 
+        2000,
+        2200, 
+        2400, 
+        2600, 
+        2800, 
+        3000,
+        3200, 
+        3400, 
+        3600, 
+        3800,
+        4000, 
+        4200  };
+
+    SummaryStep2< ValueType > summaryStep;
+
+    /*************************************************************************/
+    // Summary Writer (results are reduced to and written from mpi root)
+
+    std::unique_ptr< adios2::ADIOS > adiosOutPut;    
+    std::unique_ptr< adios2::IO > summaryIO;
+    std::unique_ptr< adios2::Engine > summaryWriter;
+
+    if( m_summaryWriterAppendMode && m_rank == 0 )
+    {
+        adiosOutPut = std::unique_ptr< adios2::ADIOS >( 
+            new adios2::ADIOS( MPI_COMM_SELF, adios2::DebugOFF ) );
+        summaryIO = std::unique_ptr< adios2::IO >( 
+            new adios2::IO( adiosOutPut->DeclareIO( "Summary-IO-Root" ) ) );
+        summaryWriter = std::unique_ptr< adios2::Engine >( 
+            new adios2::Engine( summaryIO->Open( 
+                m_outputDirectory + "/summary.bp", adios2::Mode::Write ) ) );
+    }
+
+    /******************************************************************************/
+
+    for( auto tstep : steps )
+    {
+        std::string tstepStr = std::to_string( tstep );
+        std::chrono::high_resolution_clock::time_point readStartTime = std::chrono::high_resolution_clock::now();
+
+        int64_t simstep;
+        double  realtime;
+
+        int64_t totalNumParticles = readBPParticleDataStep(
+             m_phase,
+             "ions",
+             m_particleFile + "/xgc.restart." + std::string( 5 - tstepStr.size(), '0' ) + tstepStr +  ".bp",
+             m_rank,
+             m_nranks,
+             simstep,
+             realtime );
+
+        summaryStep.numParticles = totalNumParticles;
+        summaryStep.setStep( outputStep, simstep, realtime );
+        summaryStep.objectIdentifier = "ions";
+
+        std::chrono::high_resolution_clock::time_point readStartEnd = std::chrono::high_resolution_clock::now();
+
+        std::cout << "RANK: " << m_rank
+                  << ", adios Read time took "
+                  << std::chrono::duration_cast<std::chrono::milliseconds>( readStartEnd - readStartTime ).count()
+                  << " std::chrono::milliseconds " << " for " << m_phase.size() / 9 << " particles" << std::endl;
+
+        /////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+        std::unique_ptr< adios2::IO > io;
+        std::unique_ptr< adios2::Engine > en;
+
+        computeSummaryStep(
+            m_phase,
+            summaryStep,
+            "ions",
+            summaryIO,
+            summaryWriter );
+
+        ++outputStep;
+    }
+}
+
+
+template< typename ValueType >
 void XGCAggregator< ValueType >::run()
 {
-    runInSitu();
+    if( m_inSitu )
+    {
+        runInSitu();
+    }
+    else
+    {
+        runInPost();
+    }
 }
 
 template< typename ValueType >

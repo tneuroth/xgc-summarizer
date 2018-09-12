@@ -7,9 +7,9 @@
     #particle data directory or filepath if single particle file mode
     #units.m file path
     #output directory (where to write the summary)
-    #whether the mpi process reads a just it's chunk of the particles in the file
+    #whether to split by blocks or just evenly split particles
     #whether to run the program in situ (waiting for steps to be written from simulation)
-    #whether there is one particle file (vs different files per time step)
+    #whether to the particle files were written in append mode or not
 
 DATA_DIR=/media/tn0/data/datasets/inSituTest
 
