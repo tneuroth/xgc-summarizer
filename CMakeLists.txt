@@ -69,12 +69,12 @@ find_package(VTKm REQUIRED)
 add_library(kdtree ${SRC_DIR}/XGCAggregator.cxx)
 
 if(TITAN)
-    target_link_libraries(kdtree adios2_sst pthread adios2_evpath 
+    target_link_libraries(kdtree adios2 adios2_sst pthread adios2_evpath 
         adios adios2_enet adios2_atl adios2_atl adios2_ffs adios2_dill vtkm_cont bz2 gmp)
     add_executable(summarizer ${SRC_DIR}/Main.cpp)
     target_link_libraries(summarizer adios kdtree)
 elseif(CORI)
-    target_link_libraries(kdtree dios2 adios gmp vtkm_cont)
+    target_link_libraries(kdtree adios2 adios gmp vtkm_cont)
     add_executable(summarizer ${SRC_DIR}/Main.cpp)
     target_link_libraries(summarizer adios kdtree)
 else()
