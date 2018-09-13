@@ -2,6 +2,7 @@
 #define TN_SUMMARY_HPP
 
 #include "Types/Vec.hpp"
+#include "Types/Triangle.hpp"
 
 #include <vector>
 #include <set>
@@ -13,7 +14,7 @@ namespace TN
 
 /* Temporally Static */
 template< typename ValueType >
-struct SummaryGrid2
+struct SummaryGrid
 {
     /* Temporally Static, Spatially Varying Per Voronoi Cell Fields */
     std::map< std::string, std::vector< ValueType > > variables;
@@ -184,7 +185,7 @@ struct CellHistograms
 };
 
 template < typename ValueType >
-struct SummaryStep2
+struct SummaryStep
 {
     // Scalar Statistics
     std::map< std::string, ScalarVariableStatistics< ValueType > > variableStatistics;

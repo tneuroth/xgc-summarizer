@@ -29,7 +29,7 @@ struct VTKmInterpolator2D
         using ControlSignature = void(
             FieldIn<> pcIn,
             FieldIn<> mnIn,
-            FieldIn<> flags,
+            WholeArrayIn<> flIn,
             WholeArrayIn<> qcIn,
             WholeArrayIn<> scIn,
             WholeArrayIn<> nbIn,
@@ -70,11 +70,11 @@ struct VTKmInterpolator2D
                   typename IdPortalType,
                   typename IndexType,
                   typename ScalarType,
-                  typename FlagType >
+                  typename FlagPortalType >
         VTKM_EXEC void operator()(
             const CoordVecType     & myPos,
             const IndexType        & myNearestNeighbor,
-            const FlagType         & myFlag,  
+            const FlagPortalType   & meshFlags,  
             const CoordsPortalType & meshCoords,          
             const ScalarPortalType & meshScalars,
             const IdPortalType     & meshNeighborhoods,

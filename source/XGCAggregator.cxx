@@ -147,6 +147,9 @@ void XGCAggregator< ValueType >::runInSitu()
             new adios2::ADIOS( MPI_COMM_SELF, adios2::DebugOFF ) );
         summaryIO = std::unique_ptr< adios2::IO >( 
             new adios2::IO( adiosOutPut->DeclareIO( "Summary-IO-Root" ) ) );
+
+        summaryIO->DefineAttribute<std::string>( "particles", { "ions, electrons" } );
+
         summaryWriter = std::unique_ptr< adios2::Engine >( 
             new adios2::Engine( summaryIO->Open( 
                 m_outputDirectory + "/summary.bp", adios2::Mode::Write ) ) );
@@ -176,7 +179,7 @@ void XGCAggregator< ValueType >::runInSitu()
     /************************************************************************************/
 
     int64_t outputStep = 0;
-    SummaryStep2< ValueType > summaryStep;   
+    SummaryStep< ValueType > summaryStep;   
  
     while( 1 )
     {
@@ -225,7 +228,7 @@ void XGCAggregator< ValueType >::runInSitu()
                 particleReader,
                 simstep,
                 realtime,
-                true );
+                m_splitByBlocks );
 
         std::cout << "Before EndStep" << std::endl;
         particleReader.EndStep();
@@ -293,7 +296,7 @@ void XGCAggregator< ValueType >::runInPost()
         4000, 
         4200  };
 
-    SummaryStep2< ValueType > summaryStep;
+    SummaryStep< ValueType > summaryStep;
 
     /*************************************************************************/
     // Summary Writer (results are reduced to and written from mpi root)
@@ -308,6 +311,9 @@ void XGCAggregator< ValueType >::runInPost()
             new adios2::ADIOS( MPI_COMM_SELF, adios2::DebugOFF ) );
         summaryIO = std::unique_ptr< adios2::IO >( 
             new adios2::IO( adiosOutPut->DeclareIO( "Summary-IO-Root" ) ) );
+
+        summaryIO->DefineAttribute<std::string>( "particles", { "ions, electrons" } );
+
         summaryWriter = std::unique_ptr< adios2::Engine >( 
             new adios2::Engine( summaryIO->Open( 
                 m_outputDirectory + "/summary.bp", adios2::Mode::Write ) ) );
@@ -330,7 +336,8 @@ void XGCAggregator< ValueType >::runInPost()
              m_rank,
              m_nranks,
              simstep,
-             realtime );
+             realtime,
+             m_splitByBlocks );
 
         summaryStep.numParticles = totalNumParticles;
         summaryStep.setStep( outputStep, simstep, realtime );
@@ -356,6 +363,11 @@ void XGCAggregator< ValueType >::runInPost()
             summaryWriter );
 
         ++outputStep;
+    }
+
+    if( m_summaryWriterAppendMode && m_rank == 0 )
+    {
+        summaryWriter->Close();
     }
 }
 
@@ -464,8 +476,8 @@ void XGCAggregator< ValueType >::compute(
 
 template< typename ValueType >
 void XGCAggregator< ValueType >::aggregateOMP(
-    const SummaryGrid2< ValueType > & summaryGrid,
-    SummaryStep2< ValueType >       & summaryStep,
+    const SummaryGrid< ValueType > & summaryGrid,
+    SummaryStep< ValueType >       & summaryStep,
     const std::vector< ValueType >  & vX,
     const std::vector< ValueType >  & vY,
     const std::vector< ValueType >  & w0,
@@ -658,7 +670,7 @@ void XGCAggregator< ValueType >::writeGrid( const std::string & path )
 template< typename ValueType >
 void XGCAggregator< ValueType >::computeSummaryStep(
     std::vector< ValueType > & phase,
-    TN::SummaryStep2< ValueType > & summaryStep,
+    TN::SummaryStep< ValueType > & summaryStep,
     const std::string & ptype,
     std::unique_ptr< adios2::IO > & summaryIO,
     std::unique_ptr< adios2::Engine > & summaryWriter )

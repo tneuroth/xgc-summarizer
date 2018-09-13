@@ -51,7 +51,7 @@ class XGCAggregator
 
     void computeSummaryStep(
         std::vector< ValueType > & phase,
-        TN::SummaryStep2< ValueType > & summaryStep,
+        TN::SummaryStep< ValueType > & summaryStep,
         const std::string & ptype,
         std::unique_ptr< adios2::IO > & summaryIO,
         std::unique_ptr< adios2::Engine > & summaryWriter );
@@ -81,7 +81,7 @@ public:
 
 private:
 
-    TN::SummaryGrid2< ValueType > m_summaryGrid;
+    TN::SummaryGrid< ValueType > m_summaryGrid;
 
     vtkm::worklet::KdTree< 2 > m_kdTree;
     TN::VTKmInterpolator2D m_interpolator;
@@ -117,8 +117,8 @@ private:
         const std::vector< ValueType > & z );
 
     void aggregateOMP(
-        const SummaryGrid2< ValueType > & summaryGrid,
-        SummaryStep2< ValueType >       & summaryStep,
+        const SummaryGrid< ValueType > & summaryGrid,
+        SummaryStep< ValueType >       & summaryStep,
         const std::vector< ValueType >  & vX,
         const std::vector< ValueType >  & vY,
         const std::vector< ValueType >  & w0,

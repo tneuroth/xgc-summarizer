@@ -244,10 +244,12 @@ inline int64_t readBPParticleDataStep(
     int rank,
     int nRanks,
     int64_t & simstep,
-    double  & realtime )
+    double  & realtime,
+    bool splitByBlocks )
 {
     adios2::ADIOS adios( MPI_COMM_SELF, adios2::DebugOFF );
     adios2::IO bpIO = adios.DeclareIO( "Particle-IO-Self-" + std::to_string( rank ) );
+    bpIO.DefineAttribute<std::string>( "particles", { "ions, electrons" } );
     adios2::Engine bpReader = bpIO.Open( path, adios2::Mode::Read );
 
     auto totalNumParticles = readBPParticleDataStep(
@@ -260,7 +262,7 @@ inline int64_t readBPParticleDataStep(
                                  bpReader,
                                  simstep,
                                  realtime,
-                                 true
+                                 splitByBlocks
                              );
 
     bpReader.Close();

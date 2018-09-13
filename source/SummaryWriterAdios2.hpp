@@ -49,7 +49,7 @@ inline void writeTriangularMeshObj(
 
 template< typename ValueType >
 inline void writeSummaryGridBP(
-    const SummaryGrid2< ValueType > & summaryGrid,
+    const SummaryGrid< ValueType > & summaryGrid,
     const std::string & outpath )
 {
     adios2::ADIOS adios( MPI_COMM_SELF, adios2::DebugOFF );
@@ -106,7 +106,7 @@ inline void writeSummaryGridBP(
 
 template< typename ValueType >
 inline void writeSummaryStepBP(
-    const SummaryStep2< ValueType > & summaryStep,
+    const SummaryStep< ValueType > & summaryStep,
     const std::string & directory,
     adios2::IO & bpIO,
     adios2::Engine & bpWriter )
@@ -242,7 +242,7 @@ inline void writeSummaryStepBP(
 
 template< typename ValueType >
 inline void writeSummaryStepBP(
-    const SummaryStep2< ValueType > & summaryStep,
+    const SummaryStep< ValueType > & summaryStep,
     const std::string & directory )
 {
     adios2::ADIOS adios( MPI_COMM_SELF, adios2::DebugOFF );

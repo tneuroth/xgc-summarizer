@@ -20,7 +20,7 @@ mpirun -np 4\
                  ${DATA_DIR}/restart_dir/ \
                  ${DATA_DIR}/units.m \
                  ${DATA_DIR}/summary/ \
-                 true \
+                 false \
                  false \
                  false
 
