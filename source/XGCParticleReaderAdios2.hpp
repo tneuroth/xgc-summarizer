@@ -232,7 +232,7 @@ inline int64_t readBPParticleDataStep(
         
     adios2::Variable< int > stepV = bpIO.InquireVariable< int >( "timestep" );
 
-    if( tStepType == "double" && phaseType == "double" )
+    if( rTimeType == "double" && phaseType == "double" )
     {
         std::cout << "double/double" << std::endl;
 
@@ -254,7 +254,7 @@ inline int64_t readBPParticleDataStep(
             realtime,
             splitByBlocks );
     }
-    else if( tStepType == "double" && phaseType == "float" )
+    else if( rTimeType == "double" && phaseType == "float" )
     {
         std::cout << "double/float" << std::endl;
 
@@ -276,7 +276,7 @@ inline int64_t readBPParticleDataStep(
             realtime,
             splitByBlocks );
     }
-    else if( tStepType == "float" && phaseType == "double" )
+    else if( rTimeType == "float" && phaseType == "double" )
     {
         std::cout << "float/double" << std::endl;       
         
@@ -298,7 +298,7 @@ inline int64_t readBPParticleDataStep(
             realtime,
             splitByBlocks );
     }
-    else if( tStepType == "float" && phaseType == "float" )
+    else if( rTimeType == "float" && phaseType == "float" )
     {
         std::cout << "float/float" << std::endl;
 
