@@ -179,6 +179,7 @@ inline int64_t readBPParticleDataStep(
 {
     adios2::Variable< int > stepV = bpIO.InquireVariable< int >( "timestep" );
     adios2::Variable< double > timeV = bpIO.InquireVariable< double >( "time" );
+    adios2::Variable< float > timeV32 = bpIO.InquireVariable< float >( "time" );
 
     if( ! stepV )
     {
@@ -186,10 +187,13 @@ inline int64_t readBPParticleDataStep(
         exit( 1 );
     }
 
-    if( ! timeV )
+    if( timeV )
     {
-        std::cerr << "couldn't find time as a double" << std::endl;
-        exit( 1 );
+        std::cout << "found time as a double" << std::endl;
+    }
+    else if( timeV32 )
+    {
+        std::cout << "found time as a float" << std::endl;
     }
 
     std::string phaseName = ptype == "ions" ? "iphase" : "ephase";
@@ -225,7 +229,7 @@ inline int64_t readBPParticleDataStep(
             reader,
             phaseFloat,
             stepV,
-            timeV,
+            timeV32,
             simstep,
             realtime,
             splitByBlocks );
