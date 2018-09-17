@@ -132,7 +132,7 @@ void XGCAggregator< ValueType >::writeMesh()
 template< typename ValueType >
 void XGCAggregator< ValueType >::runInSitu()
 {
-    const float TIMEOUT = 30000.f;
+    const float TIMEOUT = 300000.f;
     
     /*************************************************************************/
     // Summary Writer (results are reduced to and written from mpi root)
