@@ -2,7 +2,7 @@
 #PBS -A CSC143
 #PBS -j oe
 #PBS -q batch 
-#PBS -l nodes=80
+#PBS -l nodes=144
 #PBS -l walltime=01:00:00
 #PBS -V
 
@@ -18,7 +18,7 @@ ln -s ../adios2cfg.sst.xml ./adios2cfg.xml
 
 export OMP_NUM_THREADS=1
 
-aprun -n 1024 -N 16 ./xgc-es &
+aprun -n 1024 -N 8 ./xgc-es &
 aprun -n 16   -N 1 -d 16 \
       ./summarizer \
           $DATA_PATH/adios2cfg.xml \
@@ -27,7 +27,7 @@ aprun -n 16   -N 1 -d 16 \
           xgc.particle.bp \
           $DATA_PATH/units.m \
           $OUTPUT_PATH \
-          true \
+          false \
           true \
           true &
 
