@@ -258,6 +258,7 @@ inline int64_t readBPParticleDataStep(
     }
     else if( phaseFloat && timeV32 )
     {
+        std::cout << " reading float/float" << std::endl;
         readBPParticleDataStep(
             result,
             ptype,
