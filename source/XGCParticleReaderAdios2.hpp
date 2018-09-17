@@ -184,7 +184,7 @@ inline int64_t readBPParticleDataStep(
         reader.Get( phaseVar, tmp.data(), adios2::Mode::Sync );
 
         std::cout << "Copying " << std::endl;
-        
+
         result.resize( MY_SIZE * dims[ 1 ] );
 
         copySwitchOrder(
@@ -224,31 +224,21 @@ inline int64_t readBPParticleDataStep(
     double  & realtime,
     bool splitByBlocks )
 {
-    adios2::Variable< int >     stepV = bpIO.InquireVariable< int >( "timestep" );
-    adios2::Variable< double >  timeV = bpIO.InquireVariable< double >( "time" );
-    adios2::Variable< float > timeV32 = bpIO.InquireVariable< float >(  "time" );
-
-    if( ! stepV )
-    {
-        std::cerr << "couldn't find timestep as an int" << std::endl;
-        exit( 1 );
-    }
-    if( timeV )
-    {
-        std::cout << "found time as a double" << std::endl;
-    }
-    else if( timeV32 )
-    {
-        std::cout << "found time as a float" << std::endl;
-    }
-
     std::string phaseName = ptype == "ions" ? "iphase" : "ephase";
 
-    adios2::Variable< double > phaseDouble = bpIO.InquireVariable< double >( phaseName );
-    adios2::Variable< float  > phaseFloat  = bpIO.InquireVariable< float   >( phaseName );
+    auto tStepType = bpIO.VariableType( "timestep" );
+    auto rTimeType = bpIO.VariableType( "time" );
+    auto phaseType = bpIO.VariableType( phaseName ); 
+        
+    adios2::Variable< int > stepV = bpIO.InquireVariable< int >( "timestep" );
 
-    if( phaseDouble && timeV )
+    if( tStepType == "double" && phaseType == "double" )
     {
+        std::cout << "double/double" << std::endl;
+
+        adios2::Variable< double >  timeV = bpIO.InquireVariable< double >( "time" );
+        adios2::Variable< double > phaseV = bpIO.InquireVariable< double >( phaseName );
+        
         readBPParticleDataStep(
             result,
             ptype,
@@ -257,16 +247,20 @@ inline int64_t readBPParticleDataStep(
             nRanks,
             bpIO,
             reader,
-            phaseDouble,
+            phaseV,
             stepV,
             timeV,
             simstep,
             realtime,
             splitByBlocks );
     }
-    else if( phaseFloat && timeV32 )
+    else if( tStepType == "double" && phaseType == "float" )
     {
-        std::cout << " reading float/float" << std::endl;
+        std::cout << "double/float" << std::endl;
+
+        adios2::Variable< double >  timeV = bpIO.InquireVariable< double >( "time" );
+        adios2::Variable< float > phaseV = bpIO.InquireVariable< float >( phaseName );
+
         readBPParticleDataStep(
             result,
             ptype,
@@ -275,32 +269,20 @@ inline int64_t readBPParticleDataStep(
             nRanks,
             bpIO,
             reader,
-            phaseFloat,
-            stepV,
-            timeV32,
-            simstep,
-            realtime,
-            splitByBlocks );
-    }
-    else if( phaseFloat && timeV )
-    {
-        readBPParticleDataStep(
-            result,
-            ptype,
-            path,
-            rank,
-            nRanks,
-            bpIO,
-            reader,
-            phaseFloat,
+            phaseV,
             stepV,
             timeV,
             simstep,
             realtime,
             splitByBlocks );
     }
-    else if( phaseDouble && timeV32 )
+    else if( tStepType == "float" && phaseType == "double" )
     {
+        std::cout << "float/double" << std::endl;       
+        
+        adios2::Variable< float >  timeV = bpIO.InquireVariable< float >( "time" );
+        adios2::Variable< double > phaseV = bpIO.InquireVariable< double >( phaseName );
+
         readBPParticleDataStep(
             result,
             ptype,
@@ -309,9 +291,31 @@ inline int64_t readBPParticleDataStep(
             nRanks,
             bpIO,
             reader,
-            phaseDouble,
+            phaseV,
             stepV,
-            timeV32,
+            timeV,
+            simstep,
+            realtime,
+            splitByBlocks );
+    }
+    else if( tStepType == "float" && phaseType == "float" )
+    {
+        std::cout << "float/float" << std::endl;
+
+        adios2::Variable< float >  timeV = bpIO.InquireVariable< float >( "time" );
+        adios2::Variable< float > phaseV = bpIO.InquireVariable< float >( phaseName );       
+        
+        readBPParticleDataStep(
+            result,
+            ptype,
+            path,
+            rank,
+            nRanks,
+            bpIO,
+            reader,
+            phaseV,
+            stepV,
+            timeV,
             simstep,
             realtime,
             splitByBlocks );
