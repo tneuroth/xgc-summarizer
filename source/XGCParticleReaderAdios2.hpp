@@ -175,8 +175,16 @@ inline int64_t readBPParticleDataStep(
             { MY_SIZE, dims[ 1 ] }
         } );
 
-        std::vector< PhaseType > tmp;
-        reader.Get( phaseVar, tmp, adios2::Mode::Sync );
+        std::cout << "allocating temp " << ( MY_SIZE * dims[ 1 ] * sizeof( PhaseType ) ) << " bytes" << std::endl;
+
+        std::vector< PhaseType > tmp( MY_SIZE * dims[ 1 ] );
+
+        std::cout << "calling get" << std::endl;
+
+        reader.Get( phaseVar, tmp.data(), adios2::Mode::Sync );
+
+        std::cout << "Copying " << std::endl;
+        
         result.resize( MY_SIZE * dims[ 1 ] );
 
         copySwitchOrder(
