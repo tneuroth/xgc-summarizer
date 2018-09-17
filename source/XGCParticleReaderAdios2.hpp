@@ -24,35 +24,35 @@ inline std::vector< std::pair< int64_t, int64_t > > split( int64_t N, int64_t k 
     return result;
 }
 
-inline std::vector< std::pair< int64_t, int64_t > > balancedBlockSplit( 
-    std::vector<typename adios2::Variable< PhaseType >::Info> & blocks,
-    int64_t N, 
-    int64_t k )
-{
-    const int64_t CS = N / k;
+// inline std::vector< std::pair< int64_t, int64_t > > balancedBlockSplit( 
+//     std::vector<typename adios2::Variable< PhaseType >::Info> & blocks,
+//     int64_t N, 
+//     int64_t k )
+// {
+//     const int64_t CS = N / k;
 
-    int64_t splitStart = 0;
-    int64_t splitCount = 0;    
+//     int64_t splitStart = 0;
+//     int64_t splitCount = 0;    
     
-    for( int i = 0; i < k; ++i )
-    {
-        int64_t currSum = 0;
-        if( )
-        while( currSum < CS )
-        {
+//     for( int i = 0; i < k; ++i )
+//     {
+//         int64_t currSum = 0;
+//         if( )
+//         while( currSum < CS )
+//         {
             
-        }
-    }
+//         }
+//     }
 
-    std::vector< std::pair< int64_t, int64_t > > result( k );
-    for( int64_t i = 0, offset = 0; i < k; ++i )
-    {
-        result[ i ].first  = offset;
-        result[ i ].second = ( N - offset ) / ( k - i );
-        offset += result[ i ].second;
-    }
-    return result;
-}
+//     std::vector< std::pair< int64_t, int64_t > > result( k );
+//     for( int64_t i = 0, offset = 0; i < k; ++i )
+//     {
+//         result[ i ].first  = offset;
+//         result[ i ].second = ( N - offset ) / ( k - i );
+//         offset += result[ i ].second;
+//     }
+//     return result;
+// }
 
 template< typename PhaseType, typename TargetFloatType >
 inline void copySwitchOrder(
