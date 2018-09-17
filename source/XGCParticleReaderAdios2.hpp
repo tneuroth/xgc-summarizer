@@ -24,38 +24,41 @@ inline std::vector< std::pair< int64_t, int64_t > > split( int64_t N, int64_t k 
     return result;
 }
 
-inline std::vector< std::pair< int64_t, int64_t > > balancedBlockSplit( 
-    std::vector<typename adios2::Variable< PhaseType >::Info> & blocks,
-    int64_t N, 
-    int64_t k )
-{
-    const int64_t CS = N / k;
+// template< typename PhaseType >
+// inline std::vector< std::pair< int64_t, int64_t > > balancedBlockSplit( 
+//     std::vector<typename adios2::Variable< PhaseType >::Info> & blocks,
+//     int64_t N, 
+//     int64_t k )
+// {
+//     const int64_t CS = N / k;
 
-    int64_t splitStart = 0;
-    int64_t splitCount = 0;    
-    int64_t currBlock  = 0;
+//     int64_t splitStart = 0;
+//     int64_t splitCount = 0;    
+//     int64_t currBlock  = 0;
 
-    for( int i = 0; i < k; ++i )
-    {
-        int64_t currSum = 0;
-        result[ i ].first  = splitStart;
-        while( currSum < CS && currBlock < blocks.size() )
-        {
-            currSum += blocks[ currBlock ].Count();
-            splitStart += currSum;
-        }
-        result[ i ].second = currSum;
-    }
+//     std::vector< std::pair< int64_t, int64_t > > result( k );
+    
+//     for( int i = 0; i < k; ++i )
+//     {
+//         int64_t currSum = 0;
+//         result[ i ].first  = splitStart;
+//         while( currSum < CS && currBlock < blocks.size() )
+//         {
+//             currSum += blocks[ currBlock ].Count();
+//             splitStart += currSum;
+//         }
+//         result[ i ].second = currSum;
+//     }
 
-    std::vector< std::pair< int64_t, int64_t > > result( k );
-    for( int64_t i = 0, offset = 0; i < k; ++i )
-    {
-        result[ i ].first  = offset;
-        result[ i ].second = ( N - offset ) / ( k - i );
-        offset += result[ i ].second;
-    }
-    return result;
-}
+//     std::vector< std::pair< int64_t, int64_t > > result( k );
+//     for( int64_t i = 0, offset = 0; i < k; ++i )
+//     {
+//         result[ i ].first  = offset;
+//         result[ i ].second = ( N - offset ) / ( k - i );
+//         offset += result[ i ].second;
+//     }
+//     return result;
+// }
 
 template< typename PhaseType, typename TargetFloatType >
 inline void copySwitchOrder(
@@ -159,12 +162,11 @@ inline int64_t readBPParticleDataStep(
     }
     else
     {
-        std::cout << "dims[ 0 ] = " << dims[ 0 ] << " " << CS << " rank " << rank << " nranks " << nranks << std::endl;
-
         uint64_t CS = SZ / nRanks;
         uint64_t MY_START = rank * CS;
         uint64_t MY_SIZE = ( rank < nRanks - 1 ? CS : SZ - rank*CS );
 
+        std::cout << "dims[ 0 ] = " << dims[ 0 ] << " " << CS << " rank " << rank << " nranks " << nRanks << std::endl;
         std::cout << "setting selection " << MY_START << " " << MY_SIZE << "x" << dims[ 1 ] << std::endl;
 
         phaseVar.SetSelection(
@@ -233,7 +235,7 @@ inline int64_t readBPParticleDataStep(
     }
 
     std::string phaseName = ptype == "ions" ? "iphase" : "ephase";
-    
+
     adios2::Variable< double > phaseDouble = bpIO.InquireVariable< double >( phaseName );
     adios2::Variable< float  > phaseFloat  = bpIO.InquireVariable< float   >( phaseName );
 
