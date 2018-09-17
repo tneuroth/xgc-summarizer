@@ -20,7 +20,7 @@ mpirun -np 8\
                  ${DATA_DIR}/xgc.particle.bp \
                  ${DATA_DIR}/units.m \
                  ${DATA_DIR}/summary/ \
-                 true \
+                 false \
                  true \
                  true
 
