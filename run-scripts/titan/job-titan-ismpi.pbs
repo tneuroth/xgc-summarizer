@@ -18,7 +18,7 @@ ln -s ../adios2cfg.ismpi.xml ./adios2cfg.xml
 
 export OMP_NUM_THREADS=1
 
-wraprun -n 1024 -N 8 ./xgc-es :\
+aprun -n 1024 -N 8 ./xgc-es :\
       -n 16   -N 1 -d 16 \
       ./summarizer \
           $DATA_PATH/adios2cfg.xml \
