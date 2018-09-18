@@ -62,6 +62,8 @@ int main( int argc, char** argv )
     const unsigned int color = 12899;
     MPI_Comm_split( MPI_COMM_WORLD, color, wrank, &mpiReaderComm );
 
+    std::cout << "rank=" << rank << " called com split " << std::endl;
+
     MPI_Comm_rank( mpiReaderComm, &rank   );
     MPI_Comm_size( mpiReaderComm, &nRanks );
 

@@ -227,8 +227,8 @@ inline int64_t readBPParticleDataStep(
     std::string phaseName = ptype == "ions" ? "iphase" : "ephase";
 
     auto tStepType = bpIO.VariableType( "timestep" );
-    auto rTimeType = bpIO.VariableType( "time" );
-    auto phaseType = bpIO.VariableType( phaseName ); 
+    auto rTimeType = bpIO.VariableType( "time"     );
+    auto phaseType = bpIO.VariableType( phaseName  ); 
         
     adios2::Variable< int > stepV = bpIO.InquireVariable< int >( "timestep" );
 
