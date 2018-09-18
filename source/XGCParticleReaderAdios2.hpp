@@ -202,9 +202,9 @@ inline int64_t readBPParticleDataStep(
 
     std::cout << "rank: " << rank << " read simstep" << std::endl; 
 
-    RealTimeType timeRead;
-    reader.Get( timeVar, &timeRead, adios2::Mode::Sync );
-    realtime = static_cast< double >( timeRead );
+    // RealTimeType timeRead;
+    // reader.Get( timeVar, &timeRead, adios2::Mode::Sync );
+    realtime = simstep; //static_cast< double >( timeRead );
 
     std::cout << "rank: " << rank << " read realtime" << std::endl; 
 
@@ -259,7 +259,7 @@ inline int64_t readBPParticleDataStep(
         std::cout << "double/float" << std::endl;
 
         adios2::Variable< double >  timeV = bpIO.InquireVariable< double >( "time" );
-        adios2::Variable< float > phaseV = bpIO.InquireVariable< float >( phaseName );
+        adios2::Variable< float > phaseV  = bpIO.InquireVariable< float >( phaseName );
 
         readBPParticleDataStep(
             result,
@@ -280,7 +280,7 @@ inline int64_t readBPParticleDataStep(
     {
         std::cout << "float/double" << std::endl;       
         
-        adios2::Variable< float >  timeV = bpIO.InquireVariable< float >( "time" );
+        adios2::Variable< float >  timeV  = bpIO.InquireVariable< float >( "time" );
         adios2::Variable< double > phaseV = bpIO.InquireVariable< double >( phaseName );
 
         readBPParticleDataStep(
