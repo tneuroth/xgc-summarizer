@@ -81,8 +81,8 @@ struct VTKmInterpolator2D
             const IdPortalType     & meshNeighborhoodSums,
             ScalarType             & myScalarOut ) const
         {
-            const IndexType OFFSET = myNearestNeighbor > 0 ? meshNeighborhoodSums[ myNearestNeighbor - 1 ] : 0;
-            const IndexType NUM_NEIGHBORS = meshNeighborhoodSums[ myNearestNeighbor ] - OFFSET;
+            // const IndexType OFFSET = myNearestNeighbor > 0 ? meshNeighborhoodSums[ myNearestNeighbor - 1 ] : 0;
+            // const IndexType NUM_NEIGHBORS = meshNeighborhoodSums[ myNearestNeighbor ] - OFFSET;
             myScalarOut = meshScalars[ myNearestNeighbor ];
         }
     };
@@ -108,7 +108,7 @@ struct VTKmInterpolator2D
         DeviceAdapter device )
     {
         InterpolationWorklet2D interpolationWorklet( static_cast< vtkm::Id >( MAX_NEIGHBORS )  );
-        vtkm::worklet::DispatcherMapField< InterpolationWorklet2D, DeviceAdapter >
+        vtkm::worklet::DispatcherMapField< InterpolationWorklet2D >
         interpDispatcher( interpolationWorklet );
 
         interpDispatcher.Invoke(

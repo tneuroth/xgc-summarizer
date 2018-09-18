@@ -252,7 +252,7 @@ struct VTKmAggregator
         DeviceAdapter device  )
     {
         AggregateWorklet aggregateWorklet( histDims, xRange, yRange, nHists );
-        vtkm::worklet::DispatcherReduceByKey< AggregateWorklet, DeviceAdapter >
+        vtkm::worklet::DispatcherReduceByKey< AggregateWorklet >
         aggregateDispatcher( aggregateWorklet );
         aggregateDispatcher.Invoke(
             keys,
@@ -269,7 +269,7 @@ struct VTKmAggregator
 
         VarianceSumWorklet varianceSumWorklet;
 
-        vtkm::worklet::DispatcherReduceByKey< VarianceSumWorklet, DeviceAdapter >
+        vtkm::worklet::DispatcherReduceByKey< VarianceSumWorklet >
         varianceSumDispatcher( varianceSumWorklet );
 
         varianceSumDispatcher.Invoke(
