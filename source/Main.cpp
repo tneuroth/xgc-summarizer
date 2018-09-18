@@ -48,17 +48,21 @@ int main( int argc, char** argv )
     std::cout << "wrank=" << wrank << ", wnproc=" << wnproc << std::endl;
 
     const unsigned int color = 12899;
-    int err = MPI_Comm_split( MPI_COMM_WORLD, color, wrank, &mpiReaderComm );
+    int comm_err = MPI_Comm_split( MPI_COMM_WORLD, color, wrank, &mpiReaderComm );
 
-    if( err != MPI_SUCCESS )
+    if( comm_err != MPI_SUCCESS )
     {
-        if( err == MPI_ERR_COMM )
+        if( comm_err == MPI_ERR_COMM )
         {
             std::cerr << "wrank: error in MPI_Comm_Split, " << wrank << "MPI_ERR_COMM" << std::endl;
         }
-        else if( err == MPI_ERR_INTERN )
+        else if( comm_err == MPI_ERR_INTERN )
         {
             std::cerr << "wrank: error in MPI_Comm_Split, " << wrank << "MPI_ERR_INTERN" << std::endl;   
+        }
+        else
+        {
+            std::cerr << "wrank: error in MPI_Comm_Split, " << wrank << " " << comm_err << std::endl;      
         }
     }
 
