@@ -17,19 +17,7 @@ using namespace chrono;
 typedef float ValueType;
 
 int main( int argc, char** argv )
-{
-    omp_set_dynamic( 0 );
-    omp_set_num_threads( 16 );
-
-    int nt = 1;
-    #pragma omp parallel
-    {
-        nt = omp_get_num_threads();
-    }
-
-    std::cout << "set omp num threads " << nt << std::endl;
-    std::cout << "summarizer started" << std::endl;
-    
+{    
     if( argc < 7 )
     {
         cerr << "expected:\
@@ -70,6 +58,18 @@ int main( int argc, char** argv )
     std::cout << "rank=" << rank << ", nRanks=" << nRanks << std::endl;
 
     int err  = adios_read_init_method ( ADIOS_READ_METHOD_BP, MPI_COMM_SELF, "verbose=3" );
+
+    omp_set_dynamic( 0 );
+    omp_set_num_threads( 16 );
+
+    int nt = 1;
+    #pragma omp parallel
+    {
+        nt = omp_get_num_threads();
+    }
+
+    std::cout << "set omp num threads " << nt << std::endl;
+    std::cout << "summarizer started" << std::endl;
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
