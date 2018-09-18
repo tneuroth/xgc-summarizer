@@ -48,7 +48,19 @@ int main( int argc, char** argv )
     std::cout << "wrank=" << wrank << ", wnproc=" << wnproc << std::endl;
 
     const unsigned int color = 12899;
-    MPI_Comm_split( MPI_COMM_WORLD, color, wrank, &mpiReaderComm );
+    int err = MPI_Comm_split( MPI_COMM_WORLD, color, wrank, &mpiReaderComm );
+
+    if( err != MPI_SUCCESS )
+    {
+        if( err == MPI_ERR_COMM )
+        {
+            std::cerr << "wrank: error in MPI_Comm_Split, " << wrank << "MPI_ERR_COMM" << std::endl;
+        }
+        else if( err == MPI_ERR_INTERN )
+        {
+            std::cerr << "wrank: error in MPI_Comm_Split, " << wrank << "MPI_ERR_INTERN" << std::endl;   
+        }
+    }
 
     std::cout << "rank=" << rank << " called com split " << std::endl;
 
@@ -58,6 +70,7 @@ int main( int argc, char** argv )
     std::cout << "rank=" << rank << ", nRanks=" << nRanks << std::endl;
 
     int err  = adios_read_init_method ( ADIOS_READ_METHOD_BP, MPI_COMM_SELF, "verbose=3" );
+
 
     omp_set_dynamic( 0 );
     omp_set_num_threads( 16 );
@@ -92,12 +105,12 @@ int main( int argc, char** argv )
         particle_data_base_path,
         units_path,
         outpath,
-    { "ions" , "electrons" },
-    inSitu,
-    splitByBlocks,
-    rank,
-    nRanks,
-    mpiReaderComm );
+        { "ions" , "electrons" },
+        inSitu,
+        splitByBlocks,
+        rank,
+        nRanks,
+        mpiReaderComm );
 
     std::cout << "after summarizer intialize" << std::endl;
 
