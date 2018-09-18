@@ -76,7 +76,7 @@ XGCAggregator< ValueType >::XGCAggregator(
     TN::Synchro::waitForFileExistence( m_bFieldFilePath, 100000 );
     std::this_thread::sleep_for( std::chrono::milliseconds( 1000 ) );
 
-    std::cout << "reading mesh" << std::endl;
+    //std::cout << "reading mesh" << std::endl;
 
     TN::readMeshBP(
         m_summaryGrid,
@@ -84,7 +84,7 @@ XGCAggregator< ValueType >::XGCAggregator(
     meshFilePath,
     m_bFieldFilePath );
 
-    std::cout << "sorting neigborhoods" << std::endl;
+    //std::cout << "sorting neigborhoods" << std::endl;
     
     TN::Mesh::sortNeighborhoodsCCW( 
         m_summaryGrid.variables.at( "r" ),
@@ -105,9 +105,9 @@ XGCAggregator< ValueType >::XGCAggregator(
     m_summaryGrid.maxNeighbors = TN::Mesh::maxNeighborhoodSize(
         m_summaryGrid.neighborhoodSums );
 
-    std::cout << "max neighborhood=" << m_summaryGrid.maxNeighbors;
+    //std::cout << "max neighborhood=" << m_summaryGrid.maxNeighbors;
 
-    std::cout << "setting grid" << std::endl;
+    //std::cout << "setting grid" << std::endl;
 
     setGrid(
         m_summaryGrid.variables.at( "r" ),
@@ -164,17 +164,17 @@ void XGCAggregator< ValueType >::runInSitu()
     if( m_particleReaderEngine == "SST" )
     {
         particleIO.SetEngine( "Sst" );
-        std::cout << "set engine type to sst";
+        //std::cout << "set engine type to sst";
     }
     else if( m_particleReaderEngine == "InSituMPI" )
     {
         particleIO.SetEngine( "InSituMPI" );
-        std::cout << "set engine type to InSituMPI";
+        //std::cout << "set engine type to InSituMPI";
     }
 
-    std::cout << "Trying to open reader: " << m_particleFile << std::endl;
+    //std::cout << "Trying to open reader: " << m_particleFile << std::endl;
     adios2::Engine particleReader = particleIO.Open( m_particleFile, adios2::Mode::Read );
-    std::cout << "Summarizer opened reader";
+    //std::cout << "Summarizer opened reader";
 
     /************************************************************************************/
 
@@ -186,17 +186,17 @@ void XGCAggregator< ValueType >::runInSitu()
         /*******************************************************************************/
         // Read Particle Data Step
 
-        std::cout << "Before begin step" << std::endl;
+        //std::cout << "Before begin step" << std::endl;
 
         adios2::StepStatus status =
             particleReader.BeginStep( 
                 adios2::StepMode::NextAvailable, TIMEOUT );
 
-        std::cout << "After begin step, status is: "
-                  << ( status == adios2::StepStatus::OK          ? "OK"          :
-                       status == adios2::StepStatus::OtherError  ? "OtherError"  :
-                       status == adios2::StepStatus::EndOfStream ? "EndOfStream" :
-                       "OtherError" ) << std::endl;
+        //std::cout << "After begin step, status is: "
+        //          << ( status == adios2::StepStatus::OK          ? "OK"          :
+        //               status == adios2::StepStatus::OtherError  ? "OtherError"  :
+        //               status == adios2::StepStatus::EndOfStream ? "EndOfStream" :
+        //               "OtherError" ) << std::endl;
         
         if ( status == adios2::StepStatus::NotReady )
         {
@@ -210,12 +210,10 @@ void XGCAggregator< ValueType >::runInSitu()
             break;
         }
 
-        std::chrono::high_resolution_clock::time_point readStartTime = std::chrono::high_resolution_clock::now();
-
         int64_t simstep;
         double  realtime;
 
-        std::cout << "Reading Particles" << std::endl;
+        //std::cout << "Reading Particles" << std::endl;
 
         int64_t totalNumParticles 
             = readBPParticleDataStep(
@@ -230,22 +228,15 @@ void XGCAggregator< ValueType >::runInSitu()
                 realtime,
                 m_splitByBlocks );
 
-        std::cout << "Before EndStep" << std::endl;
+        //std::cout << "Before EndStep" << std::endl;
         particleReader.EndStep();
-        std::cout << "After EndStep" << std::endl;
+        //std::cout << "After EndStep" << std::endl;
 
         /*******************************************************************************/
 
         summaryStep.numParticles = totalNumParticles;
         summaryStep.setStep( outputStep, simstep, realtime );
         summaryStep.objectIdentifier = "ions";
-
-        std::chrono::high_resolution_clock::time_point readStartEnd = std::chrono::high_resolution_clock::now();
-
-        std::cout << "RANK: " << m_rank
-                  << ", adios Read time took "
-                  << std::chrono::duration_cast<std::chrono::milliseconds>( readStartEnd - readStartTime ).count()
-                  << " std::chrono::milliseconds " << " for " << m_phase.size()/9 << " particles" << std::endl;
 
         /////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -511,7 +502,6 @@ void XGCAggregator< ValueType >::aggregateOMP(
 
     // summary statistics
 
-
     // For some reason this wont compile if template ValueType is used.
     std::set< ScalarVariableStatistics< float >::Statistic > stats =
     {
@@ -708,7 +698,7 @@ void XGCAggregator< ValueType >::computeSummaryStep(
 
     std::chrono::high_resolution_clock::time_point kdt2 = std::chrono::high_resolution_clock::now();
     std::cout << "RANK: " << m_rank
-              << ", kdtree mapping CHUNK took "
+              << ", kdtree mapping and interpolation took "
               << std::chrono::duration_cast<std::chrono::milliseconds>( kdt2 - kdt1 ).count()
               << " std::chrono::milliseconds " << " for " << r.size() << " particles" << std::endl;
 
@@ -774,7 +764,7 @@ void XGCAggregator< ValueType >::computeSummaryStep(
 
     std::chrono::high_resolution_clock::time_point rt1 = std::chrono::high_resolution_clock::now();
 
-    std::cout << "reducing" << std::endl;
+    //std::cout << "reducing" << std::endl;
 
     for( auto & hist : summaryStep.histograms )
     {
