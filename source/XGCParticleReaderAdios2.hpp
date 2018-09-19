@@ -89,6 +89,7 @@ template<
     typename TargetFloatType >
 inline int64_t readBPParticleDataStep(
     std::vector< TargetFloatType > & result,
+    std::vector< int64_t > & ids,
     const std::string & ptype,
     const std::string & path,
     int rank,
@@ -223,6 +224,7 @@ inline int64_t readBPParticleDataStep(
 template< typename TargetFloatType >
 inline int64_t readBPParticleDataStep(
     std::vector< TargetFloatType > & result,
+    std::vector< int64_t > & ids,
     const std::string & ptype,
     const std::string & path,
     int rank,
@@ -250,6 +252,7 @@ inline int64_t readBPParticleDataStep(
         
         readBPParticleDataStep(
             result,
+            ids,
             ptype,
             path,
             rank,
@@ -272,6 +275,7 @@ inline int64_t readBPParticleDataStep(
 
         readBPParticleDataStep(
             result,
+            ids,
             ptype,
             path,
             rank,
@@ -294,6 +298,7 @@ inline int64_t readBPParticleDataStep(
 
         readBPParticleDataStep(
             result,
+            ids,        
             ptype,
             path,
             rank,
@@ -316,6 +321,7 @@ inline int64_t readBPParticleDataStep(
         
         readBPParticleDataStep(
             result,
+            ids,          
             ptype,
             path,
             rank,
@@ -338,6 +344,7 @@ inline int64_t readBPParticleDataStep(
 template< typename TargetFloatType >
 inline int64_t readBPParticleDataStep(
     std::vector< TargetFloatType > & result,
+    std::vector< int64_t > & ids, 
     const std::string & ptype,
     const std::string & path,
     int rank,
@@ -353,6 +360,7 @@ inline int64_t readBPParticleDataStep(
 
     auto totalNumParticles = readBPParticleDataStep(
                                  result,
+                                 ids, 
                                  ptype,
                                  path,
                                  rank,

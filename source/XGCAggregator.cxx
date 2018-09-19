@@ -9,6 +9,7 @@
 #include "Reduce/Reduce.hpp"
 #include "XGCSynchronizer.hpp"
 #include "grid-algorithms/MeshUtils.hpp"
+#include "Tracker.hpp"
 
 #include <adios2.h>
 #include <mpi.h>
@@ -54,7 +55,8 @@ XGCAggregator< ValueType >::XGCAggregator(
     m_rank( m_rank ),
     m_nranks( nm_ranks ),
     m_summaryWriterAppendMode( true ),
-    m_mpiCommunicator( communicator )
+    m_mpiCommunicator( communicator ),
+    m_superParticleThreshold( std::numeric_limits< float >::max() )
 {
     const std::map< std::string, std::string > ioEngines 
         = TN::XML::extractIoEngines( adiosConfigFilePath );
@@ -68,12 +70,12 @@ XGCAggregator< ValueType >::XGCAggregator(
         m_particleReaderEngine = "BPFile";
     }
 
-    TN::Synchro::waitForFileExistence( m_unitsMFilePath, 100000 );
+    TN::Synchro::waitForFileExistence( m_unitsMFilePath,  100000 );
     std::this_thread::sleep_for( std::chrono::milliseconds( 1000 ) );
     TN::loadConstants( m_unitsMFilePath, m_constants );
     
-    TN::Synchro::waitForFileExistence(     meshFilePath, 100000 );
-    TN::Synchro::waitForFileExistence( m_bFieldFilePath, 100000 );
+    TN::Synchro::waitForFileExistence(     meshFilePath,  100000 );
+    TN::Synchro::waitForFileExistence( m_bFieldFilePath,  100000 );
     std::this_thread::sleep_for( std::chrono::milliseconds( 1000 ) );
 
     //std::cout << "reading mesh" << std::endl;
@@ -156,6 +158,25 @@ void XGCAggregator< ValueType >::runInSitu()
     }
 
     /*************************************************************************/
+
+    // Particle Path Writer, written in parallel
+
+    std::unique_ptr< adios2::ADIOS > adiosParticlePath( new adios2::ADIOS( MPI_COMM_SELF, adios2::DebugOFF )  );    
+    std::unique_ptr< adios2::IO > particlePathIO( new adios2::IO( adiosParticlePath->DeclareIO( "ParticlePath-IO" ) ) );
+    std::vector< std::string > pathPhase( XGC_PHASE_INDEX_MAP.size() );
+
+    for( auto & var : XGC_PHASE_INDEX_MAP )
+    {
+        pathPhase[ var.second ] = var.first;
+    }
+
+    // particlePathIO->DefineAttribute<std::string>( "variables", pathPhase );
+
+    std::unique_ptr< adios2::Engine > particlePathWriter( 
+        new adios2::Engine( particlePathIO->Open( 
+                m_outputDirectory + "/particlePaths.bp", adios2::Mode::Write ) ) );
+
+    /*************************************************************************/
     // Reader
 
     adios2::ADIOS adios( m_mpiCommunicator, adios2::DebugOFF );
@@ -179,8 +200,9 @@ void XGCAggregator< ValueType >::runInSitu()
     /************************************************************************************/
 
     int64_t outputStep = 0;
-    SummaryStep< ValueType > summaryStep;   
- 
+    TN::SummaryStep< ValueType > summaryStep;   
+    std::unordered_set< std::int64_t > trackedParticleIds;
+
     while( 1 )
     {
         /*******************************************************************************/
@@ -202,6 +224,7 @@ void XGCAggregator< ValueType >::runInSitu()
         {
             std::this_thread::sleep_for(
                 std::chrono::milliseconds( 1000 ) );
+
             continue;
         }
         else if ( status != adios2::StepStatus::OK )
@@ -218,6 +241,7 @@ void XGCAggregator< ValueType >::runInSitu()
         int64_t totalNumParticles 
             = readBPParticleDataStep(
                 m_phase,
+                m_particleIds,
                 "ions",
                 m_particleFile,
                 m_rank,
@@ -242,10 +266,14 @@ void XGCAggregator< ValueType >::runInSitu()
 
         computeSummaryStep(
             m_phase,
+            m_particleIds,
             summaryStep,
+            trackedParticleIds,            
             "ions",
             summaryIO,
-            summaryWriter );
+            summaryWriter,
+            particlePathIO,
+            particlePathWriter );
 
         ++outputStep;
     }
@@ -288,6 +316,7 @@ void XGCAggregator< ValueType >::runInPost()
         4200  };
 
     SummaryStep< ValueType > summaryStep;
+    std::unordered_set< std::int64_t > trackedParticleIds;
 
     /*************************************************************************/
     // Summary Writer (results are reduced to and written from mpi root)
@@ -310,6 +339,25 @@ void XGCAggregator< ValueType >::runInPost()
                 m_outputDirectory + "/summary.bp", adios2::Mode::Write ) ) );
     }
 
+    /*************************************************************************/
+
+    // Particle Path Writer, written in parallel
+
+    std::unique_ptr< adios2::ADIOS > adiosParticlePath( new adios2::ADIOS( MPI_COMM_SELF, adios2::DebugOFF )  );    
+    std::unique_ptr< adios2::IO > particlePathIO( new adios2::IO( adiosParticlePath->DeclareIO( "ParticlePath-IO" ) ) );
+    std::vector< std::string > pathPhase( XGC_PHASE_INDEX_MAP.size() );
+
+    for( auto & var : XGC_PHASE_INDEX_MAP )
+    {
+        pathPhase[ var.second ] = var.first;
+    }
+
+    // particlePathIO->DefineAttribute<std::string>( "variables", pathPhase );
+
+    std::unique_ptr< adios2::Engine > particlePathWriter( 
+        new adios2::Engine( particlePathIO->Open( 
+                m_outputDirectory + "/particlePaths.bp", adios2::Mode::Write ) ) );
+
     /******************************************************************************/
 
     for( auto tstep : steps )
@@ -322,6 +370,7 @@ void XGCAggregator< ValueType >::runInPost()
 
         int64_t totalNumParticles = readBPParticleDataStep(
              m_phase,
+             m_particleIds,             
              "ions",
              m_particleFile + "/xgc.restart." + std::string( 5 - tstepStr.size(), '0' ) + tstepStr +  ".bp",
              m_rank,
@@ -348,10 +397,14 @@ void XGCAggregator< ValueType >::runInPost()
 
         computeSummaryStep(
             m_phase,
+            m_particleIds,
             summaryStep,
+            trackedParticleIds,           
             "ions",
             summaryIO,
-            summaryWriter );
+            summaryWriter,
+            particlePathIO,
+            particlePathWriter );
 
         ++outputStep;
     }
@@ -659,11 +712,15 @@ void XGCAggregator< ValueType >::writeGrid( const std::string & path )
 
 template< typename ValueType >
 void XGCAggregator< ValueType >::computeSummaryStep(
-    std::vector< ValueType > & phase,
+    const std::vector< ValueType > & phase,
+    const std::vector< int64_t > & m_ids,
     TN::SummaryStep< ValueType > & summaryStep,
+    std::unordered_set< int64_t > & trackedParticleIds,
     const std::string & ptype,
     std::unique_ptr< adios2::IO > & summaryIO,
-    std::unique_ptr< adios2::Engine > & summaryWriter )
+    std::unique_ptr< adios2::Engine > & summaryWriter,
+    std::unique_ptr< adios2::IO > & particlePathIO,
+    std::unique_ptr< adios2::Engine > & particlePathWriter )
 {
     const size_t SZ      = phase.size() / 9;
     const size_t R_POS   = XGC_PHASE_INDEX_MAP.at( "r" ) * SZ;
@@ -764,7 +821,106 @@ void XGCAggregator< ValueType >::computeSummaryStep(
 
     std::chrono::high_resolution_clock::time_point rt1 = std::chrono::high_resolution_clock::now();
 
-    //std::cout << "reducing" << std::endl;
+    /*********************************************************************************************/
+    // Particle Tracking
+
+    // identify super particles
+    std::vector< int64_t > myNewSuperParticles;
+    TN::Tracker::identifyNewSuperParticles( 
+        m_particleIds,
+        m_phase,
+        myNewSuperParticles,
+        m_superParticleThreshold );
+
+    int64_t myNumNewParticles = myNewSuperParticles.size();
+    
+    // communicate total number of new super particles to all nodes
+
+    int64_t totalNumNewParticles;
+
+    MPI_Allreduce(
+        & myNumNewParticles,
+        & totalNumNewParticles,
+        1,
+        MPI_LONG_LONG_INT,
+        MPI_SUM,
+        m_mpiCommunicator );
+
+    // gather new super particles to all nodes
+    
+    std::vector< int64_t > allNewSuperParticles( totalNumNewParticles );
+    std::vector< int > newParticleGatherOffsets( m_nranks );
+    std::vector< int > toGatherPerNode( m_nranks );
+
+    MPI_Allgather(
+        & myNumNewParticles, 
+        1, 
+        MPI_INT,
+        toGatherPerNode.data(), 
+        m_nranks, 
+        MPI_INT, 
+        m_mpiCommunicator );
+
+    int currGatherOffset = 0;
+    for( int i = 0; i < m_nranks; ++i )
+    {
+        newParticleGatherOffsets[ i ] = currGatherOffset;
+        currGatherOffset += toGatherPerNode[ i ];
+    }
+
+    MPI_Allgatherv(
+        myNewSuperParticles.data(), 
+        static_cast< int >( myNewSuperParticles.size() ), 
+        MPI_LONG_LONG_INT,
+        allNewSuperParticles.data(), 
+        toGatherPerNode.data(), 
+        newParticleGatherOffsets.data(),
+        MPI_LONG_LONG_INT, 
+        m_mpiCommunicator );
+
+    // add new super particles to set of tracked particles
+
+    trackedParticleIds.insert( 
+        allNewSuperParticles.begin(), 
+        allNewSuperParticles.end() );
+
+    // record values for super particles on this node
+
+    PhasePathStep < ValueType > phasePaths;
+
+    TN::Tracker::trackParticles(
+        m_particleIds,
+        m_phase,
+        trackedParticleIds,
+        phasePaths );
+
+    // get the number of tracked particles found for each node
+
+    int64_t myNumFoundTrackedParticles = phasePaths.ids.size();
+    std::vector< int64_t > eachNodesNumFoundTrackedParticles( m_nranks );
+
+    MPI_Allgather(
+        & myNumFoundTrackedParticles, 
+        1, 
+        MPI_LONG_LONG_INT,
+        eachNodesNumFoundTrackedParticles.data(), 
+        m_nranks, 
+        MPI_LONG_LONG_INT, 
+        m_mpiCommunicator );
+
+    int64_t myGlobalOffset = 0;
+    for( int i = 0; i < m_rank; ++i )
+    {
+        myGlobalOffset += eachNodesNumFoundTrackedParticles[ i ];
+    }
+
+    int64_t totalNumFoundTrackedParticles = 0;
+    for( int i = 0; i < m_rank; ++i )
+    {
+        totalNumFoundTrackedParticles += eachNodesNumFoundTrackedParticles[ i ];
+    }
+
+    /*********************************************************************************************/
 
     for( auto & hist : summaryStep.histograms )
     {
@@ -846,7 +1002,7 @@ void XGCAggregator< ValueType >::computeSummaryStep(
         if( m_summaryWriterAppendMode )
         {
             summaryWriter->BeginStep();
-            writeSummaryStepBP( summaryStep, m_outputDirectory, *summaryIO, *summaryWriter );
+            writeSummaryStepBP( summaryStep, *summaryIO, *summaryWriter );
             summaryWriter->EndStep();
         }
         else
@@ -857,6 +1013,34 @@ void XGCAggregator< ValueType >::computeSummaryStep(
         std::chrono::high_resolution_clock::time_point wt2 = std::chrono::high_resolution_clock::now();
         std::cout << "write step took " << std::chrono::duration_cast<std::chrono::milliseconds>( wt2 - wt1 ).count()
                   << " std::chrono::milliseconds\n"  << std::endl;
+    }
+
+    if( m_summaryWriterAppendMode )
+    {
+        particlePathWriter->BeginStep();
+
+        writeParticlePathsStep(
+            phasePaths,
+            myGlobalOffset,
+            totalNumFoundTrackedParticles,    
+            XGC_PHASE_INDEX_MAP.size(),
+            "super", 
+            *particlePathIO,
+            *particlePathWriter );
+        
+        particlePathWriter->EndStep();
+    }
+    else
+    {
+        writeParticlePathsStep(
+            phasePaths,
+            myGlobalOffset,
+            totalNumFoundTrackedParticles, 
+            m_outputDirectory,   
+            summaryStep.simStep,
+            XGC_PHASE_INDEX_MAP.size(),
+            "super",
+            m_mpiCommunicator );
     }
 
     MPI_Barrier( m_mpiCommunicator );

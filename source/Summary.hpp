@@ -185,6 +185,13 @@ struct CellHistograms
 };
 
 template < typename ValueType >
+struct PhasePathStep
+{
+    std::vector< int64_t > ids;
+    std::vector< ValueType > values;
+};
+
+template < typename ValueType >
 struct SummaryStep
 {
     // Scalar Statistics

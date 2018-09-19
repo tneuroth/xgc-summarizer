@@ -7,6 +7,8 @@
 #include "VTKmInterpolator.hpp"
 #include "VTKmAggregator.hpp"
 #include <map>
+#include <unordered_map>
+#include <unordered_set>
 #include <set>
 #include <string>
 #include <vector>
@@ -15,7 +17,7 @@
 namespace TN
 {
 
-const std::map< std::string, int > XGC_PHASE_INDEX_MAP =
+const std::unordered_map< std::string, int > XGC_PHASE_INDEX_MAP =
 {
     { "r",            0 },   // Major radius [m]
     { "z",            1 },   // Azimuthal direction [m]
@@ -38,6 +40,8 @@ class XGCAggregator
     std::string m_outputDirectory;
     std::string m_particleReaderEngine;
 
+    double m_superParticleThreshold;
+
     bool m_inSitu;
     bool m_splitByBlocks;
     bool m_summaryWriterAppendMode;
@@ -46,15 +50,20 @@ class XGCAggregator
     int m_nranks;
     MPI_Comm m_mpiCommunicator;
 
+    std::vector< std::int64_t > m_particleIds;
     std::vector< ValueType > m_phase;
     std::vector< ValueType > m_B;
 
     void computeSummaryStep(
-        std::vector< ValueType > & phase,
+        const std::vector< ValueType > & phase,
+        const std::vector< int64_t > & ids,
         TN::SummaryStep< ValueType > & summaryStep,
+        std::unordered_set< int64_t > & trackedParticleIds,
         const std::string & ptype,
         std::unique_ptr< adios2::IO > & summaryIO,
-        std::unique_ptr< adios2::Engine > & summaryWriter );
+        std::unique_ptr< adios2::Engine > & summaryWriter,
+        std::unique_ptr< adios2::IO > & particlePathIO,
+        std::unique_ptr< adios2::Engine > & particlePathWriter );
 
 public:
 

@@ -17,13 +17,11 @@
 #include <vtkm/worklet/internal/DispatcherBase.h>
 #include <vtkm/worklet/internal/WorkletBase.h>
 
-
 namespace TN
 {
 
 struct VTKmInterpolator2D
 {
-
     struct InterpolationWorklet2D : public vtkm::worklet::WorkletMapField
     {
         using ControlSignature = void(

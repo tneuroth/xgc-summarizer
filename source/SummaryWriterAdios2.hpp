@@ -105,9 +105,76 @@ inline void writeSummaryGridBP(
 }
 
 template< typename ValueType >
+inline void writeParticlePathsStep(
+    const PhasePathStep< ValueType > & pathStep,
+    const int64_t & offset,
+    const int64_t & globalSize,    
+    const int phaseDims,
+    const std::string & desc, 
+    adios2::IO & bpIO,
+    adios2::Engine & bpWriter )
+{
+    auto availableVariables = bpIO.AvailableVariables();
+    auto vphasename = "particle_paths/" + desc + "/phase";
+    auto vidname = "particle_paths/" + desc + "/id";
+
+    bpWriter.Put< ValueType >(
+        availableVariables.count( vphasename ) ? bpIO.InquireVariable< ValueType >( vphasename )
+        : bpIO.DefineVariable< ValueType >(
+            vphasename,
+            { globalSize, phaseDims },
+            { offset, 0 },
+            { pathStep.values.size(), phaseDims },
+        adios2::ConstantDims ),
+        pathStep.values.data() );
+
+    bpWriter.Put< int64_t >(
+        availableVariables.count( vidname ) ? bpIO.InquireVariable< int64_t >( vidname )
+        : bpIO.DefineVariable< int64_t >(
+            vphasename,
+            { globalSize },
+            { offset },
+            { pathStep.ids.size() },
+        adios2::ConstantDims ),
+        pathStep.ids.data() );
+}
+
+template< typename ValueType >
+inline void writeParticlePathsStep(
+    const PhasePathStep< ValueType > & pathStep,
+    const int64_t & offset,
+    const int64_t & globalSize, 
+    const std::string & directory,
+    int stepi,   
+    const int phaseDims,
+    const std::string & desc,
+    MPI_Comm communicator )
+{
+    adios2::ADIOS adios( communicator, adios2::DebugOFF );
+    adios2::IO bpIO = adios.DeclareIO( "XGC-ParticlePath-IO" );
+    std::string step = std::to_string( stepi );
+
+    adios2::Engine bpWriter = bpIO.Open(
+        directory
+        + "/particlePaths.bp"
+        + std::string( 7 - step.size(), '0' ) + step + ".bp",
+        adios2::Mode::Write );
+
+    writeParticlePathsStep(
+        pathStep,
+        offset,
+        globalSize,    
+        phaseDims,
+        desc, 
+        bpIO,
+        bpWriter );
+
+    bpWriter.Close();
+}
+
+template< typename ValueType >
 inline void writeSummaryStepBP(
     const SummaryStep< ValueType > & summaryStep,
-    const std::string & directory,
     adios2::IO & bpIO,
     adios2::Engine & bpWriter )
 {
@@ -251,11 +318,11 @@ inline void writeSummaryStepBP(
     std::string step = std::to_string( summaryStep.simStep );
     adios2::Engine bpWriter = bpIO.Open(
                                   directory
-                                  + "summary."
+                                  + "/summary."
                                   + std::string( 7 - step.size(), '0' ) + step + ".bp",
                                   adios2::Mode::Write );
 
-    writeSummaryStepBP( summaryStep, directory, bpIO, bpWriter );
+    writeSummaryStepBP( summaryStep, bpIO, bpWriter );
     bpWriter.Close();
 }
 
