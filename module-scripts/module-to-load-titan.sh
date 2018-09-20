@@ -9,7 +9,7 @@ module load cudatoolkit
 module load python python_numpy
 
 module use -a /lustre/atlas/world-shared/csc143/jyc/titan/sw/modulefiles 
-module load adios2
+module load adios2/devel-tyson
 
 export XGC_PLATFORM=titan.gcc.jyc 
 
