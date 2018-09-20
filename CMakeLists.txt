@@ -64,7 +64,7 @@ find_package(VTKm REQUIRED)
 find_package(CUDA REQUIRED)  
 
 add_library(aggregator ${SRC_DIR}/XGCAggregator.cxx)
-add_library(aggregatorTools ${SRC_DIR}/VTKmAggregatorTools.cu)
+add_library(aggregatorTools ${SRC_DIR}/VTKmAggregatorTools.cpp)
 
 target_link_libraries( aggregatorTools vtkm_cont )
 

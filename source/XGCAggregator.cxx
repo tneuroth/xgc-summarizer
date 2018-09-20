@@ -9,7 +9,7 @@
 #include "Reduce/Reduce.hpp"
 #include "XGCSynchronizer.hpp"
 #include "grid-algorithms/MeshUtils.hpp"
-#include "Tracker.hpp"
+#include "XGCTracker.hpp"
 #include <mpi.h>
 
 #include <vector>
