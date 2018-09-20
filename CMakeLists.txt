@@ -12,7 +12,7 @@ option(VTKM_CUDA OFF)
 
 set(DEV ${CMAKE_CURRENT_SOURCE_DIR}/../)
 set(SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/source/)
-set(VTKm_DIR "${DEV}/kdtree/vtkm-build/lib/cmake/vtkm-1.2")
+set(VTKm_DIR "${DEV}/vtkm-build/lib/cmake/vtkm-1.2")
   
 if(TITAN)
     set(CMAKE_C_COMPILER cc)
@@ -46,7 +46,7 @@ include_directories(
     /usr/include/glib-2.0/
     /usr/lib/glib-2.0/include/
     ${SRC_DIR}/
-    ${DEV}/kdtree/vtkm-build/include/
+    ${DEV}/vtkm-build/include/
     ${DEV}/adios-builds/include/
     ${ADIOS1_DIR}/include/
     ${ADIOS2_DIR}/include/
@@ -54,7 +54,7 @@ include_directories(
 
 link_directories(
     /usr/lib/x86_64-linux-gnu/    
-    ${DEV}/kdtree/vtkm-build/lib/    
+    ${DEV}/vtkm-build/lib/    
     ${ADIOS1_DIR}/lib/
     ${ADIOS2_DIR}/lib/
     /usr/lib/
