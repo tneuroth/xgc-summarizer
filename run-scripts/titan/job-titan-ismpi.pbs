@@ -3,7 +3,7 @@
 #PBS -j oe
 #PBS -q batch 
 #PBS -l nodes=144
-#PBS -l walltime=01:00:00
+#PBS -l walltime=01:30:00
 #PBS -V
 
 DATA_PATH=/lustre/atlas/world-shared/csc143/xgc-adios-dir-tyson/xgc-adios2/
@@ -30,6 +30,6 @@ aprun -n 1024 -N 8 ./xgc-es :\
           false \
           true \
           true \
-          true
+          false
 
 
