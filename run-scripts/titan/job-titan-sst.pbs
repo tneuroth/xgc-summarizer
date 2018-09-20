@@ -30,7 +30,7 @@ aprun -n 16   -N 1 -d 16 \
           false \
           true \
           true \
-          false &
+          true &
 
 wait
 
