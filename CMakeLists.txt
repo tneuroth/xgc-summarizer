@@ -50,7 +50,7 @@ include_directories(
     ${DEV}/adios-builds/include/
     ${ADIOS1_DIR}/include/
     ${ADIOS2_DIR}/include/
-    ${DEV}/kdtree/vtkm-kdtree-generic/)
+    ${DEV}/vtkm-kdtree-generic/)
 
 link_directories(
     /usr/lib/x86_64-linux-gnu/    
