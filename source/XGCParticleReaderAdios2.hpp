@@ -108,12 +108,8 @@ inline int64_t readBPParticleDataStep(
 
     if( splitByBlocks )
     {
-        //std::cout << "splitting " << SZ << " particles by blocks" << std::endl;
-
         std::vector<typename adios2::Variable< PhaseType >::Info> blocks =
             reader.BlocksInfo( phaseVar, reader.CurrentStep() );
-
-        //std::cout << "found " << blocks.size() << " blocks" << std::endl;        
 
         auto splitPoints = split( blocks.size(), nRanks )[ rank ];
 
@@ -126,31 +122,17 @@ inline int64_t readBPParticleDataStep(
         result.resize( MY_SIZE * dims[ 1 ] );
         std::vector< PhaseType > tmp;
 
-        //std::cout << "RANK: " << rank
-        //          << ", from " << splitPoints.first
-        //          << ", reading " << splitPoints.second
-        //          << " blocks, with " << MY_SIZE
-        //          << " particles " << std::endl;
-
         int64_t copy_offset = 0;
         for( int i = splitPoints.first; i < splitPoints.first + splitPoints.second; ++i )
         {
-            //std::cout << "rank: " << rank << " reading block " << i << std::endl; 
-
             phaseVar.SetSelection(
             {
                 { blocks[ i ].Start[ 1 ],         0 },
                 { blocks[ i ].Count[ 1 ], dims[ 1 ] }
             } );
-            
-            //std::cout << "rank: " << rank << " reading block " << i << "set selection " 
-            //          << blocks[ i ].Start[ 1 ] << " to " << blocks[ i ].Count[ 1 ] 
-            //          << " with " << dims[ 1 ] << " variables" << std::endl; 
-
+        
             tmp.clear();
             reader.Get( phaseVar, tmp );
-
-            //std::cout << "rank: " << rank << " called Get" << std::endl; 
 
             copySwitchOrder(
                 tmp,
@@ -158,7 +140,6 @@ inline int64_t readBPParticleDataStep(
                 dims[ 1 ],
                 copy_offset );
 
-            //std::cout << "rank: " << rank << " changed column order" << std::endl; 
             copy_offset += blocks[ i ].Count[ 1 ];
         }
     }
@@ -170,25 +151,14 @@ inline int64_t readBPParticleDataStep(
         uint64_t MY_START = rank * CS;
         uint64_t MY_SIZE = ( rank < nRanks - 1 ? CS : SZ - rank*CS );
 
-        //std::cout << "dims[ 0 ] = " << dims[ 0 ] << " " << CS << " rank " << rank << " nranks " << nRanks << std::endl;
-        //std::cout << "setting selection " << MY_START << " " << MY_SIZE << "x" << dims[ 1 ] << std::endl;
-
         phaseVar.SetSelection(
         {
             { MY_START,        0 },
             { MY_SIZE, dims[ 1 ] }
         } );
 
-        //std::cout << "allocating temp " << ( MY_SIZE * dims[ 1 ] * sizeof( PhaseType ) ) << " bytes" << std::endl;
-
         std::vector< PhaseType > tmp( MY_SIZE * dims[ 1 ] );
-
-        //std::cout << "calling get" << std::endl;
-
-        reader.Get( phaseVar, tmp.data(), adios2::Mode::Sync );
-
-        //std::cout << "Copying " << std::endl;
-
+        reader.Get( phaseVar, tmp.data() );
 
         std::chrono::high_resolution_clock::time_point readStartEnd = std::chrono::high_resolution_clock::now();
         std::cout << "RANK: " << rank
@@ -204,19 +174,13 @@ inline int64_t readBPParticleDataStep(
             0 );
     }
 
-    //std::cout << "rank: " << rank << " finished reading particles" << std::endl; 
-
     TimeStepType tStepRead;
     reader.Get( timestepVar, &tStepRead );
     simstep = static_cast< int64_t >( tStepRead );
 
-    //std::cout << "rank: " << rank << " read simstep" << std::endl; 
-
     // RealTimeType timeRead;
     // reader.Get( timeVar, &timeRead );
     realtime = simstep; //static_cast< double >( timeRead );
-
-    // std::cout << "rank: " << rank << " read realtime" << std::endl; 
 
     return SZ;
 }
