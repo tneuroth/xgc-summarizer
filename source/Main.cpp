@@ -20,7 +20,7 @@ int main( int argc, char** argv )
 {    
     if( argc < 11 )
     {
-        cerr << "expected 10 arguments" << std:endl;
+        cerr << "expected 10 arguments" << endl;
         exit( 1 ); 
     }
 
@@ -33,12 +33,8 @@ int main( int argc, char** argv )
 
     MPI_Init( &argc, &argv );
 
-    std::cout << "MPI initialized in summarizer" << std::endl;
-
     MPI_Comm_rank( MPI_COMM_WORLD, &wrank  );
     MPI_Comm_size( MPI_COMM_WORLD, &wnproc );
-
-    std::cout << "wrank=" << wrank << ", wnproc=" << wnproc << std::endl;
 
     const unsigned int color = 12899;
     int comm_err = MPI_Comm_split( MPI_COMM_WORLD, color, wrank, &mpiReaderComm );
@@ -47,24 +43,20 @@ int main( int argc, char** argv )
     {
         if( comm_err == MPI_ERR_COMM )
         {
-            std::cerr << "wrank: error in MPI_Comm_Split, " << wrank << "MPI_ERR_COMM" << std::endl;
+            cerr << "wrank: error in MPI_Comm_Split, " << wrank << "MPI_ERR_COMM" << endl;
         }
         else if( comm_err == MPI_ERR_INTERN )
         {
-            std::cerr << "wrank: error in MPI_Comm_Split, " << wrank << "MPI_ERR_INTERN" << std::endl;   
+            cerr << "wrank: error in MPI_Comm_Split, " << wrank << "MPI_ERR_INTERN" << endl;   
         }
         else
         {
-            std::cerr << "wrank: error in MPI_Comm_Split, " << wrank << " " << comm_err << std::endl;      
+            cerr << "wrank: error in MPI_Comm_Split, " << wrank << " " << comm_err << endl;      
         }
     }
 
-    std::cout << "rank=" << rank << " called com split " << std::endl;
-
     MPI_Comm_rank( mpiReaderComm, &rank   );
     MPI_Comm_size( mpiReaderComm, &nRanks );
-
-    std::cout << "rank=" << rank << ", nRanks=" << nRanks << std::endl;
 
     int err  = adios_read_init_method ( ADIOS_READ_METHOD_BP, MPI_COMM_SELF, "verbose=3" );
 
@@ -78,8 +70,7 @@ int main( int argc, char** argv )
         nt = omp_get_num_threads();
     }
 
-    std::cout << "set omp num threads " << nt << std::endl;
-    std::cout << "summarizer started" << std::endl;
+    cout << "set omp num threads " << nt << endl;
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -89,12 +80,10 @@ int main( int argc, char** argv )
     const string particle_data_base_path = argv[ 4 ];
     const string units_path              = argv[ 5 ];
     const string outpath                 = argv[ 6 ];
-    const bool splitByBlocks             = std::string( argv[ 7 ] ) == "true";
-    const bool inSitu                    = std::string( argv[ 8 ] ) == "true";
-    const bool appendedReadMode          = std::string( argv[ 9 ] ) == "true";
-    const bool tryUsingCuda              = std::string( argv[ 10 ] ) == "true";
-
-    std::cout << "before summarizer intialize" << std::endl;
+    const bool splitByBlocks             = string( argv[ 7 ] )  == "true";
+    const bool inSitu                    = string( argv[ 8 ] )  == "true";
+    const bool appendedReadMode          = string( argv[ 9 ] )  == "true";
+    const bool tryUsingCuda              = string( argv[ 10 ] ) == "true";
 
     TN::XGCAggregator< ValueType > aggregator(
         adios2conf,
@@ -111,8 +100,6 @@ int main( int argc, char** argv )
         mpiReaderComm,
         tryUsingCuda );
 
-    std::cout << "after summarizer intialize" << std::endl;
-
     if( rank == 0 )
     {
         aggregator.writeMesh();
@@ -121,9 +108,9 @@ int main( int argc, char** argv )
     // finalize the adios 1 mesh reader
     adios_read_finalize_method ( ADIOS_READ_METHOD_BP );
 
-    std::cout << "running summarizer" << std::endl;
     aggregator.run();
 
     MPI_Finalize();
+
     return 0;
 }

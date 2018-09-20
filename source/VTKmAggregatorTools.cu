@@ -4,7 +4,7 @@ namespace TN
 {
 
 template< typename ValueType >
-VTKmAggregatorTools< ValueType >::VTKmAggregatorTools< ValueType >( bool truUseCuda )
+VTKmAggregatorTools< ValueType >::VTKmAggregatorTools< ValueType >( bool tryUseCuda )
 {
     if( tryUseCuda && 
         vtkm::cont::GetGlobalRuntimeDeviceTracker().CanRunOn( 

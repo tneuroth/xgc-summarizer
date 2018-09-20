@@ -148,7 +148,7 @@ inline int64_t readBPParticleDataStep(
             //          << " with " << dims[ 1 ] << " variables" << std::endl; 
 
             tmp.clear();
-            reader.Get( phaseVar, tmp, adios2::Mode::Sync );
+            reader.Get( phaseVar, tmp );
 
             //std::cout << "rank: " << rank << " called Get" << std::endl; 
 
@@ -207,13 +207,13 @@ inline int64_t readBPParticleDataStep(
     //std::cout << "rank: " << rank << " finished reading particles" << std::endl; 
 
     TimeStepType tStepRead;
-    reader.Get( timestepVar, &tStepRead, adios2::Mode::Sync );
+    reader.Get( timestepVar, &tStepRead );
     simstep = static_cast< int64_t >( tStepRead );
 
     //std::cout << "rank: " << rank << " read simstep" << std::endl; 
 
     // RealTimeType timeRead;
-    // reader.Get( timeVar, &timeRead, adios2::Mode::Sync );
+    // reader.Get( timeVar, &timeRead );
     realtime = simstep; //static_cast< double >( timeRead );
 
     // std::cout << "rank: " << rank << " read realtime" << std::endl; 
