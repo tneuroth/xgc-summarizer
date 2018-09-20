@@ -18,17 +18,10 @@ typedef float ValueType;
 
 int main( int argc, char** argv )
 {    
-    if( argc < 7 )
+    if( argc < 11 )
     {
-        cerr << "expected:\
-            <executable> \
-                <mesh path> \
-                <bfield path> \
-                <particle data base path> \
-                <units.m path> \
-                <bool split particle data> \
-                <bool in-situ> \
-                <bool single particle file>\n";
+        cerr << "expected 10 arguments" << std:endl;
+        exit( 1 ); 
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -99,6 +92,7 @@ int main( int argc, char** argv )
     const bool splitByBlocks             = std::string( argv[ 7 ] ) == "true";
     const bool inSitu                    = std::string( argv[ 8 ] ) == "true";
     const bool appendedReadMode          = std::string( argv[ 9 ] ) == "true";
+    const bool tryUsingCuda              = std::string( argv[ 10 ] ) == "true";
 
     std::cout << "before summarizer intialize" << std::endl;
 
@@ -114,7 +108,8 @@ int main( int argc, char** argv )
         splitByBlocks,
         rank,
         nRanks,
-        mpiReaderComm );
+        mpiReaderComm,
+        tryUsingCuda );
 
     std::cout << "after summarizer intialize" << std::endl;
 

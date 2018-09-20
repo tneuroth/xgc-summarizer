@@ -36,7 +36,6 @@ struct VTKmInterpolator2D
 
         using ExecutionSignature = void(_1, _2, _3, _4, _5, _6, _7, _8 );
 
-        VTKM_EXEC
         vtkm::Id m_maxNeighbors;
 
         VTKM_CONT
@@ -105,10 +104,11 @@ struct VTKmInterpolator2D
         vtkm::cont::ArrayHandle< ScalarType, ScalarStorageTag >                     & result,
         DeviceAdapter device )
     {
+        
         InterpolationWorklet2D interpolationWorklet( static_cast< vtkm::Id >( MAX_NEIGHBORS )  );
         vtkm::worklet::DispatcherMapField< InterpolationWorklet2D >
         interpDispatcher( interpolationWorklet );
-
+        
         interpDispatcher.Invoke(
             particleCoords,
             particleNeighbors,

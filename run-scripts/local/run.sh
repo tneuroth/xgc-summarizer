@@ -10,7 +10,8 @@
     #whether to split by blocks or just evenly split particles
     #whether to run the program in situ (waiting for steps to be written from simulation)
     #whether the particle files are given in append mode or not
-
+    #whether to try using cuda
+    
 DATA_DIR=/media/tn0/data/datasets/CODAR/
 
 mpirun -np 4\
@@ -22,6 +23,7 @@ mpirun -np 4\
                  ${DATA_DIR}/summary/ \
                  false \
                  false \
-                 false
+                 false \
+                 true
 
 

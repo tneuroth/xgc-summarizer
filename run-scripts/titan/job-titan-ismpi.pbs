@@ -29,6 +29,7 @@ aprun -n 1024 -N 8 ./xgc-es :\
           $OUTPUT_PATH \
           false \
           true \
+          true \
           true
 
 

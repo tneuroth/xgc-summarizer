@@ -10,23 +10,12 @@
 #include "XGCSynchronizer.hpp"
 #include "grid-algorithms/MeshUtils.hpp"
 #include "Tracker.hpp"
-
-#include <adios2.h>
 #include <mpi.h>
 
-#include <vtkm/cont/DeviceAdapterAlgorithm.h>
-#include <vtkm/worklet/DispatcherMapField.h>
 #include <vector>
 #include <set>
 #include <chrono>
 #include <exception>
-
-template< typename DeviceAdapter >
-void checkDevice(DeviceAdapter)
-{
-    using DeviceAdapterTraits = vtkm::cont::DeviceAdapterTraits<DeviceAdapter>;
-    std::cout << "vtkm is using " << DeviceAdapterTraits::GetName() << std::endl;
-}
 
 namespace TN
 {
@@ -44,19 +33,21 @@ XGCAggregator< ValueType >::XGCAggregator(
     bool splitByBlocks,
     int m_rank,
     int nm_ranks,
-    MPI_Comm communicator ) :
-    m_meshFilePath( meshFilePath ),
-    m_bFieldFilePath( bfieldFilePath ),
-    m_particleFile( restartPath ),
-    m_unitsMFilePath( unitsFilePath ),
-    m_outputDirectory( outputDirectory ),
-    m_inSitu( inSitu ),
-    m_splitByBlocks( splitByBlocks ),
-    m_rank( m_rank ),
-    m_nranks( nm_ranks ),
-    m_summaryWriterAppendMode( true ),
-    m_mpiCommunicator( communicator ),
-    m_superParticleThreshold( std::numeric_limits< float >::max() )
+    MPI_Comm communicator,
+    bool tryUsingCuda ) :
+        m_meshFilePath( meshFilePath ),
+        m_bFieldFilePath( bfieldFilePath ),
+        m_particleFile( restartPath ),
+        m_unitsMFilePath( unitsFilePath ),
+        m_outputDirectory( outputDirectory ),
+        m_inSitu( inSitu ),
+        m_splitByBlocks( splitByBlocks ),
+        m_rank( m_rank ),
+        m_nranks( nm_ranks ),
+        m_summaryWriterAppendMode( true ),
+        m_mpiCommunicator( communicator ),
+        m_superParticleThreshold( std::numeric_limits< float >::max() ),
+        m_aggregatorTools( tryUsingCuda )
 {
     const std::map< std::string, std::string > ioEngines 
         = TN::XML::extractIoEngines( adiosConfigFilePath );
@@ -111,18 +102,13 @@ XGCAggregator< ValueType >::XGCAggregator(
 
     //std::cout << "setting grid" << std::endl;
 
-    setGrid(
+    m_aggregatorTools.setGrid(
         m_summaryGrid.variables.at( "r" ),
         m_summaryGrid.variables.at( "z" ),
         m_summaryGrid.variables.at( "B" ),
         m_summaryGrid.neighborhoods,
         m_summaryGrid.neighborhoodSums,
         m_summaryGrid.vertexFlags );
-
-    if( m_rank == 0 )
-    {
-        checkDevice( VTKM_DEFAULT_DEVICE_ADAPTER_TAG() );
-    }
 }
 
 template< typename ValueType >
@@ -392,7 +378,7 @@ void XGCAggregator< ValueType >::runInPost()
 
         /////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-        std::unique_ptr< adios2::IO > io;
+        std::unique_ptr<     adios2::IO > io;
         std::unique_ptr< adios2::Engine > en;
 
         computeSummaryStep(
@@ -426,95 +412,6 @@ void XGCAggregator< ValueType >::run()
     else
     {
         runInPost();
-    }
-}
-
-template< typename ValueType >
-void XGCAggregator< ValueType >::setGrid(
-    const std::vector< ValueType > & r,
-    const std::vector< ValueType > & z,
-    const std::vector< ValueType > & scalar,
-    const std::vector< int64_t > & gridNeighborhoods,
-    const std::vector< int64_t > & gridNeighborhoodSums,
-    const std::vector< uint8_t > & vertexFlags )
-{
-    const int64_t N_CELLS = r.size();
-    m_gridPoints.resize( N_CELLS );
-
-    #pragma omp parallel for simd
-    for( int64_t i = 0; i < N_CELLS; ++i )
-    {
-        m_gridPoints[ i ] = vtkm::Vec< ValueType, 2 >( r[ i ], z[ i ] );
-    }
-
-    m_gridHandle = vtkm::cont::make_ArrayHandle( m_gridPoints );
-
-    m_gridNeighborhoods = std::vector< vtkm::Int64 >( gridNeighborhoods.begin(), gridNeighborhoods.end() );
-    m_gridNeighborhoodsHandle = vtkm::cont::make_ArrayHandle( m_gridNeighborhoods );
-
-    m_gridNeighborhoodSums = std::vector< vtkm::Int64 >( gridNeighborhoodSums.begin(), gridNeighborhoodSums.end() );
-    m_gridNeighborhoodSumsHandle = vtkm::cont::make_ArrayHandle( m_gridNeighborhoodSums );
-
-    m_gridScalars = std::vector< ValueType >( scalar.begin(), scalar.end() );
-    m_gridScalarHandle = vtkm::cont::make_ArrayHandle( m_gridScalars );
-
-    m_vertexFlagsHandle = vtkm::cont::make_ArrayHandle( vertexFlags );
-
-    m_kdTree.Build( m_gridHandle, VTKM_DEFAULT_DEVICE_ADAPTER_TAG() );
-}
-
-template< typename ValueType >
-void XGCAggregator< ValueType >::compute(
-    std::vector< int64_t >     & result,
-    std::vector< ValueType >       & field,
-    const std::vector< ValueType > & r,
-    const std::vector< ValueType > & z )
-{
-    const int64_t SZ = r.size();
-    std::vector< vtkm::Vec< ValueType, 2 > > ptclPos( SZ );
-
-    #pragma omp parallel for simd
-    for( int64_t i = 0; i < SZ; ++i )
-    {
-        ptclPos[ i ] = vtkm::Vec< ValueType, 2 >( r[ i ], z[ i ] );
-    }
-
-    auto ptclHandle = vtkm::cont::make_ArrayHandle( ptclPos );
-
-    vtkm::cont::ArrayHandle< vtkm::Id  > idHandle;
-    vtkm::cont::ArrayHandle< ValueType > distHandle;
-
-    m_kdTree.Run( m_gridHandle, ptclHandle, idHandle, distHandle, VTKM_DEFAULT_DEVICE_ADAPTER_TAG() );
-
-    vtkm::cont::ArrayHandle<vtkm::Float32> fieldResultHandle;
-    m_interpolator.run(
-        ptclHandle,
-        idHandle,
-        m_gridHandle,
-        m_vertexFlagsHandle,
-        m_gridScalarHandle,
-        m_gridNeighborhoodsHandle,
-        m_gridNeighborhoodSumsHandle,
-        m_summaryGrid.maxNeighbors,
-        fieldResultHandle,
-        VTKM_DEFAULT_DEVICE_ADAPTER_TAG() );
-
-    result.resize( SZ );
-    const auto idControl = idHandle.GetPortalConstControl();
-
-    #pragma omp parallel for simd
-    for( int64_t i = 0; i < SZ; ++i )
-    {
-        result[ i ] =  idControl.Get( i );
-    }
-
-    field.resize( SZ );
-    const auto fieldControl = fieldResultHandle.GetPortalConstControl();
-
-    #pragma omp parallel for simd
-    for( int64_t i = 0; i < SZ; ++i )
-    {
-        field[ i ] = fieldControl.Get( i );
     }
 }
 
@@ -722,6 +619,9 @@ void XGCAggregator< ValueType >::computeSummaryStep(
     std::unique_ptr< adios2::IO > & particlePathIO,
     std::unique_ptr< adios2::Engine > & particlePathWriter )
 {
+    bool TRACKING_ENABLED = false;
+
+
     const size_t SZ      = phase.size() / 9;
     const size_t R_POS   = XGC_PHASE_INDEX_MAP.at( "r" ) * SZ;
     const size_t Z_POS   = XGC_PHASE_INDEX_MAP.at( "z" ) * SZ;
@@ -732,8 +632,6 @@ void XGCAggregator< ValueType >::computeSummaryStep(
 
     // for VTKM nearest neighbors and B field Interpolation //////////////////////
 
-    std::chrono::high_resolution_clock::time_point kdt1 = std::chrono::high_resolution_clock::now();
-
     static std::vector< int64_t > gridMap;
 
     static std::vector< ValueType > r;
@@ -742,6 +640,7 @@ void XGCAggregator< ValueType >::computeSummaryStep(
     r.resize( SZ );
     z.resize( SZ );
 
+    #pragma omp parallel for
     for( size_t i = 0; i < SZ; ++i )
     {
         r[ i ] = phase[ R_POS + i ];
@@ -751,7 +650,9 @@ void XGCAggregator< ValueType >::computeSummaryStep(
     m_B.resize( SZ );
     gridMap.resize( SZ );
 
-    compute( gridMap, m_B, r, z );
+    std::chrono::high_resolution_clock::time_point kdt1 = std::chrono::high_resolution_clock::now();
+
+    m_aggregatorTools.compute( gridMap, m_B, r, z, m_summaryGrid.maxNeighbors );
 
     std::chrono::high_resolution_clock::time_point kdt2 = std::chrono::high_resolution_clock::now();
     std::cout << "RANK: " << m_rank
@@ -824,100 +725,132 @@ void XGCAggregator< ValueType >::computeSummaryStep(
     /*********************************************************************************************/
     // Particle Tracking
 
+    if( TRACKING_ENABLED )
+    {
+
     // identify super particles
-    std::vector< int64_t > myNewSuperParticles;
-    TN::Tracker::identifyNewSuperParticles( 
-        m_particleIds,
-        m_phase,
-        myNewSuperParticles,
-        m_superParticleThreshold );
+        std::vector< int64_t > myNewSuperParticles;
+        TN::Tracker::identifyNewSuperParticles( 
+            m_particleIds,
+            m_phase,
+            myNewSuperParticles,
+            m_superParticleThreshold );
 
-    int64_t myNumNewParticles = myNewSuperParticles.size();
-    
-    // communicate total number of new super particles to all nodes
+        int64_t myNumNewParticles = myNewSuperParticles.size();
+        
+        // communicate total number of new super particles to all nodes
 
-    int64_t totalNumNewParticles;
+        int64_t totalNumNewParticles;
 
-    MPI_Allreduce(
-        & myNumNewParticles,
-        & totalNumNewParticles,
-        1,
-        MPI_LONG_LONG_INT,
-        MPI_SUM,
-        m_mpiCommunicator );
+        MPI_Allreduce(
+            & myNumNewParticles,
+            & totalNumNewParticles,
+            1,
+            MPI_LONG_LONG_INT,
+            MPI_SUM,
+            m_mpiCommunicator );
 
-    // gather new super particles to all nodes
-    
-    std::vector< int64_t > allNewSuperParticles( totalNumNewParticles );
-    std::vector< int > newParticleGatherOffsets( m_nranks );
-    std::vector< int > toGatherPerNode( m_nranks );
+        // gather new super particles to all nodes
+        
+        std::vector< int64_t > allNewSuperParticles( totalNumNewParticles );
+        std::vector< int > newParticleGatherOffsets( m_nranks );
+        std::vector< int > toGatherPerNode( m_nranks );
 
-    MPI_Allgather(
-        & myNumNewParticles, 
-        1, 
-        MPI_INT,
-        toGatherPerNode.data(), 
-        m_nranks, 
-        MPI_INT, 
-        m_mpiCommunicator );
+        MPI_Allgather(
+            & myNumNewParticles, 
+            1, 
+            MPI_INT,
+            toGatherPerNode.data(), 
+            m_nranks, 
+            MPI_INT, 
+            m_mpiCommunicator );
 
-    int currGatherOffset = 0;
-    for( int i = 0; i < m_nranks; ++i )
-    {
-        newParticleGatherOffsets[ i ] = currGatherOffset;
-        currGatherOffset += toGatherPerNode[ i ];
-    }
+        int currGatherOffset = 0;
+        for( int i = 0; i < m_nranks; ++i )
+        {
+            newParticleGatherOffsets[ i ] = currGatherOffset;
+            currGatherOffset += toGatherPerNode[ i ];
+        }
 
-    MPI_Allgatherv(
-        myNewSuperParticles.data(), 
-        static_cast< int >( myNewSuperParticles.size() ), 
-        MPI_LONG_LONG_INT,
-        allNewSuperParticles.data(), 
-        toGatherPerNode.data(), 
-        newParticleGatherOffsets.data(),
-        MPI_LONG_LONG_INT, 
-        m_mpiCommunicator );
+        MPI_Allgatherv(
+            myNewSuperParticles.data(), 
+            static_cast< int >( myNewSuperParticles.size() ), 
+            MPI_LONG_LONG_INT,
+            allNewSuperParticles.data(), 
+            toGatherPerNode.data(), 
+            newParticleGatherOffsets.data(),
+            MPI_LONG_LONG_INT, 
+            m_mpiCommunicator );
 
-    // add new super particles to set of tracked particles
+        // add new super particles to set of tracked particles
 
-    trackedParticleIds.insert( 
-        allNewSuperParticles.begin(), 
-        allNewSuperParticles.end() );
+        trackedParticleIds.insert( 
+            allNewSuperParticles.begin(), 
+            allNewSuperParticles.end() );
 
-    // record values for super particles on this node
+        // record values for super particles on this node
 
-    PhasePathStep < ValueType > phasePaths;
+        PhasePathStep < ValueType > phasePaths;
 
-    TN::Tracker::trackParticles(
-        m_particleIds,
-        m_phase,
-        trackedParticleIds,
-        phasePaths );
+        TN::Tracker::trackParticles(
+            m_particleIds,
+            m_phase,
+            trackedParticleIds,
+            phasePaths );
 
-    // get the number of tracked particles found for each node
+        // get the number of tracked particles found for each node
 
-    int64_t myNumFoundTrackedParticles = phasePaths.ids.size();
-    std::vector< int64_t > eachNodesNumFoundTrackedParticles( m_nranks );
+        int64_t myNumFoundTrackedParticles = phasePaths.ids.size();
+        std::vector< int64_t > eachNodesNumFoundTrackedParticles( m_nranks );
 
-    MPI_Allgather(
-        & myNumFoundTrackedParticles, 
-        1, 
-        MPI_LONG_LONG_INT,
-        eachNodesNumFoundTrackedParticles.data(), 
-        m_nranks, 
-        MPI_LONG_LONG_INT, 
-        m_mpiCommunicator );
+        MPI_Allgather(
+            & myNumFoundTrackedParticles, 
+            1, 
+            MPI_LONG_LONG_INT,
+            eachNodesNumFoundTrackedParticles.data(), 
+            m_nranks, 
+            MPI_LONG_LONG_INT, 
+            m_mpiCommunicator );
 
-    int64_t myGlobalOffset = 0;
-    for( int i = 0; i < m_rank; ++i )
-    {
-        myGlobalOffset += eachNodesNumFoundTrackedParticles[ i ];
-    }
+        int64_t myGlobalOffset = 0;
+        for( int i = 0; i < m_rank; ++i )
+        {
+            myGlobalOffset += eachNodesNumFoundTrackedParticles[ i ];
+        }
 
-    int64_t totalNumFoundTrackedParticles = 0;
-    for( int i = 0; i < m_rank; ++i )
-    {
-        totalNumFoundTrackedParticles += eachNodesNumFoundTrackedParticles[ i ];
+        int64_t totalNumFoundTrackedParticles = 0;
+        for( int i = 0; i < m_rank; ++i )
+        {
+            totalNumFoundTrackedParticles += eachNodesNumFoundTrackedParticles[ i ];
+        }
+
+        if( m_summaryWriterAppendMode )
+        {
+            particlePathWriter->BeginStep();
+
+            writeParticlePathsStep(
+                phasePaths,
+                myGlobalOffset,
+                totalNumFoundTrackedParticles,    
+                XGC_PHASE_INDEX_MAP.size(),
+                "super", 
+                *particlePathIO,
+                *particlePathWriter );
+            
+            particlePathWriter->EndStep();
+        }
+        else
+        {
+            writeParticlePathsStep(
+                phasePaths,
+                myGlobalOffset,
+                totalNumFoundTrackedParticles, 
+                m_outputDirectory,   
+                summaryStep.simStep,
+                XGC_PHASE_INDEX_MAP.size(),
+                "super",
+                m_mpiCommunicator );
+        }
     }
 
     /*********************************************************************************************/
@@ -1013,34 +946,6 @@ void XGCAggregator< ValueType >::computeSummaryStep(
         std::chrono::high_resolution_clock::time_point wt2 = std::chrono::high_resolution_clock::now();
         std::cout << "write step took " << std::chrono::duration_cast<std::chrono::milliseconds>( wt2 - wt1 ).count()
                   << " std::chrono::milliseconds\n"  << std::endl;
-    }
-
-    if( m_summaryWriterAppendMode )
-    {
-        particlePathWriter->BeginStep();
-
-        writeParticlePathsStep(
-            phasePaths,
-            myGlobalOffset,
-            totalNumFoundTrackedParticles,    
-            XGC_PHASE_INDEX_MAP.size(),
-            "super", 
-            *particlePathIO,
-            *particlePathWriter );
-        
-        particlePathWriter->EndStep();
-    }
-    else
-    {
-        writeParticlePathsStep(
-            phasePaths,
-            myGlobalOffset,
-            totalNumFoundTrackedParticles, 
-            m_outputDirectory,   
-            summaryStep.simStep,
-            XGC_PHASE_INDEX_MAP.size(),
-            "super",
-            m_mpiCommunicator );
     }
 
     MPI_Barrier( m_mpiCommunicator );

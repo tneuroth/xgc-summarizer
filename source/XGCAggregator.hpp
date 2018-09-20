@@ -2,16 +2,17 @@
 #define TN_PTCL_MESH_INTERPOLATOR_HPP
 
 #include "Summary.hpp"
+#include "VTKmAggregatorTools.hpp"
+
 #include <adios2.h>
-#include <KDTree/KdTree.h>
-#include "VTKmInterpolator.hpp"
-#include "VTKmAggregator.hpp"
 #include <map>
 #include <unordered_map>
 #include <unordered_set>
 #include <set>
 #include <string>
 #include <vector>
+#include <memory>
+
 #include "mpi.h"
 
 namespace TN
@@ -33,6 +34,30 @@ const std::unordered_map< std::string, int > XGC_PHASE_INDEX_MAP =
 template < typename ValueType >
 class XGCAggregator
 {
+
+public:
+
+    XGCAggregator(
+        const std::string & adiosConfigFilePath,
+        const std::string & meshFilePath,
+        const std::string & bfieldFilePath,
+        const std::string & restartDirectory,
+        const std::string & unitsFilePath,
+        const std::string & outputDirectory,
+        const std::set< std::string > & particleTypes,
+        bool inSitu,
+        bool m_splitByBlocks,
+        int rank,
+        int nranks,
+        MPI_Comm communicator,
+        bool tryUsingCuda );
+
+    void run();
+
+    void writeMesh();
+
+private:
+
     std::string m_meshFilePath;
     std::string m_bFieldFilePath;
     std::string m_particleFile;
@@ -62,68 +87,16 @@ class XGCAggregator
         const std::string & ptype,
         std::unique_ptr< adios2::IO > & summaryIO,
         std::unique_ptr< adios2::Engine > & summaryWriter,
-        std::unique_ptr< adios2::IO > & particlePathIO,
+        std::unique_ptr< adios2::IO > & particlePathI,
         std::unique_ptr< adios2::Engine > & particlePathWriter );
-
-public:
-
-
-    XGCAggregator(
-        const std::string & adiosConfigFilePath,
-        const std::string & meshFilePath,
-        const std::string & bfieldFilePath,
-        const std::string & restartDirectory,
-        const std::string & unitsFilePath,
-        const std::string & outputDirectory,
-        const std::set< std::string > & particleTypes,
-        bool inSitu,
-        bool m_splitByBlocks,
-        int rank,
-        int nranks,
-        MPI_Comm communicator );
 
     void runInSitu();
     void runInPost();
 
-    void run();
-    void writeMesh();
-
-private:
-
     TN::SummaryGrid< ValueType > m_summaryGrid;
-
-    vtkm::worklet::KdTree< 2 > m_kdTree;
-    TN::VTKmInterpolator2D m_interpolator;
-
-    vtkm::cont::ArrayHandle< vtkm::Vec< ValueType, 2 > > m_gridHandle;
-    std::vector< vtkm::Vec< ValueType, 2 > > m_gridPoints;
-
-    vtkm::cont::ArrayHandle< ValueType > m_gridScalarHandle;
-    std::vector< ValueType > m_gridScalars;
-
-    vtkm::cont::ArrayHandle< vtkm::Int64 > m_gridNeighborhoodsHandle;
-    std::vector< vtkm::Int64 > m_gridNeighborhoods;
-
-    vtkm::cont::ArrayHandle< vtkm::Int64 > m_gridNeighborhoodSumsHandle;
-    std::vector< vtkm::Int64 > m_gridNeighborhoodSums;
-
-    vtkm::cont::ArrayHandle< vtkm::UInt8 > m_vertexFlagsHandle;
+    TN::VTKmAggregatorTools< ValueType > m_aggregatorTools;
 
     std::map< std::string, double > m_constants;
-
-    void setGrid(
-        const std::vector< ValueType > & r,
-        const std::vector< ValueType > & z,
-        const std::vector< ValueType > & scalar,
-        const std::vector< int64_t >   & gridNeighborhoods,
-        const std::vector< int64_t >   & gridNeighborhoodSums,
-        const std::vector< uint8_t >   & vertexFlags );
-
-    void compute(
-        std::vector< int64_t > & neighbors,
-        std::vector< ValueType > & field,
-        const std::vector< ValueType > & r,
-        const std::vector< ValueType > & z );
 
     void aggregateOMP(
         const SummaryGrid< ValueType > & summaryGrid,

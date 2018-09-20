@@ -10,6 +10,7 @@
     #whether to split by blocks or just evenly split particles
     #whether to run the program in situ (waiting for steps to be written from simulation)
     #whether to the particle files were written in append mode or not
+    #whether to try using cuda
 
 DATA_DIR=/media/tn0/data/datasets/inSituTest
 
@@ -21,6 +22,7 @@ mpirun -np 8\
                  ${DATA_DIR}/units.m \
                  ${DATA_DIR}/summary/ \
                  false \
+                 true \
                  true \
                  true
 
