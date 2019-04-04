@@ -48,15 +48,15 @@ struct VTKmAggregator
 
         using ControlSignature = void(
                                      KeysIn              keys,
-                                     ValuesIn<>          vxIn,
-                                     ValuesIn<>          vyIn,
-                                     ValuesIn<>          wIn,
-                                     ReducedValuesOut<>  sumOut,
-                                     ReducedValuesOut<>  squareSumOut,
-                                     ReducedValuesOut<>  minOut,
-                                     ReducedValuesOut<>  maxOut,
-                                     ReducedValuesOut<>  countOut,
-                                     ReducedValuesOut<>  histogram2DOut );
+                                     ValuesIn          vxIn,
+                                     ValuesIn          vyIn,
+                                     ValuesIn          wIn,
+                                     ReducedValuesOut  sumOut,
+                                     ReducedValuesOut  squareSumOut,
+                                     ReducedValuesOut  minOut,
+                                     ReducedValuesOut  maxOut,
+                                     ReducedValuesOut  countOut,
+                                     ReducedValuesOut  histogram2DOut );
 
         using ExecutionSignature = void( _2, _3, _4, _5, _6, _7, _8, _9, _10 );
         using InputDomain = _1;
@@ -147,10 +147,10 @@ struct VTKmAggregator
     {
         using ControlSignature = void(
                                      KeysIn keys,
-                                     ValuesIn<> vIn,
-                                     ReducedValuesIn<> sumsIn,
-                                     ReducedValuesIn<> countsIn,
-                                     ReducedValuesOut<> sumOut );
+                                     ValuesIn vIn,
+                                     ReducedValuesIn sumsIn,
+                                     ReducedValuesIn countsIn,
+                                     ReducedValuesOut sumOut );
 
         using ExecutionSignature = void( _2, _3, _4, _5 );
         using InputDomain = _1;
@@ -186,8 +186,8 @@ struct VTKmAggregator
     // struct Normalize1Worklet : public vtkm::worklet::WorkletMapField
     // {
     //     using ControlSignature = void(
-    //                                  FieldInOut<>  vInOut,
-    //                                  FieldIn<>    countIn );
+    //                                  FieldInOut  vInOut,
+    //                                  FieldIn    countIn );
 
     //     using ExecutionSignature = void( _1, _2, _3 );
 
@@ -206,9 +206,9 @@ struct VTKmAggregator
     // struct Normalize2Worklet : public vtkm::worklet::WorkletMapField
     // {
     //     using ControlSignature = void(
-    //                                  FieldInOut<>  mInOut,
-    //                                  FieldInOut<> msInOut,
-    //                                  FieldIn<>    countIn );
+    //                                  FieldInOut  mInOut,
+    //                                  FieldInOut msInOut,
+    //                                  FieldIn    countIn );
 
     //     using ExecutionSignature = void( _1, _2, _3 );
 

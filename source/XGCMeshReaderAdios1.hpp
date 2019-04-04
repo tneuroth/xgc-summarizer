@@ -127,7 +127,7 @@ inline void readMeshBP(
 
     const double NM = tmp1.back();
 
-    #pragma omp parallel for simd
+    #pragma omp parallel for
     for( int i = 0; i < SZ; ++i )
     {
         psin[ i ] = tmp1[ i ] / NM;
@@ -145,7 +145,7 @@ inline void readMeshBP(
     summaryGrid.variables.insert( { "volume", std::vector< ValueType >( SZ ) } );
     auto & volume = summaryGrid.variables.at( "volume" );
 
-    #pragma omp parallel for simd
+    #pragma omp parallel for
     for( int i = 0; i < SZ; ++i )
     {
         volume[ i ] = tmp1[ i ];
@@ -158,7 +158,7 @@ inline void readMeshBP(
     summaryGrid.variables.insert( { "poloidal_angle", std::vector< ValueType >( SZ ) } );
     auto & poloidal_angle = summaryGrid.variables.at( "poloidal_angle" );
 
-    #pragma omp parallel for simd
+    #pragma omp parallel for
     for( int s = 0; s < SZ; ++s )
     {
         poloidal_angle[ s ] =
@@ -188,7 +188,7 @@ inline void readMeshBP(
     // copy to mesh structure
 
     summaryGrid.triangulation.resize( SZ );
-    #pragma omp parallel for simd
+    #pragma omp parallel for
     for( size_t i = 0; i < SZ; ++i )
     {
         summaryGrid.triangulation[ i ][ 0 ] = indices[ i*3 + 0 ];
@@ -224,7 +224,7 @@ inline void readMeshBP(
     summaryGrid.variables.insert( { "B", std::vector< ValueType >( SZ ) } );
     auto & B = summaryGrid.variables.at( "B" );
 
-    #pragma omp parallel for simd
+    #pragma omp parallel for
     for( int s = 0; s < SZ; ++s )
     {
         B[ s ] = std::sqrt(

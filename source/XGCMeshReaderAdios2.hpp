@@ -181,7 +181,7 @@ inline void readMeshBP(
 
     summaryGrid.probes.psin.resize( SZ );
     const double NM = tmp1.back();
-    #pragma omp parallel for simd
+    #pragma omp parallel for
     for( int i = 0; i < SZ; ++i )
     {
         summaryGrid.probes.psin[ i ] = tmp1[ i ] / NM;
@@ -197,7 +197,7 @@ inline void readMeshBP(
     adios_perform_reads ( f, 1 );
 
     summaryGrid.probes.volume.resize( SZ );
-    #pragma omp parallel for simd
+    #pragma omp parallel for
     for( int i = 0; i < SZ; ++i )
     {
         summaryGrid.probes.volume[ i ] = tmp1[ i ];
@@ -208,7 +208,7 @@ inline void readMeshBP(
     /////////////////////////// Compute Poloidal Angle /////////////////////////////////////////////////////////////////////////
 
     summaryGrid.probes.poloidalAngle.resize( SZ );
-    #pragma omp parallel for simd
+    #pragma omp parallel for
     for( int s = 0; s < SZ; ++s )
     {
         summaryGrid.probes.poloidalAngle[ s ] =
@@ -238,7 +238,7 @@ inline void readMeshBP(
     // copy to mesh structure
 
     summaryGrid.probeTriangulation.resize( SZ );
-    #pragma omp parallel for simd
+    #pragma omp parallel for
     for( size_t i = 0; i < SZ; ++i )
     {
         summaryGrid.probeTriangulation[ i ][ 0 ] = indices[ i*3 + 0 ];
@@ -272,7 +272,7 @@ inline void readMeshBP(
     adios_perform_reads ( f, 1 );
 
     summaryGrid.probes.B.resize( tmp3.size() );
-    #pragma omp parallel for simd
+    #pragma omp parallel for
     for( int s = 0; s < SZ; ++s )
     {
         summaryGrid.probes.B[ s ] = std::sqrt(

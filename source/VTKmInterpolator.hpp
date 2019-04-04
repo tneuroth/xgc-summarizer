@@ -25,14 +25,14 @@ struct VTKmInterpolator2D
     struct InterpolationWorklet2D : public vtkm::worklet::WorkletMapField
     {
         using ControlSignature = void(
-            FieldIn<> pcIn,
-            FieldIn<> mnIn,
-            WholeArrayIn<> flIn,
-            WholeArrayIn<> qcIn,
-            WholeArrayIn<> scIn,
-            WholeArrayIn<> nbIn,
-            WholeArrayIn<> nsIn,
-            FieldOut<> rsOut );
+            FieldIn pcIn,
+            FieldIn mnIn,
+            WholeArrayIn flIn,
+            WholeArrayIn qcIn,
+            WholeArrayIn scIn,
+            WholeArrayIn nbIn,
+            WholeArrayIn nsIn,
+            FieldOut rsOut );
 
         using ExecutionSignature = void(_1, _2, _3, _4, _5, _6, _7, _8 );
 

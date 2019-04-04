@@ -666,7 +666,7 @@ void XGCAggregator< ValueType >::computeSummaryStep(
     std::vector< ValueType >    w0( SZ );
     std::vector< ValueType >    w1( SZ );
 
-    #pragma omp parallel for simd
+    #pragma omp parallel for
     for( size_t i = 0; i < SZ; ++i )
     {
         w0[  i ] = phase[ W0_POS + i ];
@@ -682,7 +682,7 @@ void XGCAggregator< ValueType >::computeSummaryStep(
 
     if( ptype == "ions")
     {
-        #pragma omp parallel for simd
+        #pragma omp parallel for
         for( size_t i = 0; i < SZ; ++i )
         {
             vpara[ i ] = m_B[ i ] * phase[ RHO_POS + i ] * ( ( ptl_ion_charge_eu * e ) / mi_sim );
@@ -691,7 +691,7 @@ void XGCAggregator< ValueType >::computeSummaryStep(
     }
     else
     {
-        #pragma omp parallel for simd
+        #pragma omp parallel for
         for( size_t i = 0; i < SZ; ++i )
         {
             vpara[ i ] =( m_B[ i ] * phase[ RHO_POS + i ] * (-e) ) / me_sim;

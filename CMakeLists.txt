@@ -12,7 +12,7 @@ option(VTKM_CUDA OFF)
 
 set(DEV ${CMAKE_CURRENT_SOURCE_DIR}/../)
 set(SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/source/)
-set(VTKm_DIR "${DEV}/vtkm-build/lib/cmake/vtkm-1.2")
+set(VTKm_DIR "${DEV}/vtkm-build/lib/cmake/vtkm-1.3")
   
 if(TITAN)
     set(CMAKE_C_COMPILER cc)
@@ -64,16 +64,16 @@ find_package(VTKm REQUIRED)
 find_package(CUDA REQUIRED)  
 
 add_library(aggregator ${SRC_DIR}/XGCAggregator.cxx)
-add_library(aggregatorTools ${SRC_DIR}/VTKmAggregatorTools.cpp)
+add_library(aggregatorTools ${SRC_DIR}/VTKmAggregatorTools.cu)
 
 target_link_libraries( aggregatorTools vtkm_cont )
 
-if( VTKM_CUDA ) 
-    # set_target_properties( aggregatorTools PROPERTIES CUDA_SEPARABLE_COMPILATION ON ) 
-    # set_target_properties( vtkm_cont PROPERTIES CUDA_SEPARABLE_COMPILATION ON )          
-    # get_source_file_property( _cuda_source_format VTKmAggregatorTools.cxx CUDA_SOURCE_PROPERTY_FORMAT)
-    # set_source_files_properties( VTKmAggregatorTools.cxx PROPERTIES CUDA_SOURCE_PROPERTY_FORMAT _cuda_source_format )
-endif()
+#if( VTKM_CUDA ) 
+#    set_target_properties( aggregatorTools PROPERTIES CUDA_SEPARABLE_COMPILATION ON ) 
+#    set_target_properties( vtkm_cont PROPERTIES CUDA_SEPARABLE_COMPILATION ON )          
+#    get_source_file_property( _cuda_source_format VTKmAggregatorTools.cxx CUDA_SOURCE_PROPERTY_FORMAT)
+#    set_source_files_properties( VTKmAggregatorTools.cxx PROPERTIES CUDA_SOURCE_PROPERTY_FORMAT _cuda_source_format )
+#endif()
 
 if(TITAN)
     target_link_libraries(aggregator aggregatorTools adios2 adios2_sst pthread adios2_evpath 

@@ -21,7 +21,7 @@ inline void localDivide(
     
     if( safe )
     {
-        #pragma omp parallel for simd
+        #pragma omp parallel for
         for( int64_t i = 0; i < SZ; ++i )
         {
             if( denominator[ i ] != 0 )
@@ -32,7 +32,7 @@ inline void localDivide(
     }
     else
     {
-        #pragma omp parallel for simd
+        #pragma omp parallel for
         for( int64_t i = 0; i < SZ; ++i )
         {
             result[ i ] /= denominator;
@@ -50,7 +50,7 @@ inline void localDivide(
 
     if( safe )
     {
-        #pragma omp parallel for simd
+        #pragma omp parallel for
         for( int64_t i = 0; i < SZ; ++i )
         {
             if( denominator[ i ] != 0 )
@@ -61,7 +61,7 @@ inline void localDivide(
     }
     else
     {
-        #pragma omp parallel for simd
+        #pragma omp parallel for
         for( int64_t i = 0; i < SZ; ++i )
         {
             result[ i ] /= denominator[ i ];
@@ -79,7 +79,7 @@ inline void localSqrtAndDivide(
     
     if( safe )
     {
-        #pragma omp parallel for simd
+        #pragma omp parallel for
         for( int64_t i = 0; i < SZ; ++i )
         {
             if( denominator[ i ] != 0 )
@@ -90,7 +90,7 @@ inline void localSqrtAndDivide(
     }
     else
     {
-        #pragma omp parallel for simd
+        #pragma omp parallel for
         for( int64_t i = 0; i < SZ; ++i )
         {
             result[ i ] = std::sqrt( result[ i ] ) / denominator[ i ];
